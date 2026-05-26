@@ -743,10 +743,10 @@
         [data-theme="light"] .panel-info {
             background: rgba(255, 255, 255, 0.95);
         }
-        .map-box:hover .panel-info,
-        .map-box:focus-within .panel-info {
+        .map-box.show-info .panel-info {
             opacity: 1;
             transform: translateY(0);
+            pointer-events: auto;
         }
         /* Hide tooltip in fullscreen — fullscreen controls already give all info */
         .map-box.fullscreen .panel-info { display: none; }
@@ -1560,6 +1560,7 @@
                 </select>
             </div>
             <div class="map-tools">
+                <button class="icon-btn" data-action="info" title="Mostrar informações da figura" aria-label="Informações" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
                 <button class="icon-btn" data-action="copy" title="Copiar URL da imagem" aria-label="Copiar URL"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
                 <button class="icon-btn" data-action="download" title="Baixar imagem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
                 <button class="icon-btn" data-action="fullscreen" title="Tela cheia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
@@ -3554,6 +3555,18 @@
             showToast('Abrindo imagem em nova aba');
         }
     }
+    /* Alterna o quadro flutuante de informações do painel.
+       Acionado pelo botão "?" em map-tools (antes era auto no hover). */
+    function toggleInfoPanel(slotIdx) {
+        const box = slotEl(slotIdx);
+        if (!box) return;
+        const tip = box.querySelector('.panel-info');
+        const btn = box.querySelector('[data-action="info"]');
+        const show = !box.classList.contains('show-info');
+        box.classList.toggle('show-info', show);
+        if (tip) tip.setAttribute('aria-hidden', show ? 'false' : 'true');
+        if (btn) btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+    }
     function copyImageURL(slotIdx) {
         const s = state.slots[slotIdx];
         const v = getVariavel(s.modelo, s.variavel);
@@ -4063,6 +4076,7 @@
             else if (action === 'fullscreen') toggleFullscreen(idx);
             else if (action === 'copy') copyImageURL(idx);
             else if (action === 'retry') renderSlot(idx);
+            else if (action === 'info') toggleInfoPanel(idx);
         });
 
         document.addEventListener('click', (e) => {
