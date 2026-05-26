@@ -1122,6 +1122,19 @@
         }
         .var-table .btn-del svg { width: 14px; height: 14px; }
 
+        .modal.modo-leitura .modal-body input[readonly],
+        .modal.modo-leitura .modal-body textarea[readonly],
+        .modal.modo-leitura .modal-body select[disabled] {
+            opacity: 0.65;
+            cursor: not-allowed;
+            background-color: var(--bg-elev-3);
+        }
+        .var-table .btn-del:disabled { opacity: 0.35; cursor: not-allowed; }
+        #btnConfigEdit[aria-pressed="true"] {
+            background: rgba(245, 158, 11, 0.18);
+            color: var(--accent-amber);
+            border-color: var(--accent-amber);
+        }
         .modal-footer {
             display: flex; align-items: center; justify-content: space-between;
             padding: 12px 18px;
@@ -1396,9 +1409,16 @@
     <div class="modal">
         <header class="modal-header">
             <h2 id="modalTitle">Configurar modelos e variáveis</h2>
-            <button class="icon-btn" id="btnCloseModal" aria-label="Fechar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-ghost" id="btnConfigEdit" type="button" aria-pressed="false" title="Habilitar edição (somente leitura por padrão)">
+                    <svg id="iconLockClosed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <svg id="iconLockOpen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                    <span id="btnConfigEditLabel">Editar</span>
+                </button>
+                <button class="icon-btn" id="btnCloseModal" aria-label="Fechar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
         </header>
         <div class="modal-tabs" id="modalTabs" role="tablist"></div>
         <div class="modal-body" id="modalBody">
@@ -3731,13 +3751,45 @@
     let configActiveId = null;
 
     function openConfigModal() {
+        _configEditing = false;   // abre sempre em modo somente leitura
         configDraft = JSON.parse(JSON.stringify(modelos));
         const ids = Object.keys(configDraft);
         configActiveId = ids[0] || null;
         renderConfigTabs();
         if (configActiveId) renderConfigPane(configActiveId);
         openModalA11y(document.getElementById('modalConfig'));
+        applyConfigLock();
     }
+    /* Modo de edição do modal de configuração: por padrão abre em SOMENTE
+       LEITURA. Clicar em "Editar" libera os campos e os botões de ação. */
+    let _configEditing = false;
+    function applyConfigLock() {
+        const modal = document.getElementById('modalConfig');
+        if (!modal) return;
+        const locked = !_configEditing;
+        modal.querySelectorAll('.modal-body input, .modal-body textarea').forEach(el => { el.readOnly = locked; });
+        modal.querySelectorAll('.modal-body select').forEach(el => { el.disabled = locked; });
+        ['btnConfigSave','btnDelModel','btnConfigReset','btnConfigImport','btnAddVar'].forEach(id => {
+            const b = document.getElementById(id); if (b) b.disabled = locked;
+        });
+        modal.querySelectorAll('.var-table .btn-del').forEach(b => { b.disabled = locked; });
+        const addTab = modal.querySelector('.modal-tab-add');
+        if (addTab) addTab.disabled = locked;
+        const btn = document.getElementById('btnConfigEdit');
+        const lbl = document.getElementById('btnConfigEditLabel');
+        const closed = document.getElementById('iconLockClosed');
+        const open   = document.getElementById('iconLockOpen');
+        if (btn) {
+            btn.setAttribute('aria-pressed', locked ? 'false' : 'true');
+            btn.title = locked ? 'Habilitar edição' : 'Bloquear edição (somente leitura)';
+            if (lbl)    lbl.textContent = locked ? 'Editar' : 'Bloquear';
+            if (closed) closed.style.display = locked ? '' : 'none';
+            if (open)   open.style.display   = locked ? 'none' : '';
+        }
+        const inner = modal.querySelector('.modal');
+        if (inner) inner.classList.toggle('modo-leitura', locked);
+    }
+    function setConfigEditing(on) { _configEditing = !!on; applyConfigLock(); }
     function closeConfigModal() {
         closeModalA11y(document.getElementById('modalConfig'));
         configDraft = null;
@@ -3799,6 +3851,7 @@
         const tbody = document.getElementById('varTableBody');
         tbody.innerHTML = '';
         (m.variaveis || []).forEach((v, idx) => tbody.appendChild(makeVarRow(v, idx)));
+        applyConfigLock();
     }
     function makeVarRow(v, idx) {
         const tr = document.createElement('tr');
@@ -3925,6 +3978,7 @@
         const btnConfig = $('btnConfig');
         if (btnConfig) btnConfig.addEventListener('click', openConfigModal);
         $('btnCloseModal').addEventListener('click', closeConfigModal);
+        $('btnConfigEdit').addEventListener('click', () => setConfigEditing(!_configEditing));
         $('btnConfigCancel').addEventListener('click', closeConfigModal);
         $('btnConfigSave').addEventListener('click', saveConfig);
         $('btnConfigReset').addEventListener('click', resetConfig);
