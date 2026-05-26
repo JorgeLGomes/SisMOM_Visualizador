@@ -1266,6 +1266,43 @@
             color: var(--text-secondary); background: var(--bg-elev-3);
             border: 1px solid var(--border-soft); border-radius: 4px; padding: 2px 8px;
         }
+        /* ============== 2FA / Autenticação ============== */
+        .auth-input {
+            width: 100%; padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 18px; letter-spacing: 0.2em; text-align: center;
+            background: var(--bg-app);
+            border: 1px solid var(--border-soft);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            margin-top: 8px;
+        }
+        .auth-input:focus { outline: none; border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+        .auth-error { color: var(--danger); font-size: 13px; margin-top: 8px; }
+        .auth-secret {
+            font-family: var(--font-mono); font-size: 17px; text-align: center;
+            background: var(--bg-elev-3);
+            border: 1px solid var(--border-soft);
+            border-radius: var(--radius-md);
+            padding: 14px; margin: 12px 0;
+            user-select: all; word-break: break-all; line-height: 1.6;
+        }
+        .auth-recovery {
+            font-family: var(--font-mono); font-size: 16px; text-align: center;
+            background: rgba(245,158,11,.12);
+            border: 1px solid var(--accent-amber);
+            color: var(--accent-amber);
+            border-radius: var(--radius-md);
+            padding: 14px; margin: 12px 0;
+            user-select: all; word-break: break-all; font-weight: 700;
+        }
+        .auth-status { font-weight: 700; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
+        .auth-status.on  { color: var(--success); background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.35); }
+        .auth-status.off { color: var(--text-muted); background: var(--bg-elev-3); border: 1px solid var(--border-soft); }
+        .auth-details { margin-top: 12px; font-size: 13px; color: var(--text-muted); }
+        .auth-details summary { cursor: pointer; padding: 6px 0; }
+        .auth-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .auth-modes label { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; color: var(--text-secondary); }
     </style>
 </head>
 <body>
@@ -1285,6 +1322,9 @@
         <div class="header-actions">
             <button class="icon-btn" id="btnConfig" title="Configurar modelos e variáveis" aria-label="Configurações">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+            <button class="icon-btn" id="btnAuthSettings" title="Segurança (2FA)" aria-label="Segurança">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z"/></svg>
             </button>
             <button class="icon-btn" id="btnHelp" title="Atalhos (?)" aria-label="Atalhos de teclado">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -1537,6 +1577,102 @@
             <div class="footer-left"></div>
             <div class="footer-right"><button class="btn btn-primary" id="btnCloseHelp2">Entendi</button></div>
         </footer>
+    </div>
+</div>
+
+<!-- ============== Modal: Bloqueio (Lock) ============== -->
+<div class="modal-backdrop" id="modalAuthLock" role="dialog" aria-modal="true" aria-labelledby="authLockTitle">
+    <div class="modal" style="max-width:440px">
+        <header class="modal-header">
+            <h2 id="authLockTitle">🔒 Acesso protegido</h2>
+        </header>
+        <div class="modal-body">
+            <p id="authLockReason">Digite o código de 6 dígitos do Google Authenticator.</p>
+            <input id="authLockCode" type="text" inputmode="numeric" maxlength="6" pattern="\\d{6}" placeholder="000000" autocomplete="one-time-code" class="auth-input">
+            <div id="authLockError" class="auth-error" style="display:none"></div>
+            <details class="auth-details">
+                <summary>Usar código de recuperação</summary>
+                <input id="authLockRecovery" type="text" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" class="auth-input">
+                <p style="font-size:12px;color:var(--text-muted);margin-top:6px">Use o código gerado no momento do cadastro.</p>
+            </details>
+        </div>
+        <footer class="modal-footer">
+            <div class="footer-left"></div>
+            <div class="footer-right"><button class="btn btn-primary" id="btnAuthLockSubmit">Desbloquear</button></div>
+        </footer>
+    </div>
+</div>
+
+<!-- ============== Modal: Setup (Wizard) ============== -->
+<div class="modal-backdrop" id="modalAuthSetup" role="dialog" aria-modal="true">
+    <div class="modal" style="max-width:560px">
+        <header class="modal-header">
+            <h2>Configurar 2FA (Google Authenticator)</h2>
+            <button class="icon-btn" id="btnAuthSetupClose" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </header>
+        <div class="modal-body">
+            <div id="authStep1">
+                <p>No app <strong>Google Authenticator</strong> (celular):</p>
+                <ol style="margin:8px 0 12px 18px">
+                    <li>Toque em <strong>+</strong> → <strong>Inserir uma chave de configuração</strong>.</li>
+                    <li>Nome da conta: <code>SisMOM</code>. Chave: cole o segredo abaixo.</li>
+                    <li>Tipo: <strong>Contagem regressiva</strong> (padrão).</li>
+                </ol>
+                <div class="auth-secret" id="authSecret"></div>
+                <p style="font-size:12px;color:var(--text-muted)">No celular dá para abrir direto: <a id="authOtpUrl" href="#" target="_blank" rel="noopener" style="color:var(--brand-400);word-break:break-all">otpauth://...</a></p>
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+                    <button class="btn btn-ghost" id="btnAuthSetupCancel">Cancelar</button>
+                    <button class="btn btn-primary" id="btnAuthNext1">Próximo</button>
+                </div>
+            </div>
+            <div id="authStep2" style="display:none">
+                <p>Digite o código de 6 dígitos exibido agora no Google Authenticator:</p>
+                <input id="authConfirmCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" class="auth-input">
+                <div id="authConfirmError" class="auth-error" style="display:none"></div>
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+                    <button class="btn btn-ghost" id="btnAuthBack2">Voltar</button>
+                    <button class="btn btn-primary" id="btnAuthNext2">Confirmar</button>
+                </div>
+            </div>
+            <div id="authStep3" style="display:none">
+                <p>⚠ <strong>Guarde este código de recuperação em local seguro.</strong> Ele é a única forma de recuperar acesso caso perca o celular. Não será exibido novamente.</p>
+                <div class="auth-recovery" id="authRecovery"></div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <button class="btn btn-ghost" id="btnAuthCopyRec">Copiar código</button>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary)"><input type="checkbox" id="authConfirmSaved"> Anotei em local seguro</label>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+                    <button class="btn btn-primary" id="btnAuthFinish" disabled>Concluir e ativar 2FA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============== Modal: Configurações de Segurança ============== -->
+<div class="modal-backdrop" id="modalAuthSettings" role="dialog" aria-modal="true">
+    <div class="modal" style="max-width:520px">
+        <header class="modal-header">
+            <h2>Segurança · 2FA</h2>
+            <button class="icon-btn" id="btnAuthSettingsClose" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </header>
+        <div class="modal-body">
+            <div class="auth-row">
+                <strong>Status:</strong>
+                <span id="authStatus" class="auth-status off">Desativado</span>
+            </div>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:0">Autenticação em 2 fatores usando o app <strong>Google Authenticator</strong>. Protege contra acesso casual nesta máquina.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px">
+                <button class="btn btn-primary" id="btnAuthSetup">Ativar 2FA</button>
+                <button class="btn btn-danger" id="btnAuthDesativar" style="display:none">Desativar 2FA</button>
+                <button class="btn btn-ghost" id="btnAuthLockNow">Bloquear agora</button>
+            </div>
+            <div id="authModes" class="auth-modes" style="border-top:1px solid var(--border-subtle); padding-top:14px">
+                <p style="margin:0 0 8px"><strong>Quando exigir o código:</strong></p>
+                <label><input type="checkbox" id="authModeOpen"> Ao <strong>abrir o app</strong></label>
+                <label><input type="checkbox" id="authModeSens"> Em <strong>ações sensíveis</strong> (Salvar config, Importar, Remover modelo, Restaurar padrão)</label>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -2834,7 +2970,8 @@
         setTimeout(() => URL.revokeObjectURL(url), 4000);
         showToast('Configuração exportada');
     }
-    function importConfigFile(file) {
+    async function importConfigFile(file) {
+        if (!(await gateSensitive('Importar configuração'))) return;
         const reader = new FileReader();
         reader.onload = () => {
             let data;
@@ -3979,7 +4116,8 @@
         tbody.appendChild(makeVarRow(v, idx));
         tbody.lastChild.querySelector('input').focus();
     }
-    function saveConfig() {
+    async function saveConfig() {
+        if (!(await gateSensitive('Salvar configuração'))) return;
         syncCurrentPaneToDraft();
         if (Object.keys(configDraft).length === 0) {
             showToast('Pelo menos um modelo é obrigatório'); return;
@@ -4002,14 +4140,16 @@
         closeConfigModal();
         showToast('Configuração salva');
     }
-    function resetConfig() {
+    async function resetConfig() {
+        if (!(await gateSensitive('Restaurar padrão'))) return;
         if (!confirm('Restaurar configuração de fábrica? Suas edições serão perdidas.')) return;
         configDraft = JSON.parse(JSON.stringify(DEFAULT_MODELOS));
         configActiveId = Object.keys(configDraft)[0] || null;
         renderConfigTabs();
         if (configActiveId) renderConfigPane(configActiveId);
     }
-    function delActiveModel() {
+    async function delActiveModel() {
+        if (!(await gateSensitive('Remover modelo'))) return;
         if (!configActiveId) return;
         if (Object.keys(configDraft).length <= 1) {
             showToast('Não é possível remover o último modelo');
@@ -4023,6 +4163,7 @@
     }
 
     function bindEvents() {
+        bindAuthEvents();
         DOM.btnToggleSidebar.addEventListener('click', toggleSidebar);
         DOM.btnTheme.addEventListener('click', toggleTheme);
         DOM.btnHelp.addEventListener('click', showHelp);
@@ -4139,6 +4280,282 @@
         });
     }
 
+    /* ==================== Autenticação 2 fatores (TOTP) ==================== */
+    const AUTH_KEY = 'sismom_auth_v1';
+    const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    function b32encode(bytes) {
+        let bits = 0, value = 0, out = '';
+        for (let i = 0; i < bytes.length; i++) {
+            value = (value << 8) | bytes[i]; bits += 8;
+            while (bits >= 5) { out += B32[(value >>> (bits - 5)) & 31]; bits -= 5; }
+        }
+        if (bits > 0) out += B32[(value << (5 - bits)) & 31];
+        return out;
+    }
+    function b32decode(str) {
+        str = String(str || '').toUpperCase().replace(/[\s=]/g, '');
+        let bits = 0, value = 0; const out = [];
+        for (const ch of str) {
+            const v = B32.indexOf(ch);
+            if (v < 0) continue;
+            value = (value << 5) | v; bits += 5;
+            if (bits >= 8) { bits -= 8; out.push((value >>> bits) & 0xff); }
+        }
+        return new Uint8Array(out);
+    }
+    async function hmacSha1(keyBytes, msgBytes) {
+        const key = await crypto.subtle.importKey('raw', keyBytes, { name:'HMAC', hash:'SHA-1' }, false, ['sign']);
+        const sig = await crypto.subtle.sign('HMAC', key, msgBytes);
+        return new Uint8Array(sig);
+    }
+    async function totpCode(secretB32, t) {
+        const secret = b32decode(secretB32);
+        let counter = Math.floor(t / 30);
+        const cb = new Uint8Array(8);
+        for (let i = 7; i >= 0; i--) { cb[i] = counter & 0xff; counter = Math.floor(counter / 256); }
+        const h = await hmacSha1(secret, cb);
+        const off = h[h.length - 1] & 0x0f;
+        const bin = ((h[off] & 0x7f) << 24) | ((h[off+1] & 0xff) << 16) | ((h[off+2] & 0xff) << 8) | (h[off+3] & 0xff);
+        return String(bin % 1000000).padStart(6, '0');
+    }
+    async function verifyTotp(secret, code, win) {
+        if (!/^\d{6}$/.test(String(code || ''))) return false;
+        const now = Math.floor(Date.now() / 1000);
+        win = (win == null) ? 1 : win;
+        for (let dt = -win; dt <= win; dt++) {
+            if (await totpCode(secret, now + dt * 30) === code) return true;
+        }
+        return false;
+    }
+    function gerarSecret() { const b = new Uint8Array(20); crypto.getRandomValues(b); return b32encode(b); }
+    function gerarRecoveryCode() {
+        const b = new Uint8Array(16); crypto.getRandomValues(b);
+        const hex = Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('').toUpperCase();
+        return hex.match(/.{1,4}/g).join('-');
+    }
+    async function hashRecovery(code) {
+        const data = new TextEncoder().encode(String(code).replace(/-/g,'').toUpperCase());
+        const h = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+    function carregarAuth() {
+        try { const raw = localStorage.getItem(AUTH_KEY); return raw ? JSON.parse(raw) : null; }
+        catch (_) { return null; }
+    }
+    function salvarAuth(obj) { try { localStorage.setItem(AUTH_KEY, JSON.stringify(obj)); } catch (_) {} }
+    function removerAuth() { try { localStorage.removeItem(AUTH_KEY); } catch (_) {} }
+    function authAtivado() { const a = carregarAuth(); return !!(a && a.enabled && a.secret); }
+    function authModo(m) { const a = carregarAuth(); return !!(a && a.modes && a.modes[m]); }
+    function isUnlocked() { return sessionStorage.getItem('sismom_auth_unlocked') === 'true'; }
+    function setUnlocked(v) {
+        if (v) sessionStorage.setItem('sismom_auth_unlocked','true');
+        else sessionStorage.removeItem('sismom_auth_unlocked');
+    }
+    /* -------- Tela de bloqueio -------- */
+    let _authResolve = null;
+    function abrirTelaBloqueio(razao) {
+        const m = document.getElementById('modalAuthLock'); if (!m) return;
+        const err = document.getElementById('authLockError');
+        const input = document.getElementById('authLockCode');
+        const rec = document.getElementById('authLockRecovery');
+        const reasonEl = document.getElementById('authLockReason');
+        if (reasonEl) reasonEl.textContent = razao || 'Digite o código de 6 dígitos do Google Authenticator.';
+        if (err) err.style.display = 'none';
+        if (input) input.value = '';
+        if (rec) rec.value = '';
+        m.classList.add('open');
+        setTimeout(() => input && input.focus(), 50);
+    }
+    function fecharTelaBloqueio() {
+        const m = document.getElementById('modalAuthLock'); if (m) m.classList.remove('open');
+    }
+    function pedirCodigoBloqueio(razao) {
+        return new Promise(resolve => { _authResolve = resolve; abrirTelaBloqueio(razao); });
+    }
+    async function autenticarComCodigo(code, isRecovery) {
+        const a = carregarAuth();
+        if (!a || !a.secret) return false;
+        if (isRecovery) {
+            const h = await hashRecovery(code);
+            return h === a.recoveryHash;
+        }
+        return await verifyTotp(a.secret, code);
+    }
+    async function submeterCodigoBloqueio() {
+        const input = document.getElementById('authLockCode');
+        const rec = document.getElementById('authLockRecovery');
+        const err = document.getElementById('authLockError');
+        const code = (input && input.value || '').trim();
+        const recCode = (rec && rec.value || '').trim();
+        let ok = false;
+        if (recCode) ok = await autenticarComCodigo(recCode, true);
+        else ok = await autenticarComCodigo(code, false);
+        if (ok) {
+            setUnlocked(true);
+            fecharTelaBloqueio();
+            const r = _authResolve; _authResolve = null;
+            if (r) r(true);
+        } else {
+            if (err) { err.textContent = 'Código inválido. Tente novamente.'; err.style.display = ''; }
+            if (input) { input.value = ''; input.focus(); }
+        }
+    }
+    async function gateSensitive(motivo) {
+        if (!authAtivado()) return true;
+        if (!authModo('sensitive')) return true;
+        if (isUnlocked()) return true;
+        return await pedirCodigoBloqueio((motivo ? motivo + ' — ' : '') + 'Digite o código do Google Authenticator.');
+    }
+    /* -------- Setup wizard -------- */
+    let _setupSecret = null, _setupRecovery = null;
+    function abrirSetupAuth() {
+        _setupSecret = gerarSecret();
+        _setupRecovery = gerarRecoveryCode();
+        const issuer = encodeURIComponent('SisMOM Visualizador');
+        const label = encodeURIComponent('SisMOM');
+        const url = 'otpauth://totp/' + issuer + ':' + label + '?secret=' + _setupSecret + '&issuer=' + issuer + '&algorithm=SHA1&digits=6&period=30';
+        document.getElementById('authSecret').textContent = _setupSecret.match(/.{1,4}/g).join(' ');
+        const a = document.getElementById('authOtpUrl');
+        a.textContent = url; a.href = url;
+        document.getElementById('authRecovery').textContent = _setupRecovery;
+        ['authStep1','authStep2','authStep3'].forEach((id,i)=>{
+            const el = document.getElementById(id);
+            if (el) el.style.display = i === 0 ? '' : 'none';
+        });
+        const cb = document.getElementById('authConfirmSaved'); if (cb) cb.checked = false;
+        const fb = document.getElementById('btnAuthFinish'); if (fb) fb.disabled = true;
+        document.getElementById('modalAuthSetup').classList.add('open');
+    }
+    function fecharSetupAuth() {
+        document.getElementById('modalAuthSetup').classList.remove('open');
+        _setupSecret = null; _setupRecovery = null;
+    }
+    async function confirmarCodigoSetup() {
+        const input = document.getElementById('authConfirmCode');
+        const err = document.getElementById('authConfirmError');
+        const code = (input && input.value || '').trim();
+        if (!/^\d{6}$/.test(code)) {
+            if (err) { err.textContent = 'Digite os 6 dígitos.'; err.style.display = ''; }
+            return;
+        }
+        const ok = await verifyTotp(_setupSecret, code);
+        if (!ok) {
+            if (err) { err.textContent = 'Código inválido. Verifique o relógio do celular.'; err.style.display = ''; }
+            return;
+        }
+        if (err) err.style.display = 'none';
+        document.getElementById('authStep2').style.display = 'none';
+        document.getElementById('authStep3').style.display = '';
+    }
+    async function finalizarSetupAuth() {
+        if (!_setupSecret || !_setupRecovery) return;
+        const prev = carregarAuth();
+        const rh = await hashRecovery(_setupRecovery);
+        const obj = {
+            enabled: true,
+            secret: _setupSecret,
+            recoveryHash: rh,
+            modes: (prev && prev.modes) || { openApp: true, sensitive: true },
+            issuer: 'SisMOM Visualizador',
+            label: 'SisMOM',
+            createdAt: new Date().toISOString()
+        };
+        salvarAuth(obj);
+        setUnlocked(true);
+        fecharSetupAuth();
+        atualizarStatusAuth();
+        showToast('2FA ativado');
+    }
+    /* -------- Modal de configurações de segurança -------- */
+    function abrirSegurancaModal() {
+        atualizarStatusAuth();
+        document.getElementById('modalAuthSettings').classList.add('open');
+    }
+    function fecharSegurancaModal() {
+        document.getElementById('modalAuthSettings').classList.remove('open');
+    }
+    function atualizarStatusAuth() {
+        const stEl = document.getElementById('authStatus');
+        if (!stEl) return;
+        const a = carregarAuth();
+        const on = !!(a && a.enabled);
+        stEl.textContent = on ? 'Ativado' : 'Desativado';
+        stEl.className = 'auth-status ' + (on ? 'on' : 'off');
+        const m = (a && a.modes) || { openApp: true, sensitive: true };
+        const cb1 = document.getElementById('authModeOpen'); if (cb1) { cb1.checked = !!m.openApp; cb1.disabled = !on; }
+        const cb2 = document.getElementById('authModeSens'); if (cb2) { cb2.checked = !!m.sensitive; cb2.disabled = !on; }
+        const setupBtn = document.getElementById('btnAuthSetup');
+        const offBtn = document.getElementById('btnAuthDesativar');
+        if (setupBtn) setupBtn.style.display = on ? 'none' : '';
+        if (offBtn) offBtn.style.display = on ? '' : 'none';
+    }
+    function aoMudarModoAuth() {
+        const a = carregarAuth(); if (!a) return;
+        a.modes = a.modes || {};
+        a.modes.openApp = !!document.getElementById('authModeOpen').checked;
+        a.modes.sensitive = !!document.getElementById('authModeSens').checked;
+        salvarAuth(a);
+    }
+    async function desativar2FA() {
+        if (!authAtivado()) return;
+        const ok = await pedirCodigoBloqueio('Para desativar o 2FA, digite o código do Google Authenticator.');
+        if (!ok) return;
+        removerAuth();
+        setUnlocked(false);
+        atualizarStatusAuth();
+        showToast('2FA desativado');
+    }
+    function bloquearAgora() {
+        if (!authAtivado()) { showToast('2FA não está ativado'); return; }
+        setUnlocked(false);
+        showToast('Sessão bloqueada');
+        if (authModo('openApp')) abrirTelaBloqueio('App bloqueado. Digite o código para continuar.');
+    }
+    async function aplicarBloqueioInicial() {
+        if (!authAtivado()) return;
+        if (!authModo('openApp')) return;
+        if (isUnlocked()) return;
+        await pedirCodigoBloqueio('Acesso protegido — digite o código do Google Authenticator.');
+    }
+    /* Bind dos eventos da autenticação (chamado em bindEvents) */
+    function bindAuthEvents() {
+        const $ge = (id) => document.getElementById(id);
+        $ge('btnAuthSettings') && $ge('btnAuthSettings').addEventListener('click', abrirSegurancaModal);
+        $ge('btnAuthSettingsClose') && $ge('btnAuthSettingsClose').addEventListener('click', fecharSegurancaModal);
+        $ge('modalAuthSettings') && $ge('modalAuthSettings').addEventListener('click', (e) => { if (e.target.id === 'modalAuthSettings') fecharSegurancaModal(); });
+        $ge('btnAuthSetup') && $ge('btnAuthSetup').addEventListener('click', abrirSetupAuth);
+        $ge('btnAuthSetupClose') && $ge('btnAuthSetupClose').addEventListener('click', fecharSetupAuth);
+        $ge('btnAuthSetupCancel') && $ge('btnAuthSetupCancel').addEventListener('click', fecharSetupAuth);
+        $ge('btnAuthNext1') && $ge('btnAuthNext1').addEventListener('click', () => {
+            document.getElementById('authStep1').style.display = 'none';
+            document.getElementById('authStep2').style.display = '';
+            const ci = document.getElementById('authConfirmCode'); if (ci) { ci.value = ''; ci.focus(); }
+            const er = document.getElementById('authConfirmError'); if (er) er.style.display = 'none';
+        });
+        $ge('btnAuthBack2') && $ge('btnAuthBack2').addEventListener('click', () => {
+            document.getElementById('authStep2').style.display = 'none';
+            document.getElementById('authStep1').style.display = '';
+        });
+        $ge('btnAuthNext2') && $ge('btnAuthNext2').addEventListener('click', confirmarCodigoSetup);
+        $ge('authConfirmCode') && $ge('authConfirmCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmarCodigoSetup(); });
+        $ge('authConfirmSaved') && $ge('authConfirmSaved').addEventListener('change', (e) => {
+            const fb = document.getElementById('btnAuthFinish'); if (fb) fb.disabled = !e.target.checked;
+        });
+        $ge('btnAuthFinish') && $ge('btnAuthFinish').addEventListener('click', finalizarSetupAuth);
+        $ge('btnAuthCopyRec') && $ge('btnAuthCopyRec').addEventListener('click', () => {
+            const t = (document.getElementById('authRecovery') || {}).textContent || '';
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => showToast('Código copiado'));
+            else showToast('Selecione e copie manualmente');
+        });
+        $ge('btnAuthDesativar') && $ge('btnAuthDesativar').addEventListener('click', desativar2FA);
+        $ge('btnAuthLockNow') && $ge('btnAuthLockNow').addEventListener('click', bloquearAgora);
+        $ge('authModeOpen') && $ge('authModeOpen').addEventListener('change', aoMudarModoAuth);
+        $ge('authModeSens') && $ge('authModeSens').addEventListener('change', aoMudarModoAuth);
+        $ge('btnAuthLockSubmit') && $ge('btnAuthLockSubmit').addEventListener('click', submeterCodigoBloqueio);
+        $ge('authLockCode') && $ge('authLockCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') submeterCodigoBloqueio(); });
+        $ge('authLockRecovery') && $ge('authLockRecovery').addEventListener('keydown', (e) => { if (e.key === 'Enter') submeterCodigoBloqueio(); });
+    }
+
     function inicializar() {
         loadModelos();
         buildSlots();
@@ -4170,6 +4587,8 @@
         renderTudo();
         // Verifica se a rodada do dia corrente existe; se nao, recua p/ a anterior.
         resolverEAplicarDataM1(false);
+        // Bloqueia o app se 2FA estiver ativo no modo "abrir o app".
+        aplicarBloqueioInicial();
     }
 
     if (document.readyState === 'loading') {
