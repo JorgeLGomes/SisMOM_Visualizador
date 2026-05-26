@@ -135,7 +135,9 @@ npm run dist:linux
 
 ## 9. Estado atual / último commit pendente
 
-**Última mudança aplicada:** suporte a **visualização de GeoTIFF**. Decoder TIFF inline (sem dependência externa), 5 paletas (Viridis/Jet/RdBu/Cinza/Turbo), modal "Abrir GeoTIFF local", e integração nos painéis Mi via `m.extensao = '.tif'/'.tiff'`. HTML cresceu 252 KB → 283 KB. JS validado, cópias idênticas, 8 testes unitários + smoke test pós-patch verdes.
+**Última mudança aplicada:** **camada de mapa-base custom** no modal "Abrir GeoTIFF local". Canvas próprio em projeção plate carrée, costa da América do Sul (~53 pontos curados) + 17 capitais sul-americanas + grade lat/lon dinâmica (passo 1°-20° conforme zoom), pan/zoom/wheel, slider de opacidade, HUD lat/lon do cursor. Sem dependência externa (Leaflet recusado por download corporativo problemático). HTML: 283 KB → ~304 KB. API `SisMOM_Map` exposta com `addGeoJSON()` para o usuário plugar shapefiles próprios (IBGE/Natural Earth) se quiser detalhes maiores. Mapa nos painéis Mi ainda **diferido** (fase B).
+
+**Antes disso:** suporte a **visualização de GeoTIFF**. Decoder TIFF inline (sem dependência externa), 5 paletas (Viridis/Jet/RdBu/Cinza/Turbo), modal "Abrir GeoTIFF local", e integração nos painéis Mi via `m.extensao = '.tif'/'.tiff'`. JS validado, cópias idênticas, 8 testes unitários + smoke test pós-patch verdes.
 
 **Arquivos novos em `dev/`:**
 - `geotiff_module.js` — módulo standalone usado para desenvolver/testar fora do HTML
