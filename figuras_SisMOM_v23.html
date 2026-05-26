@@ -1473,6 +1473,11 @@
                 <input type="text" id="cfgEscopo1" placeholder="ex.: regional, global, america_sul">
                 <label for="cfgEscopo2">Escopo 2 <span class="hint-inline">(nível/componente)</span></label>
                 <input type="text" id="cfgEscopo2" placeholder="ex.: eta, atmos, superficie, 500hPa">
+                <label for="cfgRequires2FA">Acesso restrito</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);font-weight:normal;text-transform:none;letter-spacing:0">
+                    <input type="checkbox" id="cfgRequires2FA" style="width:auto;flex:0 0 auto">
+                    <span>🔒 Exigir 2FA para acessar este modelo <em style="opacity:.7;font-style:normal;font-size:11px">(efeito só quando 2FA estiver ativo em Segurança)</em></span>
+                </label>
                 <label for="cfgExtensao">Sufixo do arquivo</label>
                 <select id="cfgExtensao">
                     <option value=".png">.png</option>
@@ -2934,15 +2939,29 @@
     // Garante que cada painel referencia um modelo/variável válidos e tem data.
     function validateSlots() {
         const ids = Object.keys(modelos);
+        const acessiveis = modelosAcessiveis();
+        let trocou = false;
         for (let i = 0; i < NUM_SLOTS; i++) {
             const s = state.slots[i];
             if (!modelos[s.modelo]) s.modelo = ids[0];
+            // Se o modelo do slot for protegido e estiver fora do alcance no momento,
+            // cai para o primeiro modelo acessível. Mantém a memória (lastVarByModel)
+            // para restaurar quando desbloquear de novo.
+            if (!isModeloAcessivel(s.modelo) && acessiveis.length) {
+                s.lastVarByModel = s.lastVarByModel || {};
+                if (s.variavel) s.lastVarByModel[s.modelo] = s.variavel;
+                s.modelo = acessiveis[0];
+                trocou = true;
+            }
             s.subsistema = (modelos[s.modelo] || {}).subsistema || '';
             if (!getVariavel(s.modelo, s.variavel)) {
                 const vs = (modelos[s.modelo] || {}).variaveis || [];
                 s.variavel = vs.length ? vs[0].id : '';
             }
             if (!s.data) s.data = formatarData(obterDataFTP());
+        }
+        if (trocou && typeof showToast === 'function') {
+            showToast('Modelo protegido requer 2FA — usando outro modelo');
         }
     }
     function syncVelocidadeUI() {
@@ -3228,9 +3247,27 @@
     /* Populate the <select data-cfg="modelo"> options for a slot, using
        the current modelos config. Keeps slot.modelo or falls back to the
        first available model. */
+    /* Modelo protegido (requires2FA): só acessível quando 2FA está ativo E
+       a sessão está desbloqueada. Quando 2FA está desativado, a flag é inerte
+       (modelo segue acessível normalmente). */
+    function isModeloAcessivel(modeloId) {
+        const m = modelos[modeloId];
+        if (!m) return false;
+        if (!m.requires2FA) return true;
+        if (!authAtivado()) return true;
+        return isUnlocked();
+    }
+    function modelosAcessiveis() { return Object.keys(modelos).filter(isModeloAcessivel); }
+    function refreshAposMudancaAuth() {
+        validateSlots();
+        atualizarSlotsControles();
+        atualizarMaxPassos();
+        renderTudo();
+    }
     function populateModeloSelect(selEl, currentValue) {
         selEl.innerHTML = '';
-        const ids = Object.keys(modelos);
+        // só lista modelos acessíveis (protegidos exigem 2FA desbloqueado)
+        const ids = modelosAcessiveis();
         ids.forEach(id => {
             const opt = document.createElement('option');
             opt.value = id;
@@ -3990,10 +4027,13 @@
         const tabs = document.getElementById('modalTabs');
         tabs.innerHTML = '';
         Object.keys(configDraft).forEach(id => {
+            const md = configDraft[id];
+            // Em modo bloqueado e com 2FA ativo, modelos protegidos não aparecem nas abas.
+            if (md.requires2FA && authAtivado() && !isUnlocked()) return;
             const btn = document.createElement('button');
             btn.className = 'modal-tab' + (id === configActiveId ? ' active' : '');
             btn.dataset.modelId = id;
-            btn.textContent = configDraft[id].nome || id;
+            btn.textContent = (md.requires2FA ? '🔒 ' : '') + (md.nome || id);
             btn.addEventListener('click', () => {
                 if (configActiveId) syncCurrentPaneToDraft();
                 configActiveId = id;
@@ -4016,6 +4056,7 @@
                 escopo2: '',
                 extensao: '.png',
                 maxPassos: 24,
+                requires2FA: false,
                 url_path: 'https://.../{yyyy}{mm}{dd}{hh}/{escopo1}/{escopo2}/fig',
                 file_name: '{prefixo}{f%3}{ext}',
                 variaveis: [{ id: 'VAR1', label: 'Variável 1', unidade: '', arquivo: 'var1', frequencia: 1, horizonte: 24, escopo1: '', escopo2: '' }]
@@ -4033,6 +4074,7 @@
         document.getElementById('cfgSubsistema').value = m.subsistema || '';
         document.getElementById('cfgEscopo1').value = m.escopo1 || '';
         document.getElementById('cfgEscopo2').value = m.escopo2 || '';
+        document.getElementById('cfgRequires2FA').checked = !!m.requires2FA;
         const extSel = document.getElementById('cfgExtensao');
         const ext = m.extensao || '.png';
         extSel.value = Array.from(extSel.options).some(o => o.value === ext) ? ext : '.png';
@@ -4078,6 +4120,7 @@
         m.subsistema = document.getElementById('cfgSubsistema').value;
         m.escopo1 = document.getElementById('cfgEscopo1').value.trim();
         m.escopo2 = document.getElementById('cfgEscopo2').value.trim();
+        m.requires2FA = !!document.getElementById('cfgRequires2FA').checked;
         m.extensao = document.getElementById('cfgExtensao').value || '.png';
         m.maxPassos = Math.max(1, Number(document.getElementById('cfgMaxPassos').value) || 24);
         m.url_path = document.getElementById('cfgUrlPath').value;
@@ -4397,6 +4440,7 @@
             fecharTelaBloqueio();
             const r = _authResolve; _authResolve = null;
             if (r) r(true);
+            try { refreshAposMudancaAuth(); } catch (_) {}
         } else {
             if (err) { err.textContent = 'Código inválido. Tente novamente.'; err.style.display = ''; }
             if (input) { input.value = ''; input.focus(); }
@@ -4689,6 +4733,7 @@
         setUnlocked(true);
         fecharSetupAuth();
         atualizarStatusAuth();
+        try { refreshAposMudancaAuth(); } catch (_) {}
         showToast('2FA ativado');
     }
     /* -------- Modal de configurações de segurança -------- */
@@ -4728,12 +4773,14 @@
         removerAuth();
         setUnlocked(false);
         atualizarStatusAuth();
+        try { refreshAposMudancaAuth(); } catch (_) {}
         showToast('2FA desativado');
     }
     function bloquearAgora() {
         if (!authAtivado()) { showToast('2FA não está ativado'); return; }
         setUnlocked(false);
         showToast('Sessão bloqueada');
+        try { refreshAposMudancaAuth(); } catch (_) {}
         if (authModo('openApp')) abrirTelaBloqueio('App bloqueado. Digite o código para continuar.');
     }
     async function aplicarBloqueioInicial() {
