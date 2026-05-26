@@ -4521,14 +4521,17 @@
             const eb = [1, 0, 3, 2][ecc];
             const bits = bchFmt((eb << 3) | mask);
             const size = m.length;
-            // top-left
-            for (let i = 0; i <= 5; i++) m[8][i] = (bits >>> i) & 1;
-            m[8][7] = (bits >>> 6) & 1; m[8][8] = (bits >>> 7) & 1; m[7][8] = (bits >>> 8) & 1;
-            for (let i = 9; i < 15; i++) m[14 - i][8] = (bits >>> i) & 1;
-            // bottom-left + top-right
-            for (let i = 0; i < 8; i++) m[size - 1 - i][8] = (bits >>> i) & 1;
-            for (let i = 8; i < 15; i++) m[8][size - 15 + i] = (bits >>> i) & 1;
-            m[size - 8][8] = 1;
+            // 1a copia: bits 0..5 descem a coluna 8 (linhas 0..5); bit 6 em (7,8) pulando timing;
+            // bit 7 em (8,8); bit 8 em (8,7); bits 9..14 vao para a esquerda na linha 8 (cols 5..0).
+            for (let i = 0; i <= 5; i++) m[i][8] = (bits >>> i) & 1;
+            m[7][8] = (bits >>> 6) & 1;
+            m[8][8] = (bits >>> 7) & 1;
+            m[8][7] = (bits >>> 8) & 1;
+            for (let i = 9; i < 15; i++) m[8][14 - i] = (bits >>> i) & 1;
+            // 2a copia: bits 0..7 na linha 8 (cols size-1..size-8); bits 8..14 descem coluna 8 (linhas size-7..size-1).
+            for (let i = 0; i < 8; i++) m[8][size - 1 - i] = (bits >>> i) & 1;
+            for (let i = 8; i < 15; i++) m[size - 15 + i][8] = (bits >>> i) & 1;
+            m[size - 8][8] = 1;  // modulo escuro (sempre 1)
         }
         function bchVer(v) { let r = v; for (let i = 0; i < 12; i++) { r <<= 1; if (r & (1 << 12)) r ^= 0x1F25; } return ((v << 12) | r) & 0x3FFFF; }
         function placeVer(m, v) {
