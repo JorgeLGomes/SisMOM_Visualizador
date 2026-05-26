@@ -2876,6 +2876,19 @@
     const slotBody = (i) => slotEl(i).querySelector('.map-body');
     const slotZoomLevel = (i) => slotEl(i).querySelector('.zoom-level');
 
+    /* Limpa o buffer de imagem do painel — evita que a imagem do modelo
+       anterior fique "presa" quando a nova carga falha (ex.: trocar de
+       MERGE para Eta com data sem dado no FTP). Cancela cargas em curso. */
+    function clearImageBuffer(slotIdx) {
+        activeRequests[slotIdx] = (activeRequests[slotIdx] || 0) + 1;
+        const buf = buffers[slotIdx];
+        if (!buf) return;
+        const a = slotBuf(slotIdx, 'a');
+        const b = slotBuf(slotIdx, 'b');
+        if (a) a.classList.remove('active');
+        if (b) b.classList.remove('active');
+        lastLoadedURL[slotIdx] = null;
+    }
     function carregarImagem(slotIdx, url) {
         const reqId = ++activeRequests[slotIdx];
         const buf = buffers[slotIdx];
@@ -3138,6 +3151,11 @@
             populateVariavelSelect(selVar, s.modelo, s.variavel);
             s.variavel = selVar.value;
             atualizarMaxPassos();
+            clearImageBuffer(slotIdx);   // remove imagem antiga (evita lingering)
+            if (slotIdx === 0) {
+                // tenta manter a data atual para o novo modelo; se nao existir, recua
+                resolverEAplicarDataM1(false, { fromCurrent: true });
+            }
         } else if (cfg === 'data') {
             s.data = formatarData(value);
             if (slotIdx === 0) { propagateDateFromSlot0(); inicioRodada = true; }
@@ -3158,6 +3176,7 @@
                 }
             }
             atualizarMaxPassos();
+            clearImageBuffer(slotIdx);   // remove imagem antiga
         }
         if (inicioRodada) setPasso(state.stepFreq || 1);   // nova rodada: início
         else renderTudo();
@@ -3621,7 +3640,9 @@
        recua 1 dia por vez (ate maxBack) ate achar uma disponivel. Aplica a data
        encontrada e cascateia os posteriores. notify=true sempre avisa por toast. */
     let _resolvendoData = false;
-    async function resolverEAplicarDataM1(notify, maxBack) {
+    async function resolverEAplicarDataM1(notify, opts) {
+        if (typeof opts === 'number') opts = { maxBack: opts };
+        opts = opts || {};
         if (_resolvendoData) return;
         _resolvendoData = true;
         try {
@@ -3629,8 +3650,11 @@
             const v = getVariavel(s0.modelo, s0.variavel);
             const freq = v ? Number(v.frequencia) : 1;
             const passo = (freq && freq > 0) ? freq : 0;   // 1o arquivo (ou 0 p/ analise)
-            const back = (maxBack == null) ? 8 : maxBack;
-            let d = dataFTPtoDate(formatarData(obterDataHoje()));
+            const back = (opts.maxBack == null) ? 8 : opts.maxBack;
+            // fromCurrent=true: probar a partir da data atual do M1 (ex.: troca de modelo)
+            const startFTP = (opts.fromCurrent && s0.data && s0.data.length >= 10)
+                ? s0.data : formatarData(obterDataHoje());
+            let d = dataFTPtoDate(startFTP);
             let achou = null;
             for (let k = 0; k <= back; k++) {
                 const dataFTP = formatarFTPfromDate(d);
@@ -3651,9 +3675,10 @@
             if (notify || changed) {
                 const dd = achou.slice(6,8), mm = achou.slice(4,6);
                 const hoje = formatarData(obterDataHoje());
-                showToast(achou === hoje
-                    ? `Mapa 1 no dia corrente (${dd}/${mm})`
-                    : `Rodada de hoje indisponivel — usando ${dd}/${mm}`);
+                const sdd = startFTP.slice(6,8), smm = startFTP.slice(4,6);
+                if (achou === hoje) showToast(`Mapa 1 no dia corrente (${dd}/${mm})`);
+                else if (changed)   showToast(`Rodada de ${sdd}/${smm} indisponível — usando ${dd}/${mm}`);
+                else                showToast(`Rodada ${dd}/${mm}`);
             }
         } finally {
             _resolvendoData = false;
