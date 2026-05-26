@@ -2425,7 +2425,9 @@
         const mid = Object.keys(modelos)[0];
         const m = modelos[mid] || {};
         const vid = (m.variaveis && m.variaveis[0]) ? m.variaveis[0].id : '';
-        return { modelo: mid, subsistema: m.subsistema || '', data: '', variavel: vid, sync: false };
+        const lastVarByModel = {};
+        if (mid && vid) lastVarByModel[mid] = vid;
+        return { modelo: mid, subsistema: m.subsistema || '', data: '', variavel: vid, sync: false, lastVarByModel };
     }
     const state = {
         layout: 1,
@@ -2742,7 +2744,7 @@
             layout: state.layout,
             tempo: state.tempo,
             passoAtual: state.passoAtual,
-            slots: state.slots.map(s => ({ modelo: s.modelo, variavel: s.variavel, sync: !!s.sync, data: s.data }))
+            slots: state.slots.map(s => ({ modelo: s.modelo, variavel: s.variavel, sync: !!s.sync, data: s.data, lastVarByModel: s.lastVarByModel || {} }))
         };
     }
     function saveUIPrefs() {
@@ -2776,6 +2778,9 @@
                 if (p.variavel) state.slots[i].variavel = p.variavel;
                 state.slots[i].sync = !!p.sync;
                 if (p.data) state.slots[i].data = p.data;
+                if (p.lastVarByModel && typeof p.lastVarByModel === 'object') {
+                    state.slots[i].lastVarByModel = p.lastVarByModel;
+                }
             }
             slotsRestored = true;
         }
@@ -3144,16 +3149,23 @@
         const s = state.slots[slotIdx];
         let inicioRodada = false;
         if (cfg === 'modelo') {
+            // memoriza a variável atual associada ao MODELO que está sendo deixado,
+            // para restaurar ao voltar nele depois.
+            s.lastVarByModel = s.lastVarByModel || {};
+            if (s.modelo && s.variavel) s.lastVarByModel[s.modelo] = s.variavel;
             s.modelo = value;
             s.subsistema = (modelos[value] || {}).subsistema || '';
             const el = slotEl(slotIdx);
             const selVar = el.querySelector('[data-cfg="variavel"]');
-            populateVariavelSelect(selVar, s.modelo, s.variavel);
+            // preferência: última variável usada NESTE modelo; se não tiver, mantém a atual.
+            const preferred = (s.lastVarByModel[value]) || s.variavel;
+            populateVariavelSelect(selVar, s.modelo, preferred);
             s.variavel = selVar.value;
+            s.lastVarByModel[value] = s.variavel;
             atualizarMaxPassos();
             clearImageBuffer(slotIdx);   // remove imagem antiga (evita lingering)
             if (slotIdx === 0) {
-                // tenta manter a data atual para o novo modelo; se nao existir, recua
+                // tenta manter a data atual para o novo modelo; se não existir, recua
                 resolverEAplicarDataM1(false, { fromCurrent: true });
             }
         } else if (cfg === 'data') {
@@ -3163,6 +3175,8 @@
             const oldV = getVariavel(s.modelo, s.variavel);
             const wasAnalysis = oldV && Number(oldV.frequencia) === 0;
             s.variavel = value;
+            s.lastVarByModel = s.lastVarByModel || {};
+            s.lastVarByModel[s.modelo] = value;
             const newV = getVariavel(s.modelo, value);
             const isAnalysisNow = newV && Number(newV.frequencia) === 0;
             // Deixou de ser análise: restaura a rodada em cascata (M1 - i dias).
