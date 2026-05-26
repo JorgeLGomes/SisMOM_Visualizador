@@ -1,172 +1,242 @@
 # SisMOM — Visualizador
 
 Visualizador de modelos meteorológicos do **SisMOM** (CPTEC/INPE).
-Aplicativo de página única (`figuras_SisMOM_v23.html`) que pode ser usado
-direto no navegador, como **janela de aplicativo** (Windows/Linux) ou
-empacotado como **executável** (`.exe` no Windows, `AppImage`/`.deb` no Linux).
+Aplicativo de página única (`figuras_SisMOM_v23.html`) empacotado em
+**executáveis** para Windows (`.exe`) e Linux (`AppImage`/`.deb`).
 
 ---
 
-## Conteúdo da pasta
+## 1. Gerar os executáveis
 
-| Arquivo | Para que serve |
-|---|---|
-| `figuras_SisMOM_v23.html` | O aplicativo (abre em qualquer navegador) |
-| `SisMOM.bat` | Abrir como janela de app no **Windows** (Edge/Chrome) |
-| `SisMOM.sh` | Abrir como janela de app no **Linux** (Chrome/Chromium) |
-| `instalar-atalho.sh` | Cria o atalho "SisMOM Visualizador" no **menu do Linux** |
-| `SisMOM.desktop` | Modelo de atalho `.desktop` (edição manual) |
-| `sismom_icon.png`, `sismom-icon-192/512.png` | Ícones do app/atalho |
-| `electron-app/` | Projeto **Electron** para gerar os executáveis |
+### Pré-requisito (uma vez)
 
----
+Instale o **Node.js LTS** — https://nodejs.org (inclui o `npm`).
 
-## 1) Uso imediato (sem instalar nada)
+> Builde **fora do OneDrive**. Arquivos "somente na nuvem" do OneDrive
+> corrompem o ícone/JSON do build. Trabalhe num caminho local como
+> `C:\Projetos\Visualizador` ou `~/Projetos/Visualizador`.
 
-- **Windows:** duplo‑clique em `SisMOM.bat`.
-- **Linux:** `chmod +x SisMOM.sh` e depois `./SisMOM.sh`.
+Dentro da pasta do projeto, entre em `electron-app` e instale as dependências
+uma única vez por sistema:
 
-Ambos abrem o painel numa janela limpa (modo aplicativo). Também é possível
-abrir o `figuras_SisMOM_v23.html` direto no navegador.
-
-### Atalho no menu do Linux (opcional)
-```bash
-bash instalar-atalho.sh
-```
-Cria o atalho em `~/.local/share/applications/`. Procure por
-**"SisMOM Visualizador"** no menu. Para remover:
-```bash
-rm ~/.local/share/applications/sismom-visualizador.desktop
-```
-
----
-
-## 2) Gerar os executáveis (Electron)
-
-### Pré‑requisito (uma vez)
-Instale o **Node.js LTS**: https://nodejs.org (já vem com o `npm`).
-
-> **IMPORTANTE — OneDrive:** gere os executáveis **fora do OneDrive**
-> (ex.: copie a pasta `electron-app` para `C:\build\` ou `~/build/`), ou
-> marque a pasta como *"Sempre manter neste dispositivo"*. Arquivos
-> "somente na nuvem" corrompem o build (ícone/JSON incompletos).
-
-Entre na pasta do projeto e instale as dependências (uma vez por sistema):
 ```bash
 cd electron-app
 npm install
 ```
 
-### Windows (.exe)  — rode no Windows
-```bash
+### Windows (.exe) — rode no Windows
+
+```powershell
 npm run dist
 ```
-Saída em `electron-app/dist/`:
-- `SisMOM Visualizador Setup 1.0.0.exe` — instalador (cria atalho na área de trabalho)
-- `SisMOM Visualizador 1.0.0.exe` — versão **portátil** (roda sem instalar)
 
-### Linux (AppImage / .deb)  — rode no Linux
+Saída em `electron-app\dist\`:
+- `SisMOM Visualizador Setup 1.0.0.exe` — **instalador** (cria atalho na área de trabalho e no menu Iniciar)
+- `SisMOM Visualizador 1.0.0.exe` — **portátil** (roda sem instalar)
+
+### Linux (AppImage / .deb) — rode no Linux ou WSL
+
 ```bash
 npm run dist:linux
 ```
+
 Saída em `electron-app/dist/`:
-- `SisMOM Visualizador-1.0.0.AppImage` — executável único
+- `SisMOM Visualizador-1.0.0.AppImage` — executável único, portátil
+- `sismom-visualizador_1.0.0_amd64.deb` — instalador Debian/Ubuntu
+
+> No Windows, use **WSL** (`wsl --install` no PowerShell admin) para gerar os
+> alvos Linux. Não é possível empacotar AppImage/.deb diretamente do Windows
+> (faltam `mksquashfs`/`fakeroot`).
+
+### Comandos auxiliares
+
+| Comando | O que faz |
+|---|---|
+| `npm start` | Abre o app no Electron para testar (sem empacotar) |
+| `npm run dist` | Build Windows (`.exe`) |
+| `npm run dist:win` | Idem |
+| `npm run dist:linux` | Build Linux (AppImage + `.deb`) |
+| `npm run dist:all` | Windows + Linux (precisa de host compatível) |
+
+---
+
+## 2. Instalação
+
+### Windows
+
+- **Instalador:** duplo-clique em `SisMOM Visualizador Setup 1.0.0.exe`,
+  escolha a pasta de instalação, conclua. Aparecem atalhos na área de trabalho
+  e no menu Iniciar.
+- **Portátil:** copie `SisMOM Visualizador 1.0.0.exe` para qualquer pasta e
+  abra com duplo-clique. Não instala nada.
+
+### Linux
+
+- **AppImage** (qualquer distribuição):
   ```bash
   chmod +x "SisMOM Visualizador-1.0.0.AppImage"
   ./"SisMOM Visualizador-1.0.0.AppImage"
   ```
-- `sismom-visualizador_1.0.0_amd64.deb` — instalador Debian/Ubuntu
+  Pode exigir FUSE: `sudo apt install libfuse2`.
+
+- **.deb** (Debian/Ubuntu/derivados):
   ```bash
   sudo dpkg -i sismom-visualizador_1.0.0_amd64.deb
+  sudo apt -f install     # caso falte alguma dependência
   ```
-
-> O AppImage pode exigir FUSE: `sudo apt install libfuse2`.
-
-### Apenas testar (sem empacotar)
-```bash
-npm start
-```
-
-### Outros comandos
-```bash
-npm run dist:win     # só Windows
-npm run dist:linux   # só Linux
-npm run dist:all     # Windows + Linux (em um host compatível)
-```
+  Depois aparece **"SisMOM Visualizador"** no menu de aplicativos.
 
 ---
 
-## 3) Atualizar o app dentro do executável
+## 3. Manual de operação
 
-O build empacota o `electron-app/figuras_SisMOM_v23.html`. Se você editar o
-HTML por fora, copie a versão nova para dentro de `electron-app/` antes de
-rodar o `npm run dist`.
+### 3.1. Visão geral
 
----
+A interface tem três áreas:
 
-## 4) Configuração e modelos
+- **Cabeçalho** (topo) — logo, título, e botões à direita: ⚙ configuração,
+  ❓ atalhos, 🌓 tema claro/escuro, ▭ ocultar/exibir painel lateral.
+- **Painel lateral** (esquerda) — escolha do **layout de mapas (1–4)**,
+  controles de **animação**, **rodada (Mapa 1)** e **passos de tempo**.
+- **Área central** — um a quatro mapas, cada um com sua barra de configuração.
 
-- Já vêm **5 modelos embutidos** (Global · BESM T062, MOM6 Global,
-  Mom6 Regional, Regional · Eta 3km, merge).
-- A configuração (modelos, variáveis, painéis, tema, velocidade) é salva
-  automaticamente no navegador/app.
-- Modelos de fábrica que faltarem no cache são **restaurados** ao abrir.
-- Em **Configurar modelos e variáveis** há **Exportar/Importar** (.json)
-  para levar a configuração entre máquinas.
+### 3.2. Layout de mapas
 
-### Comportamento de abertura
+No painel lateral, em "Layout de mapas", clique para mostrar **1, 2, 3 ou 4
+mapas**. O Mapa 1 é a **referência** (define modelo, variável e rodada base);
+os demais entram em cascata (rodada −1 dia, −2 dias, ...) para comparação por
+*lead time*.
+
+### 3.3. Cabeçalho de cada mapa
+
+Em cada mapa, na barra superior:
+
+- **Modelo** — escolha entre os modelos cadastrados (ex.: *Regional · Eta 3km*,
+  *Global · BESM T062*, *MOM6 Global*, *Mom6 Regional*, *merge*).
+- **Data (rodada)** — data da condição inicial do modelo.
+- **Botão Sincronizar (🔄)** — só nos mapas posteriores: trava a data igual
+  à do Mapa 1 (em vez de cair em cascata).
+- **Variável** — campo do modelo a ser exibido.
+- **Ferramentas** (direita): 📋 copiar URL da figura · ⬇ baixar imagem ·
+  ⤢ tela cheia.
+
+### 3.4. Navegação de rodada (Mapa 1)
+
+No painel lateral, em "Rodada (Mapa 1)":
+
+- **◀** Rodada anterior (−1 dia)
+- **Botão central** mostra a rodada atual; clique para ir ao **dia corrente**.
+- **▶** Rodada seguinte (+1 dia)
+
+Sempre que a rodada do M1 muda, os mapas posteriores acompanham
+automaticamente (cascata −N dias) e o passo volta ao **início da rodada**.
+
+### 3.5. Animação e passos
+
+- **Animar / Pausar** — botão central (▶/⏸). Atalho: **Espaço**.
+- **Passo anterior / próximo** — botões ⏮ ⏭. Atalhos: **←** **→**.
+- **Parar** — volta ao 1º passo.
+- **Velocidade** — 0,2 / 0,5 / 1 / 2 s entre quadros.
+- **Barra de tempo** + **grade de passos** — selecione o passo de previsão.
+  A grade respeita a `Freq(h)` da variável e o `Horizonte(h)` máximo.
+
+### 3.6. Zoom e arraste
+
+Dentro do mapa:
+
+- **Scroll do mouse** — zoom no ponto do cursor.
+- **Duplo clique** — zoom rápido / resetar.
+- **Arrastar** — move a imagem (com zoom aplicado).
+- **Pinça** (toque) — zoom em telas touch.
+- **Atalhos:** **+** / **−** zoom · **R** resetar · **F** tela cheia (Mapa 1).
+
+### 3.7. Tela cheia
+
+Botão ⤢ na barra do mapa ou tecla **F**. Em tela cheia há um controle de
+animação flutuante (anterior, play/pause, parar, próximo, velocidade).
+
+### 3.8. Quadro flutuante de informação
+
+Passe o mouse sobre um mapa para ver: modelo, variável, rodada, passo,
+**data válida** e o **caminho/arquivo** da figura no servidor.
+
+### 3.9. Configuração de modelos e variáveis (⚙)
+
+Botão ⚙ no cabeçalho abre o modal:
+
+- **Abas** — um modelo por aba; *+ Novo modelo* cria outro.
+- **Identidade** do modelo: ID, nome, subsistema, escopo 1/2, sufixo do
+  arquivo, máx. passos.
+- **Templates de URL** (caminho e nome do arquivo) com placeholders.
+- **Tabela de variáveis** — ID, nome longo, unidade, **Freq (h)**, **Horiz (h)**,
+  prefixo do arquivo, escopo 1/2 (por variável).
+- **Exportar / Importar** — salva/carrega toda a configuração (modelos + painéis)
+  como `.json`. Use para levar a configuração entre máquinas.
+- **Restaurar padrão** — recoloca os 5 modelos de fábrica.
+
+#### Placeholders nos templates
+
+No **caminho**, datas referem-se à **rodada**; no **nome do arquivo**, à
+**data de validade**.
+
+| Placeholder | Significado |
+|---|---|
+| `{yyyy}` `{mm}` `{dd}` `{hh}` | Componentes de data |
+| `{yyyymmddhh}` (e parciais `{yyyy}`, `{yyyymm}`, `{yyyymmdd}`) | Data combinada |
+| `{data}` | Rodada completa (`YYYYMMDDHH`) |
+| `{N}` ou `{N%n}` | Índice sequencial da figura (`N × Freq` = validade) |
+| `{F}` ou `{F%n}` | Hora de previsão (`F` h após a rodada = validade) |
+| `{fct}` / `{f%n}` / `{passo}` / `{passo4}` | Formas alternativas (legado) |
+| `{escopo1}` `{escopo2}` `{prefixo}` `{ext}` | Escopo do modelo/variável, prefixo e extensão |
+
+**Três modos de validade** (definido pelo nome do arquivo):
+
+1. **Índice + Freq:** `prec-{N%3}{ext}` → `prec-001.png` (validade = rodada + N × Freq)
+2. **Horas:** `prec-f{F%3}{ext}` → `prec-f024.png` (validade = rodada + F horas)
+3. **Data direta:** `prec-{yyyymmddhh}{ext}` → `prec-2026052700.png`
+   (parciais para média anual/mensal/diária)
+
+#### Análise / Observação / Reanálise
+
+Defina **Freq (h) = 0** na variável: o campo é tratado como análise (sem passo
+de previsão; validade = a rodada). Quando o **Mapa 1 é análise**, os mapas de
+previsão posteriores se alinham automaticamente à data dele. Quando um mapa
+**posterior é análise**, ele segue a **data de validade** do que está sendo
+verificado.
+
+### 3.10. Comportamento padrão e cache
+
 - Abre com **1 painel**, modelo **Eta · 3km**, na **data atual do sistema**.
-- Se a rodada do dia não existir, recua para o dia anterior automaticamente.
-- Posiciona sempre no **início da rodada** (1º passo).
+- Se a rodada do dia não existir, **recua um dia por vez** até achar uma
+  rodada disponível.
+- Sempre posiciona no **início da rodada** (1º passo).
+- Tema, layout, velocidade, painéis e config de modelos são **salvos**
+  automaticamente entre sessões.
+- Modelos de fábrica que estejam faltando no cache são **restaurados** ao abrir.
+
+### 3.11. Atalhos de teclado
+
+| Tecla | Ação |
+|---|---|
+| **Espaço** | Animar / pausar |
+| **← / →** | Passo anterior / próximo |
+| **+ / −** | Zoom |
+| **R** | Resetar zoom |
+| **F** | Tela cheia (Mapa 1) |
+| **S** | Ocultar/exibir painel lateral |
+| **T** | Tema claro / escuro |
+| **1 / 2 / 3 / 4** | Quantidade de mapas |
+| **?** | Lista de atalhos |
+| **Esc** | Fechar modal |
 
 ---
 
-## Solução de problemas
+## Solução de problemas rápida
 
-- **Ícone do .exe aparece como o do Electron:** rebuild com o `electron-app/icon.ico`
-  presente (não "somente na nuvem"); se persistir no Explorer, limpe o cache:
+- **`.exe` com ícone padrão do Electron** — rebuild com `icon.ico` disponível
+  localmente (não "somente na nuvem"); se persistir no Explorer:
   `ie4uinit.exe -ClearIconCache`.
-- **Build falha / `package.json` corrompido:** sincronização do OneDrive.
+- **Build falha / `package.json` corrompido** — sincronização do OneDrive.
   Builde fora do OneDrive.
-- **`npm` não encontrado:** instale o Node.js e reabra o terminal.
-
----
-
-## Versionamento (Git / GitHub)
-
-O repositório já tem `.gitignore`, `LICENSE` (MIT) e um workflow do **GitHub Actions** que builda Windows e Linux automaticamente.
-
-### Inicializar e enviar para o GitHub
-
-Pré‑requisito: ter o **Git** instalado (https://git-scm.com). Crie um repositório vazio no GitHub (sem README/licença/.gitignore para não conflitar).
-
-No PowerShell, dentro de `C:\Projetos\Visualizador`:
-
-```powershell
-git init -b main
-git config user.name  "Jorge Luis Gomes"
-git config user.email "jorge.gomes@inpe.br"
-git add .
-git commit -m "Initial commit - SisMOM Visualizador v1.0.0"
-git remote add origin https://github.com/<seu-usuario>/<seu-repo>.git
-git push -u origin main
-```
-
-### Lançar uma versão (builds automáticos)
-
-O workflow `.github/workflows/release.yml` builda **Win + Linux** sempre que você cria uma tag `vX.Y.Z` e anexa os artefatos a uma *Release* (rascunho):
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-Depois, em GitHub → **Actions**, acompanhe o build. Quando terminar, a Release rascunho ficará disponível em GitHub → **Releases** com o `.exe` (instalador e portátil), o `.AppImage` e o `.deb` anexados. Basta publicar.
-
-### Atualizações de rotina
-
-```bash
-git add .
-git commit -m "Descrição da mudança"
-git push
-```
+- **AppImage não abre no Linux** — instale o FUSE: `sudo apt install libfuse2`.
+- **`npm` não encontrado** — instale o Node.js e reabra o terminal.
