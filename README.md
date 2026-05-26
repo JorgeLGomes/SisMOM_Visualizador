@@ -233,10 +233,5 @@ verificado.
 
 ## Solução de problemas rápida
 
-- **`.exe` com ícone padrão do Electron** — rebuild com `icon.ico` disponível
-  localmente (não "somente na nuvem"); se persistir no Explorer:
-  `ie4uinit.exe -ClearIconCache`.
-- **Build falha / `package.json` corrompido** — sincronização do OneDrive.
-  Builde fora do OneDrive.
 - **AppImage não abre no Linux** — instale o FUSE: `sudo apt install libfuse2`.
 - **`npm` não encontrado** — instale o Node.js e reabra o terminal.
