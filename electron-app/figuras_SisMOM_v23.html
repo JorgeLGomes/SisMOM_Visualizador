@@ -2295,6 +2295,29 @@
         "freq_rodadas": 6,
         "url_path": "https://ftp1.cptec.inpe.br/pesquisa/SisMOM/sismom_fig/sismom_oper/{data}/regional/eta/fig",
         "file_name": "{prefixo}-{F%4}{ext}"
+      },
+      "MERGE": {
+        "nome": "MERGE",
+        "subsistema": "",
+        "escopo1": "",
+        "escopo2": "",
+        "extensao": ".png",
+        "freq_rodadas": 24,
+        "maxPassos": 30,
+        "url_path": "https://ftp1.cptec.inpe.br/modelos/tempo/MERGE/FIG/DAILY/{yyyy}/{mm}/",
+        "file_name": "{prefixo}{yyyy}{mm}{dd}{ext}",
+        "variaveis": [
+          {
+            "id": "VAR1",
+            "label": "Variável 1",
+            "unidade": "mm",
+            "frequencia": 0,
+            "horizonte": 24,
+            "arquivo": "MERGE_DAILY_",
+            "escopo1": "",
+            "escopo2": ""
+          }
+        ]
       }
     };
 
