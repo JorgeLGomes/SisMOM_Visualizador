@@ -135,7 +135,9 @@ npm run dist:linux
 
 ## 9. Estado atual / último commit pendente
 
-**Última mudança aplicada:** **camada de mapa-base custom** no modal "Abrir GeoTIFF local". Canvas próprio em projeção plate carrée, costa da América do Sul (~53 pontos curados) + 17 capitais sul-americanas + grade lat/lon dinâmica (passo 1°-20° conforme zoom), pan/zoom/wheel, slider de opacidade, HUD lat/lon do cursor. Sem dependência externa (Leaflet recusado por download corporativo problemático). HTML: 283 KB → ~304 KB. API `SisMOM_Map` exposta com `addGeoJSON()` para o usuário plugar shapefiles próprios (IBGE/Natural Earth) se quiser detalhes maiores. Mapa nos painéis Mi ainda **diferido** (fase B).
+**Última mudança aplicada:** **camada de mapa-base com tiles online** no modal "Abrir GeoTIFF local". O mapa custom anterior foi estendido para `v2`: agora suporta projeção Web Mercator (além de Plate Carrée) e camadas de tiles XYZ. Três providers embutidos: **Esri World Imagery (satélite, default)**, **OpenStreetMap (ruas)** e **OpenTopoMap (topográfico)**, todos sem API key. Seletor no modal alterna entre os três + opção "Sem tiles (offline)" que volta ao mapa custom anterior. Atribuição automática no canto inferior direito conforme provider ativo. Cache de tiles em RAM (limite 400). Pan/zoom recalculam corretamente em Mercator. HTML: ~304 KB → **~312 KB**. Painéis Mi ainda **diferidos**.
+
+**Antes disso:** camada de mapa-base custom (Plate Carrée). Canvas próprio, costa da América do Sul (~53 pontos curados) + 17 capitais sul-americanas + grade lat/lon dinâmica, pan/zoom/wheel, slider de opacidade, HUD lat/lon do cursor. Sem dependência externa (Leaflet recusado por download corporativo problemático). API `SisMOM_Map` exposta com `addGeoJSON()` para o usuário plugar shapefiles próprios (IBGE/Natural Earth) se quiser detalhes maiores.
 
 **Antes disso:** suporte a **visualização de GeoTIFF**. Decoder TIFF inline (sem dependência externa), 5 paletas (Viridis/Jet/RdBu/Cinza/Turbo), modal "Abrir GeoTIFF local", e integração nos painéis Mi via `m.extensao = '.tif'/'.tiff'`. JS validado, cópias idênticas, 8 testes unitários + smoke test pós-patch verdes.
 
