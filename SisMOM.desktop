@@ -1,0 +1,14 @@
+# SisMOM Visualizador - atalho de menu (Linux)
+# Edite as duas linhas de caminho (Exec e Icon) para a pasta onde estao os
+# arquivos, OU rode "bash instalar-atalho.sh" que faz isso automaticamente.
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=SisMOM Visualizador
+GenericName=Visualizador de modelos meteorologicos
+Comment=Visualizador de modelos do SisMOM (CPTEC/INPE)
+Exec=bash "/CAMINHO/PARA/SisMOM.sh"
+Icon=/CAMINHO/PARA/sismom_icon.png
+Terminal=false
+Categories=Science;Education;
+StartupNotify=true

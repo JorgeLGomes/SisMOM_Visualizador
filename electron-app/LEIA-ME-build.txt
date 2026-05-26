@@ -1,0 +1,41 @@
+========================================================
+ SisMOM - Visualizador : gerar executaveis (Windows / Linux)
+========================================================
+
+Pre-requisito (uma vez): instalar o Node.js LTS  ->  https://nodejs.org
+
+IMPORTANTE: builde FORA do OneDrive (ou marque a pasta como "Sempre manter
+neste dispositivo"). Arquivos "somente na nuvem" quebram o build (icone/JSON).
+
+------------------------------------------
+ WINDOWS (.exe)  -> rode no Windows
+------------------------------------------
+  1) Abra o Prompt nesta pasta "electron-app".
+  2) npm install
+  3) npm run dist           (ou: npm run dist:win)
+  Saida em "dist":
+   - "SisMOM Visualizador Setup x.y.z.exe"  (instalador, cria atalho)
+   - "SisMOM Visualizador x.y.z.exe"        (portatil)
+
+------------------------------------------
+ LINUX (AppImage / .deb)  -> rode no Linux
+------------------------------------------
+  1) Abra o terminal nesta pasta "electron-app".
+  2) npm install
+  3) npm run dist:linux
+  Saida em "dist":
+   - "SisMOM Visualizador-x.y.z.AppImage"   (executavel unico)
+       chmod +x "SisMOM Visualizador-x.y.z.AppImage"  && ./"SisMOM ...AppImage"
+   - "sismom-visualizador_x.y.z_amd64.deb"  (instalador Debian/Ubuntu)
+
+  Dica: dependencias do AppImage podem exigir FUSE:  sudo apt install libfuse2
+
+------------------------------------------
+ SEM BUILD (uso imediato)
+------------------------------------------
+  Windows: duplo-clique em  SisMOM.bat
+  Linux:   ./SisMOM.sh      (antes:  chmod +x SisMOM.sh)
+  Ambos abrem o painel como janela de aplicativo (Edge/Chrome/Chromium).
+
+Obs.: os 5 modelos ja vem embutidos; a configuracao do usuario fica salva
+automaticamente. Use Configurar > Exportar/Importar para levar entre maquinas.

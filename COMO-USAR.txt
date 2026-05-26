@@ -1,0 +1,30 @@
+=====================================================================
+ SisMOM - Visualizador : como usar / como gerar o executavel
+=====================================================================
+
+ARQUIVOS NESTA PASTA
+  - figuras_SisMOM_v23.html .... o painel (abre direto em qualquer navegador)
+  - SisMOM.bat ................. abre o painel como JANELA DE APLICATIVO
+                                 (Edge ou Chrome em modo "app"). Uso imediato.
+  - electron-app\ .............. projeto para gerar um .EXE de verdade
+                                 (veja electron-app\LEIA-ME-build.txt)
+
+OPCAO 1 - USO IMEDIATO (sem instalar nada)
+  - De um duplo-clique em "SisMOM.bat".
+    Ele abre o painel numa janela limpa (modo aplicativo).
+  - Ou abra "figuras_SisMOM_v23.html" direto no navegador.
+
+OPCAO 2 - GERAR UM .EXE (instalador ou portatil)
+  - Entre na pasta "electron-app" e siga o "LEIA-ME-build.txt"
+    (resumo: instale o Node.js, rode "npm install" e "npm run dist").
+
+CACHE / CONFIGURACAO
+  - Modelos, variaveis e os paineis (modelo, variavel, sync, DATA da rodada),
+    alem de tema, layout, velocidade e passo, sao salvos automaticamente e
+    restaurados ao reabrir.
+  - Em "Configurar modelos e variaveis" (engrenagem) ha os botoes:
+      Exportar -> salva tudo em um arquivo .json
+      Importar -> carrega um .json (leva a config para outra maquina)
+
+Dica: para o .bat, mantenha o "SisMOM.bat" sempre na mesma pasta do
+      "figuras_SisMOM_v23.html".
