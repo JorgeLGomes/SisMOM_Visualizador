@@ -1673,6 +1673,8 @@
                 <button class="btn btn-primary" id="btnAuthSetup">Ativar 2FA</button>
                 <button class="btn btn-danger" id="btnAuthDesativar" style="display:none">Desativar 2FA</button>
                 <button class="btn btn-ghost" id="btnAuthLockNow">Bloquear agora</button>
+                <button class="btn btn-ghost" id="btnAuthUnlockProt" style="display:none">🔓 Desbloquear modelos protegidos</button>
+                <button class="btn btn-ghost" id="btnAuthLockProt" style="display:none">🔒 Bloquear modelos protegidos</button>
             </div>
             <div id="authModes" class="auth-modes" style="border-top:1px solid var(--border-subtle); padding-top:14px">
                 <p style="margin:0 0 8px"><strong>Quando exigir o código:</strong></p>
@@ -3255,7 +3257,9 @@
         if (!m) return false;
         if (!m.requires2FA) return true;
         if (!authAtivado()) return true;
-        return isUnlocked();
+        // Protegidos exigem o desbloqueio ESPECÍFICO de protegidos
+        // (entrar com o código de novo, deliberadamente).
+        return isProtectedUnlocked();
     }
     function modelosAcessiveis() { return Object.keys(modelos).filter(isModeloAcessivel); }
     function refreshAposMudancaAuth() {
@@ -4029,7 +4033,7 @@
         Object.keys(configDraft).forEach(id => {
             const md = configDraft[id];
             // Em modo bloqueado e com 2FA ativo, modelos protegidos não aparecem nas abas.
-            if (md.requires2FA && authAtivado() && !isUnlocked()) return;
+            if (md.requires2FA && authAtivado() && !isProtectedUnlocked()) return;
             const btn = document.createElement('button');
             btn.className = 'modal-tab' + (id === configActiveId ? ' active' : '');
             btn.dataset.modelId = id;
@@ -4396,8 +4400,15 @@
         if (v) sessionStorage.setItem('sismom_auth_unlocked','true');
         else sessionStorage.removeItem('sismom_auth_unlocked');
     }
+    // Acesso a modelos protegidos: desbloqueio SEPARADO da sessão geral.
+    function isProtectedUnlocked() { return sessionStorage.getItem('sismom_auth_prot_unlocked') === 'true'; }
+    function setProtectedUnlocked(v) {
+        if (v) sessionStorage.setItem('sismom_auth_prot_unlocked','true');
+        else sessionStorage.removeItem('sismom_auth_prot_unlocked');
+    }
     /* -------- Tela de bloqueio -------- */
     let _authResolve = null;
+    let _authKind = 'session';   // 'session' | 'protected'
     function abrirTelaBloqueio(razao) {
         const m = document.getElementById('modalAuthLock'); if (!m) return;
         const err = document.getElementById('authLockError');
@@ -4414,7 +4425,8 @@
     function fecharTelaBloqueio() {
         const m = document.getElementById('modalAuthLock'); if (m) m.classList.remove('open');
     }
-    function pedirCodigoBloqueio(razao) {
+    function pedirCodigoBloqueio(razao, opts) {
+        _authKind = (opts && opts.kind) || 'session';
         return new Promise(resolve => { _authResolve = resolve; abrirTelaBloqueio(razao); });
     }
     async function autenticarComCodigo(code, isRecovery) {
@@ -4436,7 +4448,12 @@
         if (recCode) ok = await autenticarComCodigo(recCode, true);
         else ok = await autenticarComCodigo(code, false);
         if (ok) {
-            setUnlocked(true);
+            if (_authKind === 'protected') {
+                setProtectedUnlocked(true);
+                setUnlocked(true);   // protegido implica sessão geral
+            } else {
+                setUnlocked(true);
+            }
             fecharTelaBloqueio();
             const r = _authResolve; _authResolve = null;
             if (r) r(true);
@@ -4758,6 +4775,12 @@
         const offBtn = document.getElementById('btnAuthDesativar');
         if (setupBtn) setupBtn.style.display = on ? 'none' : '';
         if (offBtn) offBtn.style.display = on ? '' : 'none';
+        const unp = document.getElementById('btnAuthUnlockProt');
+        const lkp = document.getElementById('btnAuthLockProt');
+        // botões só fazem sentido se 2FA ativo E houver algum modelo protegido
+        const hasProt = Object.values(modelos || {}).some(mm => mm && mm.requires2FA);
+        if (unp) unp.style.display = (on && hasProt && !isProtectedUnlocked()) ? '' : 'none';
+        if (lkp) lkp.style.display = (on && hasProt &&  isProtectedUnlocked()) ? '' : 'none';
     }
     function aoMudarModoAuth() {
         const a = carregarAuth(); if (!a) return;
@@ -4772,6 +4795,7 @@
         if (!ok) return;
         removerAuth();
         setUnlocked(false);
+        setProtectedUnlocked(false);
         atualizarStatusAuth();
         try { refreshAposMudancaAuth(); } catch (_) {}
         showToast('2FA desativado');
@@ -4779,9 +4803,23 @@
     function bloquearAgora() {
         if (!authAtivado()) { showToast('2FA não está ativado'); return; }
         setUnlocked(false);
+        setProtectedUnlocked(false);
         showToast('Sessão bloqueada');
         try { refreshAposMudancaAuth(); } catch (_) {}
         if (authModo('openApp')) abrirTelaBloqueio('App bloqueado. Digite o código para continuar.');
+    }
+    /* Apenas (des)bloquear o acesso a modelos protegidos */
+    async function desbloquearProtegidos() {
+        if (!authAtivado()) { showToast('Ative o 2FA primeiro'); return; }
+        const ok = await pedirCodigoBloqueio('Desbloquear acesso aos modelos protegidos.', { kind: 'protected' });
+        if (ok) { atualizarStatusAuth(); }
+    }
+    function bloquearProtegidos() {
+        if (!isProtectedUnlocked()) { showToast('Modelos protegidos já estão bloqueados'); return; }
+        setProtectedUnlocked(false);
+        atualizarStatusAuth();
+        showToast('Acesso a modelos protegidos bloqueado');
+        try { refreshAposMudancaAuth(); } catch (_) {}
     }
     async function aplicarBloqueioInicial() {
         if (!authAtivado()) return;
@@ -4821,6 +4859,8 @@
         });
         $ge('btnAuthDesativar') && $ge('btnAuthDesativar').addEventListener('click', desativar2FA);
         $ge('btnAuthLockNow') && $ge('btnAuthLockNow').addEventListener('click', bloquearAgora);
+        $ge('btnAuthUnlockProt') && $ge('btnAuthUnlockProt').addEventListener('click', desbloquearProtegidos);
+        $ge('btnAuthLockProt') && $ge('btnAuthLockProt').addEventListener('click', bloquearProtegidos);
         $ge('authModeOpen') && $ge('authModeOpen').addEventListener('change', aoMudarModoAuth);
         $ge('authModeSens') && $ge('authModeSens').addEventListener('change', aoMudarModoAuth);
         $ge('btnAuthLockSubmit') && $ge('btnAuthLockSubmit').addEventListener('click', submeterCodigoBloqueio);
