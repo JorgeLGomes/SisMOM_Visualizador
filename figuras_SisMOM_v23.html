@@ -220,6 +220,14 @@
         }
 
         .header-actions { display: flex; align-items: center; gap: 6px; }
+        .mode-tabs { display: inline-flex; gap: 4px; margin-left: 14px; }
+        .mode-tab { padding: 5px 14px; border-radius: 6px; background: transparent; color: var(--text-muted, #aab); border: 1px solid var(--border-subtle, #233); cursor: pointer; font-size: 13px; font-weight: 600; letter-spacing: 0.3px; transition: background .15s, color .15s, border-color .15s; }
+        .mode-tab:hover { color: var(--text, #cbd6e6); }
+        .mode-tab.active { background: rgba(77,208,225,0.15); color: var(--accent-cyan, #4dd0e1); border-color: var(--accent-cyan, #4dd0e1); }
+        #modalGeoTIFF.inline { position: static; background: transparent; padding: 0; display: block !important; height: auto; }
+        #modalGeoTIFF.inline > .modal { max-width: none; width: 100%; box-shadow: none; border-radius: 0; max-height: none; }
+        #modalGeoTIFF.inline > .modal > .modal-header { display: none; }
+        #mainGT { padding: 12px 16px; }
         .icon-btn {
             width: 36px; height: 36px;
             display: grid; place-items: center;
@@ -1319,6 +1327,10 @@
                 <div class="brand-sub">SisMOM · MCTI</div>
             </div>
         </div>
+        <div class="mode-tabs" role="tablist" aria-label="Modo de visualização">
+            <button type="button" class="mode-tab active" data-app-mode="png" role="tab" aria-selected="true">PNG/GIF</button>
+            <button type="button" class="mode-tab" data-app-mode="gtiff" role="tab" aria-selected="false">GeoTIFF</button>
+        </div>
         <div class="header-actions">
             <button class="icon-btn" id="btnOpenGeoTIFF" title="Abrir GeoTIFF local" aria-label="Abrir GeoTIFF">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -1439,6 +1451,7 @@
         </div>
         <div class="map-container" id="mapContainer" data-layout="2"></div>
     </main>
+    <section id="mainGT" style="display:none" aria-label="Dashboard GeoTIFF"></section>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite">
@@ -3226,6 +3239,7 @@
         atualizarProgresso();
         atualizarTooltipsInfo();
         for (let i = 0; i < state.layout; i++) renderSlot(i);
+        if (appMode === 'gtiff') { try { gtLoadFromState(); } catch (_) {} }
         setTimeout(preCarregarProximos, 50);
         scheduleSavePrefs();
     }
@@ -4964,6 +4978,8 @@
         resolverEAplicarDataM1(false);
         // Liga UI de visualização GeoTIFF (botão no header + modal)
         try { bindGeoTIFFUI(); } catch (e) { console.error('bindGeoTIFFUI', e); }
+        // Liga tabs de modo (PNG/GIF | GeoTIFF) e aplica modo persistido
+        try { bindModeTabs(); setAppMode(appMode); } catch (e) { console.error('mode tabs', e); }
         // Bloqueia o app se 2FA estiver ativo no modo "abrir o app".
         aplicarBloqueioInicial();
     }
@@ -6179,6 +6195,97 @@
             toggle.checked = false;
             gtToggleMapUI();
         }
+    }
+
+    /* ╔═══════════════════════════════════════════════════════════╗
+       ║  Dashboard GeoTIFF — tabs PNG/GIF | GeoTIFF                ║
+       ║  Em modo gtiff, move o conteúdo do modal local para        ║
+       ║  dentro de #mainGT (sem backdrop) e o conecta ao slot 0.   ║
+       ╚═══════════════════════════════════════════════════════════╝ */
+    let appMode = (function () {
+        try { return localStorage.getItem('sismom_app_mode') || 'png'; } catch (_) { return 'png'; }
+    })();
+    let _gtModalParent = null;  // onde o conteúdo do modal "morava" antes de virar dashboard
+
+    function setAppMode(mode, opts) {
+        if (mode !== 'png' && mode !== 'gtiff') return;
+        appMode = mode;
+        try { localStorage.setItem('sismom_app_mode', mode); } catch (_) {}
+        // Tabs visual
+        document.querySelectorAll('.mode-tab').forEach(b => {
+            const on = b.getAttribute('data-app-mode') === mode;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        const mainPNG = document.getElementById('main-content');
+        const mainGT  = document.getElementById('mainGT');
+        const modal   = document.getElementById('modalGeoTIFF');
+        if (mode === 'gtiff') {
+            // Move modal pra dentro de mainGT
+            if (modal && mainGT && modal.parentNode !== mainGT) {
+                _gtModalParent = modal.parentNode;
+                mainGT.appendChild(modal);
+            }
+            if (modal) { modal.classList.add('inline'); modal.classList.add('open'); }
+            if (mainPNG) mainPNG.style.display = 'none';
+            if (mainGT)  mainGT.style.display  = '';
+            // Carrega do FTP via slot 0
+            gtLoadFromState().catch(() => {});
+        } else {
+            // Volta modal pra onde estava (body)
+            if (modal) {
+                modal.classList.remove('inline');
+                modal.classList.remove('open');
+                if (_gtModalParent && modal.parentNode !== _gtModalParent) {
+                    _gtModalParent.appendChild(modal);
+                }
+            }
+            if (mainPNG) mainPNG.style.display = '';
+            if (mainGT)  mainGT.style.display  = 'none';
+        }
+    }
+
+    async function gtLoadFromState() {
+        if (appMode !== 'gtiff') return;
+        if (!state || !state.slots || !state.slots[0]) return;
+        const s = state.slots[0];
+        if (!s.data || !s.modelo || !s.variavel) return;
+        // Só faz sentido se o modelo for GeoTIFF
+        const m = modelos[s.modelo];
+        if (!m || !SisMOM_GeoTIFF.isGeoTiffModel(m)) {
+            const info = document.getElementById('gtInfo');
+            if (info) info.textContent = 'Modelo "' + (m && m.nome || s.modelo) + '" não é GeoTIFF (extensão ≠ .tif/.tiff). Configure um modelo com sufixo .tif/.tiff.';
+            return;
+        }
+        const passo = getEffectivePasso(0);
+        let url;
+        try {
+            url = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo });
+        } catch (e) {
+            const info = document.getElementById('gtInfo');
+            if (info) info.textContent = 'Erro ao montar URL: ' + (e && e.message);
+            return;
+        }
+        const info = document.getElementById('gtInfo');
+        if (info) info.textContent = 'Carregando ' + url + '…';
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const ab = await resp.arrayBuffer();
+            gtLastDecoded = await SisMOM_GeoTIFF.decodeTIFF(ab);
+            gtAtualizarInfoEMinMax(gtLastDecoded);
+            try { gtUpdateMapToggleEnabled(); } catch (_) {}
+            if (typeof _gtMap !== 'undefined' && _gtMap && gtLastDecoded.bbox) _gtMap.fitTo(gtLastDecoded.bbox);
+            gtRenderar();
+        } catch (e) {
+            if (info) info.textContent = 'Falha ao carregar GeoTIFF: ' + ((e && e.message) || e);
+        }
+    }
+
+    function bindModeTabs() {
+        document.querySelectorAll('.mode-tab').forEach(b => {
+            b.addEventListener('click', () => setAppMode(b.getAttribute('data-app-mode')));
+        });
     }
 
     if (document.readyState === 'loading') {

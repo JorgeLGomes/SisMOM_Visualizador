@@ -135,7 +135,9 @@ npm run dist:linux
 
 ## 9. Estado atual / último commit pendente
 
-**Última mudança aplicada:** **colorbar (barra de escala de cores)**. Canvas #gtColorbar (38 px de altura, largura plena) entre os controles e a área do raster mostra gradient da paleta corrente + 5 ticks (min, 25 %, 50 %, 75 %, max) com labels formatados (fixed/exponential adaptativo). Reflete automaticamente troca de paleta, edição de min/max, novo arquivo, e filtros UNDEF/clip (via recálculo de min/max no modo Auto). HiDPI-aware via devicePixelRatio. +4 KB no HTML.
+**Última mudança aplicada:** **dashboard GeoTIFF como aba/tab no header**. Tabs `[PNG/GIF]` `[GeoTIFF]` no topo persistem modo em `localStorage`. Em modo GeoTIFF, o conteúdo do modal local (com paleta, min/max, mapa Mercator+tiles, colorbar, UNDEF/Clip, HUD do valor, atribuição) é **movido inline** para uma `<section id="mainGT">` via `appendChild`, sem duplicação de UI. O painel se conecta ao slot 0 do state (modelo/variável/data/passo): renderTudo() dispara `gtLoadFromState()` que monta URL via `montarURL` + fetch + decode. Animação por passos reusa todo o sistema existente (play/pause/step). Volta para modo PNG devolve o modal ao body. +6 KB no HTML.
+
+**Antes disso:** **colorbar (barra de escala de cores)**. Canvas #gtColorbar (38 px de altura, largura plena) entre os controles e a área do raster mostra gradient da paleta corrente + 5 ticks (min, 25 %, 50 %, 75 %, max) com labels formatados (fixed/exponential adaptativo). Reflete automaticamente troca de paleta, edição de min/max, novo arquivo, e filtros UNDEF/clip (via recálculo de min/max no modo Auto). HiDPI-aware via devicePixelRatio. +4 KB no HTML.
 
 **Antes disso:** **valores UNDEF e clipping manuais**. Nova linha no modal local: input "UNDEF:" (uma ou várias entradas separadas por vírgula/espaço, ex. `-999, -9999`), inputs "Clip ≥" / "Clip ≤" para máscara por threshold, botão Limpar. Pixels filtrados ficam transparentes na renderização e marcados como NoData no HUD do cursor. Quando min/max está em modo "Auto", o intervalo é recalculado ignorando pixels mascarados. +5 KB no HTML (313 → 318).
 
