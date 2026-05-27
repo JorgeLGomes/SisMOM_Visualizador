@@ -135,7 +135,9 @@ npm run dist:linux
 
 ## 9. Estado atual / último commit pendente
 
-**Última mudança aplicada:** **valores UNDEF e clipping manuais**. Nova linha no modal local: input "UNDEF:" (uma ou várias entradas separadas por vírgula/espaço, ex. `-999, -9999`), inputs "Clip ≥" / "Clip ≤" para máscara por threshold, botão Limpar. Pixels filtrados ficam transparentes na renderização e marcados como NoData no HUD do cursor. Quando min/max está em modo "Auto", o intervalo é recalculado ignorando pixels mascarados. +5 KB no HTML (313 → 318).
+**Última mudança aplicada:** **colorbar (barra de escala de cores)**. Canvas #gtColorbar (38 px de altura, largura plena) entre os controles e a área do raster mostra gradient da paleta corrente + 5 ticks (min, 25 %, 50 %, 75 %, max) com labels formatados (fixed/exponential adaptativo). Reflete automaticamente troca de paleta, edição de min/max, novo arquivo, e filtros UNDEF/clip (via recálculo de min/max no modo Auto). HiDPI-aware via devicePixelRatio. +4 KB no HTML.
+
+**Antes disso:** **valores UNDEF e clipping manuais**. Nova linha no modal local: input "UNDEF:" (uma ou várias entradas separadas por vírgula/espaço, ex. `-999, -9999`), inputs "Clip ≥" / "Clip ≤" para máscara por threshold, botão Limpar. Pixels filtrados ficam transparentes na renderização e marcados como NoData no HUD do cursor. Quando min/max está em modo "Auto", o intervalo é recalculado ignorando pixels mascarados. +5 KB no HTML (313 → 318).
 
 **Antes disso:** **HUD do valor do raster sob o cursor**. Ao mover o mouse sobre o mapa OU sobre o canvas do raster, o HUD mostra `lat, lon · valor = X` (notação científica adaptativa, "NoData" quando aplicável). Funciona em ambos os modos (com mapa Mercator e sem mapa). +3 KB no HTML.
 
