@@ -342,6 +342,14 @@
         .gt-side h4 { margin: 8px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
                        color: var(--text-muted, #aab); border-bottom: 1px solid rgba(255,255,255,0.08);
                        padding-bottom: 3px; }
+        .gt-side h4.gt-section-header { cursor: pointer; user-select: none;
+                                          display: flex; align-items: center; gap: 4px; transition: color .15s; }
+        .gt-side h4.gt-section-header:hover { color: var(--text, #cbd6e6); }
+        .gt-side h4 .gt-section-chevron { display: inline-block; width: 10px; font-size: 9px;
+                                            transform: rotate(0deg); transition: transform .2s; }
+        .gt-side h4.collapsed .gt-section-chevron { transform: rotate(-90deg); }
+        .gt-section-body { overflow: hidden; transition: max-height .25s ease, opacity .2s; opacity: 1; }
+        .gt-section-body.collapsed { max-height: 0 !important; opacity: 0; margin: 0; padding: 0; pointer-events: none; }
         .gt-layer-item { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 4px;
                           background: rgba(255,255,255,0.04); margin-bottom: 4px; cursor: pointer;
                           border: 1px solid transparent;
@@ -5720,6 +5728,51 @@
             }, 280);
         });
         body.appendChild(tgl);
+        // Transforma cada h4 em dropdown colapsável
+        try { gtMakeAccordion(); } catch (e) { console.error('gtMakeAccordion', e); }
+    }
+
+    function gtMakeAccordion() {
+        const side = document.getElementById('gtSidePanel');
+        if (!side || side.classList.contains('gt-accordion-ready')) return;
+        side.classList.add('gt-accordion-ready');
+        // Carrega estado salvo (quais seções colapsadas)
+        let saved = {};
+        try { saved = JSON.parse(localStorage.getItem('sismom_gt_sections') || '{}') || {}; } catch (_) {}
+        const headers = Array.from(side.querySelectorAll('h4'));
+        headers.forEach((h, idx) => {
+            const sectionKey = (h.textContent || ('s' + idx)).trim();
+            // Wrapper body para os próximos siblings até o próximo h4
+            const body = document.createElement('div');
+            body.className = 'gt-section-body';
+            let next = h.nextSibling;
+            while (next && !(next.nodeType === 1 && next.tagName === 'H4')) {
+                const cur = next;
+                next = next.nextSibling;
+                body.appendChild(cur);
+            }
+            h.parentNode.insertBefore(body, h.nextSibling);
+            // Header clicável com chevron
+            h.classList.add('gt-section-header');
+            const chev = document.createElement('span');
+            chev.className = 'gt-section-chevron';
+            chev.textContent = '▾';
+            h.insertBefore(chev, h.firstChild);
+            // Aplica estado salvo
+            if (saved[sectionKey]) {
+                body.classList.add('collapsed');
+                h.classList.add('collapsed');
+            }
+            h.addEventListener('click', () => {
+                const collapsed = body.classList.toggle('collapsed');
+                h.classList.toggle('collapsed', collapsed);
+                try {
+                    const cur = JSON.parse(localStorage.getItem('sismom_gt_sections') || '{}') || {};
+                    cur[sectionKey] = collapsed;
+                    localStorage.setItem('sismom_gt_sections', JSON.stringify(cur));
+                } catch (_) {}
+            });
+        });
     }
 
     /* ─── Camada ativa: controles operam sobre a camada selecionada ─── */
