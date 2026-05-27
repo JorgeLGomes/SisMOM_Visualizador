@@ -225,9 +225,87 @@
         .mode-tab:hover { color: var(--text, #cbd6e6); }
         .mode-tab.active { background: rgba(77,208,225,0.15); color: var(--accent-cyan, #4dd0e1); border-color: var(--accent-cyan, #4dd0e1); }
         #modalGeoTIFF.inline { position: static; background: transparent; padding: 0; display: block !important; height: auto; }
-        #modalGeoTIFF.inline > .modal { max-width: none; width: 100%; box-shadow: none; border-radius: 0; max-height: none; }
+        #modalGeoTIFF.inline > .modal { max-width: none; width: 100%; box-shadow: none; border-radius: 0; max-height: none; height: calc(100vh - 70px); display: flex; flex-direction: column; }
         #modalGeoTIFF.inline > .modal > .modal-header { display: none; }
-        #mainGT { padding: 12px 16px; }
+        #modalGeoTIFF.inline > .modal > .modal-body { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 8px 12px; }
+        #modalGeoTIFF.inline .modal-body.gt-organized { height: 100%; align-items: stretch; }
+        #modalGeoTIFF.inline .gt-main-col { height: 100%; min-height: 0; }
+        /* O div que envolve os canvases (raster + mapa) ocupa toda altura disponível */
+        #modalGeoTIFF.inline .gt-main-col > div { max-height: none !important; }
+        #modalGeoTIFF.inline .gt-main-col > .gt-canvas-wrap { flex: 1 1 auto; min-height: 0; height: 100%; }
+        #modalGeoTIFF.inline #gtMapCanvas { height: 100% !important; width: 100% !important; }
+        #modalGeoTIFF.inline #gtCanvas { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+        #modalGeoTIFF.inline #gtAttrib { right: 8px; left: auto; bottom: 8px; }
+        #mainGT { padding: 8px 12px; height: calc(100vh - 60px); box-sizing: border-box; }
+        /* HUD inferior central — navegação + valor */
+        .gt-bottom-hud {
+            position: absolute;
+            left: 12px; right: auto; transform: none;
+            bottom: 14px;
+            z-index: 10;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(10,18,30,0.78);
+            color: var(--text, #cbd6e6);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.10);
+            backdrop-filter: blur(6px);
+            font-family: ui-monospace, monospace;
+            font-size: 12px;
+            pointer-events: auto;
+            user-select: none;
+        }
+        .gt-bottom-hud .gt-hud-sep { width: 1px; height: 18px; background: rgba(255,255,255,0.12); margin: 0 4px; }
+        .gt-bottom-hud button {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: inherit;
+            cursor: pointer;
+            width: 26px; height: 26px;
+            border-radius: 4px;
+            font-size: 14px; font-weight: 700;
+            line-height: 22px; padding: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .gt-bottom-hud button:hover { background: rgba(255,255,255,0.18); }
+        .gt-bottom-hud button:active { transform: scale(0.95); }
+        .gt-bottom-hud .gt-hud-coord {
+            min-width: 220px;
+            text-align: center;
+            padding: 0 8px;
+        }
+        /* Canvas raster (modo sem mapa) com pan/zoom via transform CSS */
+        #gtCanvas { transform-origin: center center; transition: transform .08s linear; cursor: grab; }
+        #gtCanvas:active { cursor: grabbing; }
+        /* Pilha de mini-colorbars overlay (canto inferior esquerdo, acima do HUD) */
+        .gt-cb-stack {
+            position: absolute;
+            left: 12px; bottom: 62px;
+            z-index: 9;
+            display: flex; flex-direction: column; gap: 4px;
+            pointer-events: none;
+            max-width: 420px;
+        }
+        .gt-cb-item {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(10,18,30,0.78);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 6px;
+            padding: 4px 8px;
+            color: var(--text, #cbd6e6);
+            font-family: ui-monospace, monospace;
+            font-size: 11px;
+            backdrop-filter: blur(6px);
+        }
+        .gt-cb-item .gt-cb-name {
+            max-width: 140px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            font-weight: 600;
+        }
+        .gt-cb-item canvas { display: block; }
+        .gt-cb-item .gt-cb-minmax { color: var(--text-muted, #aab); font-size: 10px; min-width: 80px; }
         /* Layout do dashboard GeoTIFF: main + side panel */
         .modal-body.gt-organized { display: flex; gap: 8px; position: relative; min-height: 0; }
         .gt-main-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -240,7 +318,27 @@
                            color: var(--text, #cbd6e6); border: 1px solid rgba(255,255,255,0.14);
                            border-radius: 4px 0 0 4px; cursor: pointer; width: 22px; height: 28px;
                            font-size: 14px; line-height: 26px; padding: 0; transition: right .25s ease; }
-        .gt-side:not(.collapsed) ~ .gt-side-toggle { right: 312px; }
+        .gt-side:not(.collapsed) ~ .gt-side-toggle { right: 320px; border-radius: 4px 0 0 4px; }
+        .gt-side.collapsed ~ .gt-side-toggle { border-radius: 4px 0 0 4px; }
+        /* Botão "edge" para a sidebar esquerda — análogo ao do painel direito */
+        .sidebar-edge-toggle {
+            position: fixed;
+            left: var(--sidebar-w, 280px);
+            top: 78px;
+            z-index: 15;
+            width: 22px; height: 28px;
+            background: rgba(40,55,80,0.92);
+            color: var(--text, #cbd6e6);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-left: 0;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            font-size: 14px; line-height: 26px;
+            padding: 0;
+            transition: left 0.35s var(--ease-out, cubic-bezier(.2,.6,.2,1));
+        }
+        .sidebar-edge-toggle:hover { background: rgba(60,80,110,0.95); }
+        .app.sidebar-collapsed .sidebar-edge-toggle { left: 0; }
         .gt-side h4 { margin: 8px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
                        color: var(--text-muted, #aab); border-bottom: 1px solid rgba(255,255,255,0.08);
                        padding-bottom: 3px; }
@@ -1379,6 +1477,7 @@
         </div>
     </header>
 
+    <button type="button" id="btnSidebarEdgeToggle" class="sidebar-edge-toggle" title="Ocultar/mostrar painel lateral (S)" aria-label="Painel lateral">›</button>
     <aside class="sidebar" id="sidebar" aria-label="Controles">
 
         <section class="panel" aria-labelledby="title-layout">
@@ -1761,7 +1860,23 @@
                 <span style="color:var(--text-muted,#aab);font-size:12px">Camadas extras:</span>
                 <input type="file" id="gtExtraFile" accept=".tif,.tiff,.geojson,.json" style="display:none">
                 <button class="btn btn-ghost" id="btnGtAddLayer" type="button">+ Adicionar GeoTIFF/GeoJSON…</button>
+                <button class="btn btn-ghost" id="btnGtClearLayers" type="button" title="Remover todas as camadas extras">Limpar</button>
                 <span id="gtLayerChips" style="display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center"></span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+                <span style="color:var(--text-muted,#aab);font-size:12px;font-weight:600">Calc:</span>
+                <select id="gtCalcA" title="Camada A" style="max-width:140px;font-size:12px"></select>
+                <select id="gtCalcOp" title="Operador" style="font-size:12px;width:48px">
+                    <option value="+">+</option>
+                    <option value="-">−</option>
+                    <option value="*" selected>×</option>
+                    <option value="/">÷</option>
+                </select>
+                <select id="gtCalcB" title="Camada B ou valor escalar" style="max-width:140px;font-size:12px">
+                    <option value="__scalar__">(valor escalar)</option>
+                </select>
+                <input type="number" id="gtCalcScalar" step="any" placeholder="ex: 1000" style="width:90px;font-size:12px">
+                <button class="btn btn-ghost" id="btnGtCalc" type="button" title="Cria uma nova camada A op B">Calcular</button>
             </div>
             <canvas id="gtColorbar" style="width:100%;height:38px;display:block;margin:6px 0 8px;border-radius:4px"></canvas>
             <div id="gtInfo" style="color:var(--text-muted);font-size:12px;margin-bottom:8px;min-height:1em">Abra um arquivo .tif/.tiff para visualizar.</div>
@@ -5011,6 +5126,21 @@
         try { bindGeoTIFFUI(); } catch (e) { console.error('bindGeoTIFFUI', e); }
         // Liga tabs de modo (PNG/GIF | GeoTIFF) e aplica modo persistido
         try { bindModeTabs(); setAppMode(appMode); } catch (e) { console.error('mode tabs', e); }
+        // Liga botão "edge" da sidebar esquerda (reusa toggleSidebar existente)
+        try {
+            const edge = document.getElementById('btnSidebarEdgeToggle');
+            if (edge) {
+                const sync = () => {
+                    const collapsed = DOM.app.classList.contains('sidebar-collapsed');
+                    edge.textContent = collapsed ? '›' : '‹';
+                    edge.title = (collapsed ? 'Mostrar' : 'Ocultar') + ' painel lateral (S)';
+                };
+                edge.addEventListener('click', () => { toggleSidebar(); sync(); });
+                // Observa mudanças (S no teclado, ou clique no header)
+                new MutationObserver(sync).observe(DOM.app, { attributes: true, attributeFilter: ['class'] });
+                sync();
+            }
+        } catch (e) { console.error('sidebar edge', e); }
         // Bloqueia o app se 2FA estiver ativo no modo "abrir o app".
         aplicarBloqueioInicial();
     }
@@ -5243,16 +5373,42 @@
             const nodataStr = tags[42113] ? tagAscii(tags[42113]) : null;
             const nodata = (nodataStr != null && nodataStr !== '') ? parseFloat(nodataStr) : null;
             let bbox = null, scale = null;
+            // Heurística de normalização de longitude:
+            // Só subtrai 360 se TODAS as longitudes do(s) tiepoint(s) estão em [0, 360]
+            // E alguma > 180 (caso clássico GrADS-Pacífico). Se já tem negativas, mantém.
+            function _shouldNormalizeLon(xs) {
+                let anyNeg = false, anyOver180 = false;
+                for (const x of xs) { if (x < 0) anyNeg = true; if (x > 180) anyOver180 = true; }
+                return (!anyNeg && anyOver180);
+            }
             if (tags[33550] && tags[33922]) {
+                // Caso típico: 1 tiepoint + ModelPixelScale
                 const sx = tags[33550][0], sy = tags[33550][1];
                 const tp = tags[33922];
-                const I = tp[0], J = tp[1], X = tp[3], Y = tp[4];
+                const I = tp[0], J = tp[1];
+                let X = tp[3]; const Y = tp[4];
+                if (_shouldNormalizeLon([X, X + width * sx])) X -= 360;
                 const minX = X - I * sx;
                 const maxY = Y + J * sy;
                 const maxX = minX + width * sx;
                 const minY = maxY - height * sy;
                 bbox = { minX, minY, maxX, maxY };
                 scale = { sx, sy };
+            } else if (tags[33922] && tags[33922].length >= 6 && tags[33922].length % 6 === 0) {
+                // Caso GrADS / multi-tiepoint sem ModelPixelScale:
+                const tp = tags[33922];
+                const xs = []; for (let i = 0; i < tp.length; i += 6) xs.push(tp[i + 3]);
+                const norm = _shouldNormalizeLon(xs);
+                let mnX = Infinity, mxX = -Infinity, mnY = Infinity, mxY = -Infinity;
+                for (let i = 0; i < tp.length; i += 6) {
+                    const X = norm ? (tp[i + 3] - 360) : tp[i + 3];
+                    const Y = tp[i + 4];
+                    if (X < mnX) mnX = X; if (X > mxX) mxX = X;
+                    if (Y < mnY) mnY = Y; if (Y > mxY) mxY = Y;
+                }
+                if (isFinite(mnX) && mxX > mnX && mxY > mnY) {
+                    bbox = { minX: mnX, minY: mnY, maxX: mxX, maxY: mxY };
+                }
             }
             let mn = Infinity, mx = -Infinity;
             for (let i = 0; i < N; i++) {
@@ -5263,7 +5419,48 @@
                 if (v > mx) mx = v;
             }
             if (!isFinite(mn)) { mn = 0; mx = 1; }
-            return { width, height, data, nodata, bbox, scale, min: mn, max: mx };
+            // Detecção iterativa de múltiplos sentinels: enquanto o range é absurdo (>1e6),
+            // pega o extremo (mn ou mx) com maior |v| como sentinel e recalcula.
+            let effectiveNoData = nodata;
+            const nodataExtras = [];
+            for (let iter = 0; iter < 5; iter++) {
+                if (!(mx - mn > 1e6)) break;
+                const sentinel = (Math.abs(mn) > Math.abs(mx)) ? mn : mx;
+                if (effectiveNoData == null) effectiveNoData = sentinel;
+                else nodataExtras.push(sentinel);
+                mn = Infinity; mx = -Infinity;
+                for (let i = 0; i < N; i++) {
+                    const v = data[i];
+                    if (!isFinite(v)) continue;
+                    if (v === effectiveNoData) continue;
+                    let isExtra = false;
+                    for (let k = 0; k < nodataExtras.length; k++) if (v === nodataExtras[k]) { isExtra = true; break; }
+                    if (isExtra) continue;
+                    if (v < mn) mn = v;
+                    if (v > mx) mx = v;
+                }
+                if (!isFinite(mn)) { mn = 0; mx = 1; break; }
+            }
+            // Fallback: se ainda absurdo após 5 iterações, usa percentis 1%/99% de amostra.
+            if (mx - mn > 1e6) {
+                const step = Math.max(1, Math.floor(N / 10000));
+                const sample = [];
+                for (let i = 0; i < N; i += step) {
+                    const v = data[i];
+                    if (!isFinite(v)) continue;
+                    if (v === effectiveNoData) continue;
+                    let skip = false;
+                    for (let k = 0; k < nodataExtras.length; k++) if (v === nodataExtras[k]) { skip = true; break; }
+                    if (skip) continue;
+                    sample.push(v);
+                }
+                if (sample.length >= 100) {
+                    sample.sort((a, b) => a - b);
+                    mn = sample[Math.floor(sample.length * 0.01)];
+                    mx = sample[Math.floor(sample.length * 0.99)];
+                }
+            }
+            return { width, height, data, nodata: effectiveNoData, nodataExtras: nodataExtras.length ? nodataExtras : null, bbox, scale, min: mn, max: mx };
         }
         function aplicarPaleta(decoded, opts) {
             const { width, height, data, nodata } = decoded;
@@ -5273,8 +5470,12 @@
             const max = (opts && opts.max != null) ? opts.max : decoded.max;
             const range = (max - min) || 1;
             const flipY = opts && opts.flipY === true;
-            // Filtros adicionais
-            const extras = (opts && Array.isArray(opts.nodataExtras)) ? opts.nodataExtras : null;
+            // Filtros adicionais: junta opts.nodataExtras com decoded.nodataExtras (detectados)
+            let extras = (opts && Array.isArray(opts.nodataExtras)) ? opts.nodataExtras.slice() : [];
+            if (decoded.nodataExtras && Array.isArray(decoded.nodataExtras)) {
+                for (const e of decoded.nodataExtras) if (extras.indexOf(e) < 0) extras.push(e);
+            }
+            if (extras.length === 0) extras = null;
             const nExtras = extras ? extras.length : 0;
             const clipBelow = (opts && opts.clipBelow != null && isFinite(opts.clipBelow)) ? opts.clipBelow : null;
             const clipAbove = (opts && opts.clipAbove != null && isFinite(opts.clipAbove)) ? opts.clipAbove : null;
@@ -5405,17 +5606,28 @@
         if (gtMaskOpts.extras)    opts.nodataExtras = gtMaskOpts.extras;
         if (gtMaskOpts.clipBelow != null) opts.clipBelow = gtMaskOpts.clipBelow;
         if (gtMaskOpts.clipAbove != null) opts.clipAbove = gtMaskOpts.clipAbove;
-        const img = SisMOM_GeoTIFF.aplicarPaleta(gtLastDecoded, opts);
         const cv = document.getElementById('gtCanvas');
+        if (!gtPrimaryVisible) {
+            cv.width = 1; cv.height = 1;
+            cv.getContext('2d').clearRect(0,0,1,1);
+            gtDesenharColorbar();
+            gtRenderOverlayColorbars();
+            return;
+        }
+        const img = SisMOM_GeoTIFF.aplicarPaleta(gtLastDecoded, opts);
         cv.width = gtLastDecoded.width; cv.height = gtLastDecoded.height;
         cv.getContext('2d').putImageData(img, 0, 0);
         gtDesenharColorbar();
+        gtRenderOverlayColorbars();
     }
     function gtAtualizarInfoEMinMax(decoded) {
         const info = document.getElementById('gtInfo');
         const parts = [`${decoded.width} × ${decoded.height}`];
         if (decoded.bbox) parts.push(`bbox [${decoded.bbox.minX.toFixed(3)}, ${decoded.bbox.minY.toFixed(3)}, ${decoded.bbox.maxX.toFixed(3)}, ${decoded.bbox.maxY.toFixed(3)}]`);
         if (decoded.nodata != null) parts.push(`nodata ${decoded.nodata}`);
+        if (decoded.nodataExtras && decoded.nodataExtras.length) {
+            parts.push(`+ sentinels: ${decoded.nodataExtras.map(v => v.toExponential(2)).join(', ')}`);
+        }
         info.textContent = parts.join(' · ');
         const minEl = document.getElementById('gtMin');
         const maxEl = document.getElementById('gtMax');
@@ -5441,6 +5653,28 @@
             if (el.id === 'gtInfo') { main.appendChild(el); continue; }
             // Container que contém os canvases (#gtCanvas e #gtMapCanvas)
             if (el.querySelector && (el.querySelector('#gtCanvas') || el.querySelector('#gtMapCanvas'))) {
+                el.classList.add('gt-canvas-wrap');
+                el.style.display = 'flex';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = 'center';
+                // Insere HUD inferior dentro do wrap (position:absolute)
+                if (!el.querySelector('.gt-bottom-hud')) {
+                    const hud = document.createElement('div');
+                    hud.className = 'gt-bottom-hud';
+                    hud.innerHTML = '' +
+                        '<button type="button" id="gtBtnZoomIn"  title="Aproximar">+</button>' +
+                        '<button type="button" id="gtBtnZoomOut" title="Afastar">−</button>' +
+                        '<button type="button" id="gtBtnZoomReset" title="Recentrar">⟲</button>' +
+                        '<span class="gt-hud-sep"></span>' +
+                        '<span class="gt-hud-coord" id="gtCoordHud">—</span>';
+                    el.appendChild(hud);
+                }
+                if (!el.querySelector('.gt-cb-stack')) {
+                    const stack = document.createElement('div');
+                    stack.className = 'gt-cb-stack';
+                    stack.id = 'gtCbStack';
+                    el.appendChild(stack);
+                }
                 main.appendChild(el); continue;
             }
             side.appendChild(el);
@@ -5471,12 +5705,21 @@
             const collapsed = side.classList.toggle('collapsed');
             tgl.textContent = collapsed ? '‹' : '›';
             tgl.title = collapsed ? 'Mostrar painel' : 'Ocultar painel';
+            // Força redraw do mapa após a transição CSS (250ms)
+            setTimeout(() => {
+                if (typeof _gtMap !== 'undefined' && _gtMap && _gtMap.redraw) _gtMap.redraw();
+                // Re-render canvas raster também
+                try { if (typeof gtRenderar === 'function') gtRenderar(); } catch (_) {}
+                try { if (typeof gtDesenharColorbar === 'function') gtDesenharColorbar(); } catch (_) {}
+            }, 280);
         });
         body.appendChild(tgl);
     }
 
     /* ─── Camada ativa: controles operam sobre a camada selecionada ─── */
     let gtActiveLayerId = 'primary';
+    let gtPrimaryVisible = true;
+    let gtPrimaryName = '';   // nome do arquivo da camada base (file picker ou último segmento da URL)
     // Props por camada (primary tem props globais; extras têm props no objeto)
     const gtPrimaryProps = { paleta: 'viridis', autoMinMax: true, customMin: null, customMax: null,
                               undefRaw: '', clipBelow: null, clipAbove: null };
@@ -5485,9 +5728,11 @@
         if (id === 'primary') {
             return {
                 id: 'primary', type: 'geotiff',
-                name: (gtLastDecoded && '(camada base)') || '—',
-                visible: true,
+                name: gtPrimaryName || (gtLastDecoded && '(camada base)') || '—',
+                visible: gtPrimaryVisible,
                 decoded: gtLastDecoded,
+                opacity: ((typeof _gtMap !== 'undefined' && _gtMap && _gtMap.getOverlayOpacity)
+                          ? _gtMap.getOverlayOpacity('primary') : 0.85),
                 props: gtPrimaryProps
             };
         }
@@ -5495,9 +5740,23 @@
         return l || null;
     }
     function gtAllLayers() {
-        const out = [gtGetLayerObj('primary')];
-        for (const l of gtExtraLayers) out.push(l);
-        return out;
+        // Se o mapa existe, usa a ordem real do array self.overlays para colocar a primary na posição certa.
+        const primary = gtGetLayerObj('primary');
+        if (_gtMap && _gtMap.getOverlayIndex) {
+            const idx = _gtMap.getOverlayIndex('primary');
+            const out = [...gtExtraLayers];
+            if (idx >= 0) {
+                // Mapeia o índice da primary no array do mapa para a posição na lista unificada (raster only).
+                // O array do mapa = [primary?, extras geotiff]. Encontramos a posição relativa entre rasters.
+                // Como nosso array já é só rasters (extras geotiff) sem a primary, inserimos em idx clipped.
+                const safe = Math.max(0, Math.min(out.length, idx));
+                out.splice(safe, 0, primary);
+            } else {
+                out.unshift(primary);
+            }
+            return out;
+        }
+        return [primary, ...gtExtraLayers];
     }
     function gtEnsureLayerProps(layer) {
         if (!layer) return;
@@ -5538,8 +5797,20 @@
             extras: gtParseUndefList(p.undefRaw),
             clipBelow: p.clipBelow, clipAbove: p.clipAbove
         };
+        // Atualiza slider de opacidade para refletir a camada ativa
+        const opEl = document.getElementById('gtOpacity');
+        if (opEl) {
+            let opVal = null;
+            if (_gtMap && _gtMap.getOverlayOpacity) opVal = _gtMap.getOverlayOpacity(id);
+            if (opVal == null) {
+                if (id === 'primary') opVal = 0.85;
+                else { const lx = gtExtraLayers.find(l => l.id === id); opVal = (lx && lx.opacity) || 0.85; }
+            }
+            opEl.value = Math.round(opVal * 100);
+        }
         gtRenderLayerChips();
         gtDesenharColorbar();
+        gtRenderOverlayColorbars();
         gtRenderar();
     }
     function gtParseUndefList(raw) {
@@ -5590,11 +5861,16 @@
             gtRenderar();
             gtDesenharColorbar();
         } else if (layer.type === 'geotiff' && _gtMap) {
+            // Recalcula min/max efetivos (auto) respeitando filtros
+            gtRecomputeMinMaxForLayer(layer);
             // Recolore a camada extra com paleta/min/max próprios e re-empurra ao mapa
             const opts = { paleta: p.paleta };
             const dec = layer.decoded;
             if (!p.autoMinMax && isFinite(p.customMin) && isFinite(p.customMax) && p.customMax > p.customMin) {
                 opts.min = p.customMin; opts.max = p.customMax;
+            } else if (isFinite(p.effMin) && isFinite(p.effMax) && p.effMax > p.effMin) {
+                // Usa min/max efetivos (que ignoram pixels mascarados pelos filtros)
+                opts.min = p.effMin; opts.max = p.effMax;
             }
             const extras = gtParseUndefList(p.undefRaw);
             if (extras) opts.nodataExtras = extras;
@@ -5602,9 +5878,17 @@
             if (p.clipAbove != null) opts.clipAbove = p.clipAbove;
             const img = SisMOM_GeoTIFF.aplicarPaleta(dec, opts);
             await _gtMap.addRasterOverlay(layer.id, img, dec.bbox, layer.opacity);
+            // Reflete novo min/max nos inputs (autoMinMax)
+            if (p.autoMinMax) {
+                const minEl = document.getElementById('gtMin'), maxEl = document.getElementById('gtMax');
+                if (minEl && !minEl.hasAttribute('data-editing') && isFinite(p.effMin)) minEl.value = p.effMin;
+                if (maxEl && !maxEl.hasAttribute('data-editing') && isFinite(p.effMax)) maxEl.value = p.effMax;
+            }
             gtDesenharColorbar();
+            gtRenderOverlayColorbars();
         } else {
             gtDesenharColorbar();
+            gtRenderOverlayColorbars();
         }
     }
 
@@ -5614,6 +5898,28 @@
         btn.addEventListener('click', abrirModalGeoTIFF);
         document.getElementById('btnGtClose').addEventListener('click', fecharModalGeoTIFF);
         try { gtReorganizeLayout(); } catch (e) { console.error('gtReorganizeLayout', e); }
+        // Botões de zoom do HUD inferior
+        const bIn = document.getElementById('gtBtnZoomIn');
+        const bOut = document.getElementById('gtBtnZoomOut');
+        const bRst = document.getElementById('gtBtnZoomReset');
+        function _canvasActive() {
+            const cv = document.getElementById('gtCanvas');
+            return cv && cv.style.display !== 'none';
+        }
+        if (bIn)  bIn.addEventListener('click',  () => {
+            if (_canvasActive()) gtCanvasZoomBy(0.7);
+            else if (_gtMap && _gtMap.zoomBy) _gtMap.zoomBy(0.7);
+        });
+        if (bOut) bOut.addEventListener('click', () => {
+            if (_canvasActive()) gtCanvasZoomBy(1.4);
+            else if (_gtMap && _gtMap.zoomBy) _gtMap.zoomBy(1.4);
+        });
+        if (bRst) bRst.addEventListener('click', () => {
+            if (_canvasActive()) gtCanvasZoomReset();
+            else if (_gtMap && gtLastDecoded && gtLastDecoded.bbox) _gtMap.fitTo(gtLastDecoded.bbox);
+        });
+        // Liga pan/zoom no canvas raster
+        try { gtBindCanvasNavigation(); } catch (e) { console.error('canvas nav', e); }
         const fileInput = document.getElementById('gtFile');
         document.getElementById('btnGtPick').addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', async (e) => {
@@ -5622,12 +5928,13 @@
             try {
                 const ab = await f.arrayBuffer();
                 gtLastDecoded = await SisMOM_GeoTIFF.decodeTIFF(ab);
+                gtPrimaryName = f.name || '';
+                try { gtCanvasZoomReset(); } catch (_) {}
                 gtAtualizarInfoEMinMax(gtLastDecoded);
                 gtRenderar();
                 gtUpdateMapToggleEnabled();
                 if (_gtMap && gtLastDecoded.bbox) _gtMap.fitTo(gtLastDecoded.bbox);
                 gtSyncMapOverlay();
-                // Reset active = primary e reflete novos min/max
                 gtSetActiveLayer('primary');
             } catch (err) {
                 alert('Erro ao decodificar GeoTIFF: ' + ((err && err.message) || err));
@@ -5659,7 +5966,15 @@
         if (tm) tm.addEventListener('change', gtToggleMapUI);
         const op = document.getElementById('gtOpacity');
         if (op) op.addEventListener('input', () => {
-            if (_gtMap) _gtMap.setOpacity(parseInt(op.value, 10) / 100);
+            const val = parseInt(op.value, 10) / 100;
+            if (_gtMap && _gtMap.setOverlayOpacity) {
+                _gtMap.setOverlayOpacity(gtActiveLayerId, val);
+            }
+            // Atualiza opacity no objeto da camada (para persistência ao reordenar)
+            const layer = (gtActiveLayerId !== 'primary')
+                ? gtExtraLayers.find(l => l.id === gtActiveLayerId)
+                : null;
+            if (layer) layer.opacity = val;
         });
         const tp = document.getElementById('gtTileProvider');
         if (tp) tp.addEventListener('change', () => {
@@ -5668,6 +5983,30 @@
         // Camadas extras
         const btnAdd = document.getElementById('btnGtAddLayer');
         const extraFile = document.getElementById('gtExtraFile');
+        const btnClearAll = document.getElementById('btnGtClearLayers');
+        // Calculadora de camadas
+        const btnCalc = document.getElementById('btnGtCalc');
+        const selCalcB = document.getElementById('gtCalcB');
+        if (btnCalc) btnCalc.addEventListener('click', () => gtCalcularNovaCamada());
+        if (selCalcB) selCalcB.addEventListener('change', gtUpdateCalcScalarVisibility);
+        // Popula selects da calculadora ao iniciar
+        try { gtRenderCalcSelects(); } catch (_) {}
+        if (btnClearAll) btnClearAll.addEventListener('click', () => {
+            if (!gtExtraLayers.length) return;
+            const ok = window.confirm('Remover todas as camadas extras? (a camada base permanece)');
+            if (!ok) return;
+            // Remove cada extra do mapa e do array
+            if (_gtMap) {
+                for (const l of gtExtraLayers) {
+                    if (l.type === 'geotiff') _gtMap.removeRasterOverlay(l.id);
+                    else if (l.type === 'geojson') _gtMap.removeGeoJSON(l.id);
+                }
+            }
+            gtExtraLayers.length = 0;
+            // Se a ativa era uma extra, volta pra primary
+            if (gtActiveLayerId !== 'primary') gtSetActiveLayer('primary');
+            else { gtRenderLayerChips(); gtRenderOverlayColorbars(); }
+        });
         if (btnAdd && extraFile) {
             btnAdd.addEventListener('click', () => extraFile.click());
             extraFile.addEventListener('change', async (e) => {
@@ -5850,12 +6189,42 @@
             return self.vp[2] - (y / r.height) * (self.vp[2] - self.vp[0]);
         }
 
+        function adjustViewportToAspect() {
+            const r = rectPx();
+            if (r.width < 4 || r.height < 4) return;
+            const aspect = r.width / r.height;
+            // Clampa lonSpan para nunca passar de 360° (mais que uma volta do globo).
+            let lonSpan = self.vp[3] - self.vp[1];
+            if (lonSpan > 360) {
+                const lonC = (self.vp[1] + self.vp[3]) / 2;
+                self.vp[1] = lonC - 180; self.vp[3] = lonC + 180;
+                lonSpan = 360;
+            }
+            if (isMercator()) {
+                const lonSpanRad = lonSpan * Math.PI / 180;
+                const desiredMercY = lonSpanRad / aspect;
+                const yTop = latToMercY(self.vp[2]);
+                const yBot = latToMercY(self.vp[0]);
+                const yCenter = (yTop + yBot) / 2;
+                const newTop = yCenter + desiredMercY / 2;
+                const newBot = yCenter - desiredMercY / 2;
+                self.vp[2] = mercYToLat(newTop);
+                self.vp[0] = mercYToLat(newBot);
+            } else {
+                const latC = (self.vp[0] + self.vp[2]) / 2;
+                let desiredLat = lonSpan / aspect;
+                if (desiredLat > 170) desiredLat = 170;
+                self.vp[0] = latC - desiredLat / 2;
+                self.vp[2] = latC + desiredLat / 2;
+            }
+        }
         function resize() {
             const dpr = window.devicePixelRatio || 1;
             const r = rectPx();
             canvas.width  = Math.max(1, Math.round(r.width  * dpr));
             canvas.height = Math.max(1, Math.round(r.height * dpr));
             self.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            adjustViewportToAspect();
             draw();
         }
 
@@ -6056,13 +6425,14 @@
             }
         }
         function drawRaster() {
-            // Camadas raster extras primeiro (abaixo da base)
-            for (const o of self.overlays) {
-                if (o.visible === false) continue;
-                _drawOneRaster(o, false);
+            // Todas as camadas raster (incluindo a base com id='primary') estão em self.overlays.
+            // Desenha de TRÁS pra FRENTE: overlays[N-1] primeiro (fundo) → overlays[0] por último (topo).
+            // A entrada com isPrimary=true ganha moldura tracejada da bbox.
+            for (let i = self.overlays.length - 1; i >= 0; i--) {
+                const o = self.overlays[i];
+                if (!o || o.visible === false) continue;
+                _drawOneRaster(o, !!o.isPrimary);
             }
-            // Camada base (primária) por cima
-            _drawOneRaster(self.overlay, true);
         }
         function drawAttribution() {
             const p = TILE_PROVIDERS[self.tileProvider];
@@ -6088,23 +6458,79 @@
 
         function setViewport(latMin, lonMin, latMax, lonMax) {
             self.vp = [latMin, lonMin, latMax, lonMax];
+            adjustViewportToAspect();
             draw();
         }
         function fitTo(bbox, margin) {
             const m = (margin == null ? 0.10 : margin);
             const lonW = bbox.maxX - bbox.minX, latH = bbox.maxY - bbox.minY;
-            setViewport(bbox.minY - latH * m, bbox.minX - lonW * m, bbox.maxY + latH * m, bbox.maxX + lonW * m);
+            // Limita a margem para não ultrapassar valores globais.
+            // Sem isso, bbox (-181, 181) com margem 10% gerava viewport > 360° (mais de uma volta).
+            const lonMargin = Math.min(lonW * m, Math.max(0, (360 - lonW) / 2));
+            const latMargin = Math.min(latH * m, Math.max(0, (170 - latH) / 2));
+            self.vp = [bbox.minY - latMargin, bbox.minX - lonMargin,
+                       bbox.maxY + latMargin, bbox.maxX + lonMargin];
+            // Ajusta aspect para que TODO o bbox fique visível: se canvas mais alto que largo,
+            // expandir lonSpan; se mais largo, expandir latSpan
+            const r = rectPx();
+            if (r.width >= 4 && r.height >= 4) {
+                const canvasAspect = r.width / r.height;
+                const bboxAspect = (self.vp[3] - self.vp[1]) / Math.max(1e-9, (self.vp[2] - self.vp[0]));
+                if (canvasAspect > bboxAspect) {
+                    // Canvas mais largo: expande lon
+                    const latSpan = self.vp[2] - self.vp[0];
+                    const desiredLon = latSpan * canvasAspect;
+                    const lonC = (self.vp[1] + self.vp[3]) / 2;
+                    self.vp[1] = lonC - desiredLon / 2;
+                    self.vp[3] = lonC + desiredLon / 2;
+                } else {
+                    // Canvas mais alto: expande lat (em Mercator usa fórmula correta)
+                    adjustViewportToAspect();
+                }
+            }
+            draw();
         }
         async function setRasterOverlay(imageDataOrBitmap, bbox, opacity) {
             let bmp = imageDataOrBitmap;
             if (bmp && typeof ImageData !== 'undefined' && bmp instanceof ImageData) {
                 bmp = await createImageBitmap(bmp);
             }
-            self.overlay = { bitmap: bmp, bbox, opacity: (opacity == null ? 0.85 : opacity) };
+            const op = (opacity == null ? 0.85 : opacity);
+            const i = self.overlays.findIndex(o => o.id === 'primary');
+            if (i >= 0) {
+                // Mantém posição lógica da primary onde estava
+                self.overlays[i] = { id: 'primary', bitmap: bmp, bbox, opacity: op, visible: self.overlays[i].visible !== false, isPrimary: true };
+            } else {
+                // Primeira vez: vai pro topo (índice 0 = renderizado por último = em cima)
+                self.overlays.unshift({ id: 'primary', bitmap: bmp, bbox, opacity: op, visible: true, isPrimary: true });
+            }
+            self.overlay = self.overlays[self.overlays.findIndex(o => o.id === 'primary')]; // compat
             draw();
         }
-        function clearOverlay() { self.overlay = null; draw(); }
-        function setOpacity(o) { if (self.overlay) { self.overlay.opacity = o; draw(); } }
+        function clearOverlay() {
+            self.overlays = self.overlays.filter(o => o.id !== 'primary');
+            self.overlay = null;
+            draw();
+        }
+        function setOpacity(o) {
+            const e = self.overlays.find(x => x.id === 'primary');
+            if (e) { e.opacity = o; draw(); }
+        }
+        function moveOverlay(id, delta) {
+            const i = self.overlays.findIndex(o => o.id === id);
+            if (i < 0) return false;
+            const j = Math.max(0, Math.min(self.overlays.length - 1, i + delta));
+            if (i === j) return false;
+            const [moved] = self.overlays.splice(i, 1);
+            self.overlays.splice(j, 0, moved);
+            draw();
+            return true;
+        }
+        function getOverlayIndex(id) { return self.overlays.findIndex(o => o.id === id); }
+        function getOverlayOpacity(id) {
+            const o = self.overlays.find(x => x.id === id);
+            return o ? o.opacity : null;
+        }
         async function addRasterOverlay(id, imageDataOrBitmap, bbox, opacity) {
             let bmp = imageDataOrBitmap;
             if (bmp && typeof ImageData !== 'undefined' && bmp instanceof ImageData) {
@@ -6147,12 +6573,14 @@
             if (!TILE_PROVIDERS[name]) return;
             self.tileProvider = name;
             if (name !== 'none' && self.projection !== 'mercator') self.projection = 'mercator';
+            adjustViewportToAspect();
             draw();
         }
         function setProjection(name) {
             if (name !== 'platecarree' && name !== 'mercator') return;
             self.projection = name;
             if (name !== 'mercator') self.tileProvider = 'none';
+            adjustViewportToAspect();
             draw();
         }
         function setAttributionElement(el) { self.attribEl = el; drawAttribution(); }
@@ -6210,10 +6638,31 @@
         ro.observe(canvas);
         resize();
 
+        function zoomBy(factor) {
+            const lonC = (self.vp[1] + self.vp[3]) / 2;
+            const lonW = (self.vp[3] - self.vp[1]) * factor;
+            self.vp[1] = lonC - lonW / 2; self.vp[3] = lonC + lonW / 2;
+            if (isMercator()) {
+                const yTop = latToMercY(self.vp[2]);
+                const yBot = latToMercY(self.vp[0]);
+                const yCenter = (yTop + yBot) / 2;
+                const yH = (yTop - yBot) * factor;
+                self.vp[2] = mercYToLat(yCenter + yH / 2);
+                self.vp[0] = mercYToLat(yCenter - yH / 2);
+            } else {
+                const latC = (self.vp[0] + self.vp[2]) / 2;
+                const latH = (self.vp[2] - self.vp[0]) * factor;
+                self.vp[0] = latC - latH / 2; self.vp[2] = latC + latH / 2;
+            }
+            adjustViewportToAspect();
+            draw();
+        }
         return {
             setViewport, fitTo, setRasterOverlay, clearOverlay, setOpacity,
             addRasterOverlay, removeRasterOverlay, setOverlayVisible, setOverlayOpacity,
+            moveOverlay, getOverlayIndex, getOverlayOpacity,
             addGeoJSON, removeGeoJSON, setGeoJSONVisible, clearGeoJSON,
+            zoomBy,
             setTileProvider, setProjection, setAttributionElement,
             redraw: draw,
             setStyle(s) { Object.assign(self.style, s); draw(); },
@@ -6262,10 +6711,17 @@
         if (gtMaskOpts.extras)    opts.nodataExtras = gtMaskOpts.extras;
         if (gtMaskOpts.clipBelow != null) opts.clipBelow = gtMaskOpts.clipBelow;
         if (gtMaskOpts.clipAbove != null) opts.clipAbove = gtMaskOpts.clipAbove;
+        if (!gtPrimaryVisible) {
+            if (_gtMap) _gtMap.clearOverlay();
+            gtDesenharColorbar();
+            gtRenderOverlayColorbars();
+            return;
+        }
         const img = SisMOM_GeoTIFF.aplicarPaleta(gtLastDecoded, opts);
         const op = (parseInt(document.getElementById('gtOpacity').value, 10) || 85) / 100;
         await _gtMap.setRasterOverlay(img, gtLastDecoded.bbox, op);
         gtDesenharColorbar();
+        gtRenderOverlayColorbars();
     }
     /* ─── Filtros NoData / clipping definidos pelo usuário ─── */
     let gtMaskOpts = { extras: null, clipBelow: null, clipAbove: null };
@@ -6293,10 +6749,39 @@
         if (!gtLastDecoded) return false;
         if (!isFinite(v)) return true;
         if (gtLastDecoded.nodata != null && v === gtLastDecoded.nodata) return true;
+        // Sentinels adicionais detectados pelo decoder
+        if (gtLastDecoded.nodataExtras) {
+            for (const e of gtLastDecoded.nodataExtras) if (v === e) return true;
+        }
         if (gtMaskOpts.extras) { for (const e of gtMaskOpts.extras) if (v === e) return true; }
         if (gtMaskOpts.clipBelow != null && v < gtMaskOpts.clipBelow) return true;
         if (gtMaskOpts.clipAbove != null && v > gtMaskOpts.clipAbove) return true;
         return false;
+    }
+    function gtRecomputeMinMaxForLayer(layer) {
+        // Recalcula min/max ignorando pixels mascarados pelos filtros (nodata interno,
+        // nodataExtras, clipBelow, clipAbove) e grava em layer.props.{effMin,effMax}.
+        if (!layer || !layer.decoded || !layer.props) return;
+        if (!layer.props.autoMinMax) return;
+        const d = layer.decoded.data;
+        const ndInternal = layer.decoded.nodata;
+        const extras = (typeof gtParseUndefList === 'function') ? gtParseUndefList(layer.props.undefRaw) : null;
+        const cb = (layer.props.clipBelow != null && isFinite(layer.props.clipBelow)) ? layer.props.clipBelow : null;
+        const ca = (layer.props.clipAbove != null && isFinite(layer.props.clipAbove)) ? layer.props.clipAbove : null;
+        let mn = Infinity, mx = -Infinity;
+        for (let i = 0; i < d.length; i++) {
+            const v = d[i];
+            if (!isFinite(v)) continue;
+            if (ndInternal != null && v === ndInternal) continue;
+            if (extras) { let skip = false; for (let k = 0; k < extras.length; k++) if (v === extras[k]) { skip = true; break; } if (skip) continue; }
+            if (cb != null && v < cb) continue;
+            if (ca != null && v > ca) continue;
+            if (v < mn) mn = v;
+            if (v > mx) mx = v;
+        }
+        if (!isFinite(mn)) { mn = layer.decoded.min; mx = layer.decoded.max; }
+        layer.props.effMin = mn;
+        layer.props.effMax = mx;
     }
     function gtRecomputeMinMaxAuto() {
         // Só se 'Auto' estiver ativo (não em modo Editar)
@@ -6315,6 +6800,61 @@
         if (!isFinite(mn)) { mn = 0; mx = 1; }
         gtLastDecoded.min = mn; gtLastDecoded.max = mx;
         minEl.value = mn; maxEl.value = mx;
+    }
+    function gtRenderOverlayColorbars() {
+        const stack = document.getElementById('gtCbStack');
+        if (!stack) return;
+        stack.innerHTML = '';
+        // Coleta camadas raster visíveis (primary se visível + extras geotiff visíveis)
+        const items = [];
+        const all = (typeof gtAllLayers === 'function') ? gtAllLayers() : [];
+        for (const l of all) {
+            if (l.type !== 'geotiff') continue;
+            if (l.visible === false) continue;
+            const dec = (l.id === 'primary') ? gtLastDecoded : l.decoded;
+            if (!dec) continue;
+            const p = (l.props || (l.id === 'primary' ? gtPrimaryProps : null)) || {};
+            const palName = p.paleta || (l.id === 'primary' ? 'viridis' : 'viridis');
+            let mn, mx;
+            if (!p.autoMinMax && isFinite(p.customMin) && isFinite(p.customMax) && p.customMax > p.customMin) {
+                mn = p.customMin; mx = p.customMax;
+            } else if (isFinite(p.effMin) && isFinite(p.effMax) && p.effMax > p.effMin) {
+                mn = p.effMin; mx = p.effMax;
+            } else { mn = dec.min; mx = dec.max; }
+            items.push({ id: l.id, name: l.name || l.id, palName, mn, mx });
+        }
+        // Ordem do mais recente (extras topo do array) para a base; queremos visualmente:
+        // camada extra mais "alta" no topo da pilha. column-reverse no CSS faz o último item ir mais para cima.
+        for (const it of items) {
+            const row = document.createElement('div');
+            row.className = 'gt-cb-item';
+            row.dataset.layer = it.id;
+            const name = document.createElement('span'); name.className = 'gt-cb-name'; name.textContent = it.name;
+            const cv = document.createElement('canvas'); cv.width = 140; cv.height = 12;
+            const ctx = cv.getContext('2d');
+            const PAL = (window.SisMOM_GeoTIFF && SisMOM_GeoTIFF.GT_PALETTES) ? SisMOM_GeoTIFF.GT_PALETTES[it.palName] : null;
+            if (PAL) {
+                const img = ctx.createImageData(cv.width, 1);
+                const a = img.data;
+                for (let i = 0; i < cv.width; i++) {
+                    const t = i / Math.max(1, cv.width - 1);
+                    const idx = Math.min(255, Math.max(0, (t * 255) | 0));
+                    a[i*4]   = PAL[idx*3];
+                    a[i*4+1] = PAL[idx*3+1];
+                    a[i*4+2] = PAL[idx*3+2];
+                    a[i*4+3] = 255;
+                }
+                const off = document.createElement('canvas'); off.width = cv.width; off.height = 1;
+                off.getContext('2d').putImageData(img, 0, 0);
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(off, 0, 0, cv.width, cv.height);
+            }
+            const mm = document.createElement('span'); mm.className = 'gt-cb-minmax';
+            const fmt = (v) => { const a = Math.abs(v); return (a !== 0 && (a < 1e-3 || a >= 1e6)) ? v.toExponential(2) : v.toFixed(a >= 100 ? 1 : 2); };
+            mm.textContent = `${fmt(it.mn)} … ${fmt(it.mx)}`;
+            row.appendChild(name); row.appendChild(cv); row.appendChild(mm);
+            stack.appendChild(row);
+        }
     }
     function gtDesenharColorbar() {
         const cv = document.getElementById('gtColorbar');
@@ -6421,8 +6961,12 @@
         if (lower.endsWith('.tif') || lower.endsWith('.tiff')) {
             const ab = await file.arrayBuffer();
             const decoded = await SisMOM_GeoTIFF.decodeTIFF(ab);
-            const layer = { id, type: 'geotiff', name, visible: true, opacity: 0.7,
-                decoded, paleta: (document.getElementById('gtPaleta')||{}).value || 'viridis' };
+            const paleta = (document.getElementById('gtPaleta')||{}).value || 'viridis';
+            const layer = { id, type: 'geotiff', name, visible: true, opacity: 0.85,
+                decoded, paleta,
+                props: { paleta, autoMinMax: true, customMin: null, customMax: null,
+                          undefRaw: '', clipBelow: null, clipAbove: null }
+            };
             gtExtraLayers.push(layer);
             gtLayerEnsureMap();
             await gtLayerPushToMap(layer);
@@ -6445,7 +6989,18 @@
         if (!_gtMap) return;
         if (layer.type === 'geotiff') {
             const d = layer.decoded;
-            const img = SisMOM_GeoTIFF.aplicarPaleta(d, { paleta: layer.paleta });
+            const p = layer.props || {};
+            const opts = { paleta: (p.paleta || layer.paleta || 'viridis') };
+            if (!p.autoMinMax && isFinite(p.customMin) && isFinite(p.customMax) && p.customMax > p.customMin) {
+                opts.min = p.customMin; opts.max = p.customMax;
+            } else if (isFinite(p.effMin) && isFinite(p.effMax) && p.effMax > p.effMin) {
+                opts.min = p.effMin; opts.max = p.effMax;
+            }
+            const extras = (typeof gtParseUndefList === 'function') ? gtParseUndefList(p.undefRaw) : null;
+            if (extras) opts.nodataExtras = extras;
+            if (p.clipBelow != null) opts.clipBelow = p.clipBelow;
+            if (p.clipAbove != null) opts.clipAbove = p.clipAbove;
+            const img = SisMOM_GeoTIFF.aplicarPaleta(d, opts);
             await _gtMap.addRasterOverlay(layer.id, img, d.bbox, layer.opacity);
             _gtMap.setOverlayVisible(layer.id, layer.visible);
         } else if (layer.type === 'geojson') {
@@ -6469,6 +7024,7 @@
             else if (l.type === 'geojson') _gtMap.removeGeoJSON(l.id);
         }
         gtRenderLayerChips();
+        gtRenderOverlayColorbars();
     }
 
     function gtToggleExtraLayer(id) {
@@ -6480,6 +7036,7 @@
             else if (l.type === 'geojson') _gtMap.setGeoJSONVisible(l.id, l.visible);
         }
         gtRenderLayerChips();
+        gtRenderOverlayColorbars();
     }
 
     function gtRenderLayerChips() {
@@ -6499,18 +7056,21 @@
             name.style.opacity = (l.visible === false) ? '0.45' : '1';
             const up = document.createElement('button');
             up.type = 'button'; up.title = 'Subir';  up.textContent = '↑';
-            up.disabled = (l.id === 'primary' || idx <= 1);
+            up.disabled = (idx <= 0);
             up.addEventListener('click', (e) => { e.stopPropagation(); gtMoveLayer(l.id, -1); });
             const dn = document.createElement('button');
             dn.type = 'button'; dn.title = 'Descer'; dn.textContent = '↓';
-            dn.disabled = (l.id === 'primary' || idx >= all.length - 1);
+            dn.disabled = (idx >= all.length - 1);
             dn.addEventListener('click', (e) => { e.stopPropagation(); gtMoveLayer(l.id, +1); });
             const eye = document.createElement('button');
             eye.type = 'button';
             eye.title = (l.visible === false) ? 'Mostrar' : 'Ocultar';
             eye.textContent = (l.visible === false) ? '⊘' : '👁';
-            eye.disabled = (l.id === 'primary');
-            eye.addEventListener('click', (e) => { e.stopPropagation(); gtToggleExtraLayer(l.id); });
+            eye.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (l.id === 'primary') gtTogglePrimaryVisible();
+                else gtToggleExtraLayer(l.id);
+            });
             item.appendChild(dot); item.appendChild(name); item.appendChild(up); item.appendChild(dn); item.appendChild(eye);
             if (l.id !== 'primary') {
                 const rm = document.createElement('button');
@@ -6522,28 +7082,166 @@
             item.addEventListener('click', () => gtSetActiveLayer(l.id));
             container.appendChild(item);
         });
+        // Mantém selects da calculadora sincronizados com a lista
+        try { gtRenderCalcSelects(); } catch (_) {}
     }
 
+    function gtTogglePrimaryVisible() {
+        gtPrimaryVisible = !gtPrimaryVisible;
+        if (_gtMap && _gtMap.setOverlayVisible) {
+            _gtMap.setOverlayVisible('primary', gtPrimaryVisible);
+        } else if (!gtPrimaryVisible && _gtMap && _gtMap.clearOverlay) {
+            _gtMap.clearOverlay();
+        } else if (gtPrimaryVisible && typeof gtSyncMapOverlay === 'function') {
+            gtSyncMapOverlay();
+        }
+        gtRenderar();
+        gtRenderLayerChips();
+        gtRenderOverlayColorbars();
+    }
     async function gtMoveLayer(id, delta) {
-        if (id === 'primary') return;
+        console.debug('[gtMoveLayer]', id, 'delta', delta);
+        if (id === 'primary') {
+            // Move a entry 'primary' diretamente no array do mapa
+            if (_gtMap && _gtMap.moveOverlay) {
+                _gtMap.moveOverlay('primary', delta);
+                if (_gtMap.redraw) _gtMap.redraw();
+            }
+            gtRenderLayerChips();
+            gtRenderOverlayColorbars();
+            return;
+        }
         const i = gtExtraLayers.findIndex(l => l.id === id);
         if (i < 0) return;
         const j = Math.max(0, Math.min(gtExtraLayers.length - 1, i + delta));
         if (i === j) return;
         const [moved] = gtExtraLayers.splice(i, 1);
         gtExtraLayers.splice(j, 0, moved);
-        // Re-empurra ao mapa na nova ordem: remove e adiciona todas
+        // Re-empurra extras ao mapa na nova ordem (mantendo a primary onde está)
         if (_gtMap) {
-            // Limpa todas e refaz na nova ordem
             for (const l of gtExtraLayers) {
                 if (l.type === 'geotiff') _gtMap.removeRasterOverlay(l.id);
                 if (l.type === 'geojson') _gtMap.removeGeoJSON(l.id);
             }
             await gtSyncAllExtrasToMap();
+            if (_gtMap.redraw) _gtMap.redraw();
         }
         gtRenderLayerChips();
+        gtRenderOverlayColorbars();
     }
 
+    /* ─── Calculadora de camadas (raster algebra) ─── */
+    function gtRenderCalcSelects() {
+        const selA = document.getElementById('gtCalcA');
+        const selB = document.getElementById('gtCalcB');
+        if (!selA || !selB) return;
+        const prevA = selA.value, prevB = selB.value;
+        const opts = [];
+        const all = gtAllLayers();
+        for (const l of all) {
+            if (l.type !== 'geotiff' || !l.decoded) continue;
+            opts.push(`<option value="${l.id}">${(l.name || l.id).replace(/&/g, '&amp;').replace(/</g, '&lt;').slice(0, 60)}</option>`);
+        }
+        selA.innerHTML = opts.join('');
+        selB.innerHTML = '<option value="__scalar__">(valor escalar)</option>' + opts.join('');
+        if (prevA && selA.querySelector(`option[value="${prevA}"]`)) selA.value = prevA;
+        if (prevB && selB.querySelector(`option[value="${prevB}"]`)) selB.value = prevB;
+        gtUpdateCalcScalarVisibility();
+    }
+    function gtUpdateCalcScalarVisibility() {
+        const selB = document.getElementById('gtCalcB');
+        const inp = document.getElementById('gtCalcScalar');
+        if (!selB || !inp) return;
+        inp.style.display = (selB.value === '__scalar__') ? '' : 'none';
+    }
+    async function gtCalcularNovaCamada() {
+        const selA = document.getElementById('gtCalcA');
+        const selB = document.getElementById('gtCalcB');
+        const selOp = document.getElementById('gtCalcOp');
+        const inpS = document.getElementById('gtCalcScalar');
+        if (!selA || !selB || !selOp) return;
+        const a = gtGetLayerObj(selA.value);
+        if (!a || !a.decoded) { alert('Camada A inválida'); return; }
+        const op = selOp.value;
+        let useScalar = false, bScalar = NaN, b = null;
+        if (selB.value === '__scalar__') {
+            useScalar = true;
+            bScalar = parseFloat(inpS.value);
+            if (!isFinite(bScalar)) { alert('Valor escalar inválido'); return; }
+        } else {
+            b = gtGetLayerObj(selB.value);
+            if (!b || !b.decoded) { alert('Camada B inválida'); return; }
+            if (b.decoded.width !== a.decoded.width || b.decoded.height !== a.decoded.height) {
+                alert(`Camadas precisam ter mesma dimensão (A: ${a.decoded.width}×${a.decoded.height}, B: ${b.decoded.width}×${b.decoded.height})`);
+                return;
+            }
+        }
+        const decA = a.decoded, decB = b ? b.decoded : null;
+        const N = decA.data.length;
+        const result = new Float32Array(N);
+        const RESULT_ND = -9999;
+        const ndA = decA.nodata;
+        const extrasA = decA.nodataExtras || null;
+        const ndB = decB ? decB.nodata : null;
+        const extrasB = decB ? decB.nodataExtras : null;
+        function maskA(v) {
+            if (!isFinite(v)) return true;
+            if (ndA != null && v === ndA) return true;
+            if (extrasA) for (let k = 0; k < extrasA.length; k++) if (v === extrasA[k]) return true;
+            return false;
+        }
+        function maskB(v) {
+            if (!isFinite(v)) return true;
+            if (ndB != null && v === ndB) return true;
+            if (extrasB) for (let k = 0; k < extrasB.length; k++) if (v === extrasB[k]) return true;
+            return false;
+        }
+        for (let i = 0; i < N; i++) {
+            const av = decA.data[i];
+            if (maskA(av)) { result[i] = RESULT_ND; continue; }
+            const bv = useScalar ? bScalar : decB.data[i];
+            if (!useScalar && maskB(bv)) { result[i] = RESULT_ND; continue; }
+            let r;
+            switch (op) {
+                case '+': r = av + bv; break;
+                case '-': r = av - bv; break;
+                case '*': r = av * bv; break;
+                case '/': r = (bv === 0) ? RESULT_ND : av / bv; break;
+                default: r = av;
+            }
+            result[i] = r;
+        }
+        let mn = Infinity, mx = -Infinity;
+        for (let i = 0; i < N; i++) {
+            const v = result[i];
+            if (!isFinite(v) || v === RESULT_ND) continue;
+            if (v < mn) mn = v; if (v > mx) mx = v;
+        }
+        if (!isFinite(mn)) { mn = 0; mx = 1; }
+        const nameA = a.name || a.id;
+        const nameB = useScalar ? String(bScalar) : (b.name || b.id);
+        const opSym = { '+': '+', '-': '−', '*': '×', '/': '÷' }[op] || op;
+        const newName = `(${nameA} ${opSym} ${nameB})`;
+        const id = 'calc_' + (++gtLayerSeq) + '_' + Date.now();
+        const decoded = {
+            width: decA.width, height: decA.height, data: result,
+            nodata: RESULT_ND, nodataExtras: null,
+            bbox: decA.bbox, scale: decA.scale,
+            min: mn, max: mx
+        };
+        const paleta = (document.getElementById('gtPaleta') || {}).value || 'viridis';
+        const layer = { id, type: 'geotiff', name: newName, visible: true, opacity: 0.85,
+            decoded, paleta,
+            props: { paleta, autoMinMax: true, customMin: null, customMax: null,
+                      undefRaw: '', clipBelow: null, clipAbove: null }
+        };
+        gtExtraLayers.push(layer);
+        gtLayerEnsureMap();
+        await gtLayerPushToMap(layer);
+        gtRenderLayerChips();
+        gtRenderOverlayColorbars();
+        gtRenderCalcSelects();
+    }
     function gtSampleAtLatLon(lat, lon) {
         if (!gtLastDecoded || !gtLastDecoded.bbox) return { valid: false };
         const { bbox, width, height, data, nodata } = gtLastDecoded;
@@ -6554,18 +7252,28 @@
         if (gtIsMasked(v)) return { valid: true, value: null, noData: true };
         return { valid: true, value: v, col, row };
     }
+    function gtWrapLon(lon) {
+        // Normaliza qualquer longitude para [-180, 180]
+        let x = ((lon + 180) % 360 + 360) % 360 - 180;
+        if (x === -180) x = 180;
+        return x;
+    }
     function gtAtualizarCoord(lat, lon) {
-        const el = document.getElementById('gtCoord');
-        if (!el) return;
-        const coord = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
-        const samp = gtSampleAtLatLon(lat, lon);
-        if (!samp.valid) { el.textContent = coord; return; }
-        if (samp.noData) { el.textContent = `${coord} · NoData`; return; }
-        // Formatação adaptativa: número grande/pequeno usa exponencial
-        const v = samp.value;
-        const abs = Math.abs(v);
-        const fmt = (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) ? v.toExponential(3) : v.toFixed(3);
-        el.textContent = `${coord} · valor = ${fmt}`;
+        const els = [document.getElementById('gtCoord'), document.getElementById('gtCoordHud')].filter(Boolean);
+        if (!els.length) return;
+        const lonN = gtWrapLon(lon);
+        const coord = `${lat.toFixed(3)}°, ${lonN.toFixed(3)}°`;
+        const samp = gtSampleAtLatLon(lat, lonN);
+        let txt;
+        if (!samp.valid) txt = coord;
+        else if (samp.noData) txt = `${coord} · NoData`;
+        else {
+            const v = samp.value;
+            const abs = Math.abs(v);
+            const fmt = (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) ? v.toExponential(3) : v.toFixed(3);
+            txt = `${coord} · valor = ${fmt}`;
+        }
+        for (const el of els) el.textContent = txt;
     }
     function gtSampleAtCanvasXY(canvas, e) {
         if (!gtLastDecoded) return;
@@ -6585,17 +7293,67 @@
         const v = gtLastDecoded.data[row * gtLastDecoded.width + col];
         const el = document.getElementById('gtCoord');
         if (!el) return;
-        if (gtIsMasked(v)) {
-            el.textContent = `col ${col}, row ${row} · NoData`;
-        } else {
+        let txt;
+        if (gtIsMasked(v)) txt = `col ${col}, row ${row} · NoData`;
+        else {
             const abs = Math.abs(v);
             const fmt = (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) ? v.toExponential(3) : v.toFixed(3);
-            el.textContent = `col ${col}, row ${row} · valor = ${fmt}`;
+            txt = `col ${col}, row ${row} · valor = ${fmt}`;
         }
+        const hud = document.getElementById('gtCoordHud');
+        el.textContent = txt;
+        if (hud) hud.textContent = txt;
     }
     function gtClearCoord() {
         const el = document.getElementById('gtCoord');
+        const hud = document.getElementById('gtCoordHud');
         if (el) el.textContent = '—';
+        if (hud) hud.textContent = '—';
+    }
+    /* ─── Pan/zoom do canvas raster (usado quando GeoTIFF não tem bbox e o mapa é indisponível) ─── */
+    const gtCanvasView = { scale: 1, tx: 0, ty: 0, dragging: false, lastX: 0, lastY: 0 };
+    function gtApplyCanvasTransform() {
+        const cv = document.getElementById('gtCanvas');
+        if (!cv) return;
+        cv.style.transform = `translate(${gtCanvasView.tx}px, ${gtCanvasView.ty}px) scale(${gtCanvasView.scale})`;
+    }
+    function gtCanvasZoomBy(factor) {
+        gtCanvasView.scale = Math.max(0.1, Math.min(50, gtCanvasView.scale * (1 / factor)));
+        gtApplyCanvasTransform();
+    }
+    function gtCanvasZoomReset() {
+        gtCanvasView.scale = 1; gtCanvasView.tx = 0; gtCanvasView.ty = 0;
+        gtApplyCanvasTransform();
+    }
+    function gtBindCanvasNavigation() {
+        const cv = document.getElementById('gtCanvas');
+        if (!cv || cv._gtNavBound) return;
+        cv._gtNavBound = true;
+        cv.addEventListener('wheel', (e) => {
+            if (cv.style.display === 'none') return;  // mapa ativo
+            e.preventDefault();
+            const f = e.deltaY < 0 ? 0.8 : 1.25;
+            gtCanvasZoomBy(f);
+        }, { passive: false });
+        cv.addEventListener('mousedown', (e) => {
+            if (cv.style.display === 'none') return;
+            gtCanvasView.dragging = true; gtCanvasView.lastX = e.clientX; gtCanvasView.lastY = e.clientY;
+            cv.style.transition = 'none';
+        });
+        window.addEventListener('mouseup', () => {
+            if (gtCanvasView.dragging) {
+                gtCanvasView.dragging = false;
+                const cv2 = document.getElementById('gtCanvas');
+                if (cv2) cv2.style.transition = '';
+            }
+        });
+        cv.addEventListener('mousemove', (e) => {
+            if (!gtCanvasView.dragging) return;
+            gtCanvasView.tx += (e.clientX - gtCanvasView.lastX);
+            gtCanvasView.ty += (e.clientY - gtCanvasView.lastY);
+            gtCanvasView.lastX = e.clientX; gtCanvasView.lastY = e.clientY;
+            gtApplyCanvasTransform();
+        });
     }
     function gtToggleMapUI() {
         const toggle = document.getElementById('gtShowMap');
@@ -6616,7 +7374,7 @@
         const hasGeo = !!(gtLastDecoded && gtLastDecoded.bbox);
         toggle.disabled = !hasGeo;
         toggle.title = hasGeo ? 'Sobrepor o raster a um mapa-base'
-                              : 'GeoTIFF sem georreferência (tags 33550/33922 ausentes)';
+                              : 'GeoTIFF sem georreferência (use o pan/zoom direto no canvas)';
         if (!hasGeo && toggle.checked) {
             toggle.checked = false;
             gtToggleMapUI();
@@ -6699,10 +7457,12 @@
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const ab = await resp.arrayBuffer();
             gtLastDecoded = await SisMOM_GeoTIFF.decodeTIFF(ab);
+            try { gtPrimaryName = (url.split('?')[0].split('/').pop()) || ''; } catch (_) { gtPrimaryName = ''; }
             gtAtualizarInfoEMinMax(gtLastDecoded);
             try { gtUpdateMapToggleEnabled(); } catch (_) {}
             if (typeof _gtMap !== 'undefined' && _gtMap && gtLastDecoded.bbox) _gtMap.fitTo(gtLastDecoded.bbox);
             gtRenderar();
+            try { gtRenderLayerChips(); } catch (_) {}
         } catch (e) {
             if (info) info.textContent = 'Falha ao carregar GeoTIFF: ' + ((e && e.message) || e);
         }
