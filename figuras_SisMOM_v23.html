@@ -1895,7 +1895,7 @@
                 <button class="btn btn-ghost" id="btnGtCalc" type="button" title="Cria uma nova camada A op B">Calcular</button>
             </div>
             <canvas id="gtColorbar" style="width:100%;height:38px;display:block;margin:6px 0 8px;border-radius:4px"></canvas>
-            <div id="gtInfo" style="color:var(--text-muted);font-size:12px;margin-bottom:8px;min-height:1em">Abra um arquivo .tif/.tiff para visualizar.</div>
+            <div id="gtInfo" style="color:var(--text-muted);font-size:12px;margin-bottom:8px;height:1.4em;line-height:1.4em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Abra um arquivo .tif/.tiff para visualizar.</div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
                 <label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="gtShowMap" disabled> Mostrar mapa</label>
                 <label id="gtTileLabel" style="display:none;align-items:center;gap:6px;color:var(--text-muted,#aab)">Camada:
@@ -7492,16 +7492,24 @@
         }
     }
 
+    function gtDeriveTifUrl(url) {
+        // Para o FTP do CPTEC: PNGs ficam em .../fig/ e TIFFs em .../geotiff/.
+        // Substitui o segmento /fig/ por /geotiff/ (literal, não toca nomes tipo fig_uvo)
+        // e troca a extensão final png/gif/jpg/jpeg por tif, preservando query string.
+        let u = String(url || '');
+        u = u.replace(/\/fig\//g, '/geotiff/');
+        u = u.replace(/\.(png|gif|jpe?g)(\?.*)?$/i, '.tif$2');
+        return u;
+    }
     async function gtLoadFromState() {
         if (appMode !== 'gtiff') return;
         if (!state || !state.slots || !state.slots[0]) return;
         const s = state.slots[0];
         if (!s.data || !s.modelo || !s.variavel) return;
-        // Só faz sentido se o modelo for GeoTIFF
         const m = modelos[s.modelo];
-        if (!m || !SisMOM_GeoTIFF.isGeoTiffModel(m)) {
+        if (!m) {
             const info = document.getElementById('gtInfo');
-            if (info) info.textContent = 'Modelo "' + (m && m.nome || s.modelo) + '" não é GeoTIFF (extensão ≠ .tif/.tiff). Configure um modelo com sufixo .tif/.tiff.';
+            if (info) info.textContent = 'Modelo "' + s.modelo + '" não encontrado.';
             return;
         }
         const passo = getEffectivePasso(0);
@@ -7513,8 +7521,20 @@
             if (info) info.textContent = 'Erro ao montar URL: ' + (e && e.message);
             return;
         }
+        // Se o modelo não é GeoTIFF nativo, deriva a URL substituindo a extensão
+        if (!SisMOM_GeoTIFF.isGeoTiffModel(m)) {
+            const derived = gtDeriveTifUrl(url);
+            if (derived === url) {
+                const info = document.getElementById('gtInfo');
+                if (info) info.textContent = 'Não foi possível derivar URL .tif (extensão não reconhecida): ' + url;
+                return;
+            }
+            url = derived;
+        }
         const info = document.getElementById('gtInfo');
-        if (info) info.textContent = 'Carregando ' + url + '…';
+        // Não sobrescreve o #gtInfo com "Carregando..." (URL longa causava
+        // reflow/salto durante animação). Mantém o estado anterior enquanto
+        // o próximo passo decodifica. Só atualiza em caso de erro.
         try {
             const resp = await fetch(url);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -7527,7 +7547,13 @@
             gtRenderar();
             try { gtRenderLayerChips(); } catch (_) {}
         } catch (e) {
-            if (info) info.textContent = 'Falha ao carregar GeoTIFF: ' + ((e && e.message) || e);
+            const msg = (e && e.message) || String(e);
+            const isCors = /failed to fetch|networkerror|cors/i.test(msg);
+            const tip = isCors
+                ? ' — Provável CORS: rode no Electron com webSecurity:false (já configurado no main.js após atualizar), ou use um proxy.'
+                : '';
+            if (info) info.textContent = 'Falha ao carregar GeoTIFF: ' + msg + tip + ' [URL: ' + url + ']';
+            console.error('[gtLoadFromState] erro carregando', url, e);
         }
     }
 
