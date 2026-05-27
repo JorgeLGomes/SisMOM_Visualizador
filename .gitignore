@@ -9,6 +9,11 @@ yarn-error.log*
 electron-app/dist/
 electron-app/.cache/
 dist/
+# zips/pastas órfãs de builds antigos (incluindo dir esquisito criado por redirect mal-formado no PS)
+electron-app/dist.zip
+electron-app/_dist_old*/
+electron-app/git commit*/
+*.zip
 
 # ---- Sistema operacional ----
 .DS_Store

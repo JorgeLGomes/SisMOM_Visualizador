@@ -13,7 +13,12 @@ function createWindow() {
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Permite fetch a URLs HTTPS externas sem CORS bloqueando (caso do FTP do CPTEC).
+      // Como o app é carregado de arquivo local e o tráfego é só leitura de figuras,
+      // o risco é baixo. Sem isto, decodificar GeoTIFFs do servidor não funciona.
+      webSecurity: false,
+      allowRunningInsecureContent: true
     }
   });
 

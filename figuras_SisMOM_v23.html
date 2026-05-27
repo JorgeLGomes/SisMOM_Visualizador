@@ -225,6 +225,34 @@
         .mode-tab:hover { color: var(--text, #cbd6e6); }
         .mode-tab.active { background: rgba(77,208,225,0.15); color: var(--accent-cyan, #4dd0e1); border-color: var(--accent-cyan, #4dd0e1); }
         #modalGeoTIFF.inline { position: static; background: transparent; padding: 0; display: block !important; height: auto; }
+        /* Modo sidebar: usado no dashboard multi-painel (modo gtiff) */
+        #modalGeoTIFF.gt-sidebar { position: fixed !important; top: 60px !important; right: 0 !important;
+                                     bottom: 0 !important; left: auto !important; width: 340px !important;
+                                     background: var(--bg-elev-1, #0e1622); border-left: 1px solid var(--border-subtle);
+                                     z-index: 30; padding: 0; display: block !important; overflow: hidden;
+                                     align-items: stretch !important; justify-content: flex-start !important;
+                                     backdrop-filter: none !important; }
+        #modalGeoTIFF.gt-sidebar > .modal { width: 100%; max-width: none; height: 100%; box-shadow: none;
+                                              border-radius: 0; max-height: none; display: flex; flex-direction: column; }
+        #modalGeoTIFF.gt-sidebar > .modal > .modal-header { display: none; }
+        #modalGeoTIFF.gt-sidebar > .modal > .modal-body { flex: 1; overflow-y: auto; padding: 8px 10px; }
+        /* Em modo sidebar, esconde a "preview" do GeoTIFF (canvas raster + mapa + HUD): o painel direito é só de controles. */
+        #modalGeoTIFF.gt-sidebar .gt-main-col { display: none !important; }
+        #modalGeoTIFF.gt-sidebar #gtCanvas,
+        #modalGeoTIFF.gt-sidebar #gtMapCanvas,
+        #modalGeoTIFF.gt-sidebar #gtAttrib,
+        #modalGeoTIFF.gt-sidebar .gt-bottom-hud { display: none !important; }
+        /* Side panel ocupa toda a largura */
+        #modalGeoTIFF.gt-sidebar #gtSidePanel { width: 100% !important; max-width: none !important; flex: 1 1 auto !important; }
+        body.gt-mode-active main.main { padding-right: 340px; }
+        /* Marca visual de painel Mi ativo */
+        .map-box.gt-active { outline: 2px solid var(--accent-cyan, #4dd0e1); outline-offset: -2px; }
+        .map-body .gt-panel-pin { position: absolute; top: 8px; left: 8px; z-index: 7;
+                                  background: rgba(40,55,80,0.85); color: var(--text); border: 1px solid rgba(255,255,255,0.14);
+                                  border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600;
+                                  cursor: pointer; display: none; backdrop-filter: blur(8px); }
+        body.gt-mode-active .map-body .gt-panel-pin { display: inline-block; }
+        body.gt-mode-active .map-box.gt-active .map-body .gt-panel-pin { background: var(--accent-cyan, #4dd0e1); color: #0b1220; border-color: rgba(0,0,0,0.2); }
         #modalGeoTIFF.inline > .modal { max-width: none; width: 100%; box-shadow: none; border-radius: 0; max-height: none; height: calc(100vh - 70px); display: flex; flex-direction: column; }
         #modalGeoTIFF.inline > .modal > .modal-header { display: none; }
         #modalGeoTIFF.inline > .modal > .modal-body { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 8px 12px; }
@@ -792,6 +820,16 @@
             image-rendering: -webkit-optimize-contrast;
         }
         .map-img.active { opacity: 1; visibility: visible; }
+        .map-canvas-gt {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            display: block;
+            cursor: grab;
+            z-index: 1;
+        }
+        .map-canvas-gt:active { cursor: grabbing; }
+        /* Quando o canvas GT está ativo, os <img> ficam ocultos */
+        .map-box.gt-map-active .map-img { display: none !important; }
 
         .map-state {
             position: absolute; inset: 0;
@@ -1892,11 +1930,30 @@
                 <button class="btn btn-primary" id="btnGtPick">Abrir arquivo…</button>
                 <label style="display:inline-flex;align-items:center;gap:6px">Paleta:
                     <select id="gtPaleta">
-                        <option value="viridis" selected>Viridis</option>
-                        <option value="jet">Jet</option>
-                        <option value="rdbu">RdBu</option>
-                        <option value="gray">Cinza</option>
-                        <option value="turbo">Turbo</option>
+                        <optgroup label="Sequenciais (matplotlib)">
+                            <option value="viridis" selected>Viridis</option>
+                            <option value="plasma">Plasma</option>
+                            <option value="inferno">Inferno</option>
+                            <option value="magma">Magma</option>
+                            <option value="cividis">Cividis</option>
+                        </optgroup>
+                        <optgroup label="Sequenciais clássicas">
+                            <option value="jet">Jet</option>
+                            <option value="turbo">Turbo</option>
+                            <option value="gray">Cinza</option>
+                        </optgroup>
+                        <optgroup label="Divergentes (anomalia)">
+                            <option value="rdbu">RdBu (vermelho–azul)</option>
+                            <option value="rdylbu">RdYlBu</option>
+                            <option value="spectral">Spectral</option>
+                            <option value="brbg">BrBG (marrom–verde)</option>
+                            <option value="seismic">Seismic</option>
+                            <option value="coolwarm">Coolwarm</option>
+                        </optgroup>
+                        <optgroup label="Topográficas">
+                            <option value="terrain">Terrain</option>
+                            <option value="ocean">Ocean</option>
+                        </optgroup>
                     </select>
                 </label>
                 <label style="display:inline-flex;align-items:center;gap:6px">Min: <input type="number" id="gtMin" step="any" readonly style="width:110px"></label>
@@ -1993,6 +2050,7 @@
                 <button type="button" class="retry-btn" data-action="retry">Tentar novamente</button>
             </div>
             <div class="map-viewport" data-viewport>
+                <canvas class="map-canvas-gt" data-buf="map" style="display:none"></canvas>
                 <img class="map-img" data-buf="a" alt="Mapa" loading="eager" decoding="async">
                 <img class="map-img" data-buf="b" alt="" aria-hidden="true" loading="eager" decoding="async">
             </div>
@@ -3326,10 +3384,36 @@
         lastLoadedURL[slotIdx] = null;
     }
     function carregarImagem(slotIdx, url) {
-        // GeoTIFF: usa fluxo dedicado (fetch+decode+paleta) se o modelo for .tif/.tiff
+        // GeoTIFF: usa fluxo dedicado se o modelo é nativo TIF OU se appMode='gtiff'
         const _gtS = state.slots[slotIdx];
-        if (_gtS && typeof SisMOM_GeoTIFF !== 'undefined' && SisMOM_GeoTIFF.isGeoTiffModel(modelos[_gtS.modelo])) {
-            return carregarGeoTIFFParaSlot(slotIdx, url);
+        const _gtM = _gtS && modelos[_gtS.modelo];
+        const _isNativeGt = _gtM && typeof SisMOM_GeoTIFF !== 'undefined' && SisMOM_GeoTIFF.isGeoTiffModel(_gtM);
+        const _isGtMode = (typeof appMode !== 'undefined' && appMode === 'gtiff');
+        if (_gtS && (_isNativeGt || _isGtMode)) {
+            // Se o modo gtiff e o modelo NÃO é nativo TIF, deriva a URL
+            let urlTif = url;
+            if (_isGtMode && !_isNativeGt) {
+                try {
+                    // Se o modelo tem rota TIF própria, monta com substituição temporária do modelo
+                    const hasOwnTifRoute = _gtM && ((_gtM.url_path_tif && !_gtM.same_url_for_tif) || (_gtM.file_name_tif && !_gtM.same_name_for_tif));
+                    if (hasOwnTifRoute) {
+                        const mTif = Object.assign({}, _gtM, {
+                            url_path: _gtM.same_url_for_tif ? _gtM.url_path : (_gtM.url_path_tif || _gtM.url_path),
+                            file_name: _gtM.same_name_for_tif ? _gtM.file_name : (_gtM.file_name_tif || _gtM.file_name),
+                            extensao: _gtM.extensao_tif || '.tif'
+                        });
+                        const orig = modelos[_gtS.modelo];
+                        modelos[_gtS.modelo] = mTif;
+                        try {
+                            const passo = getEffectivePasso(slotIdx);
+                            urlTif = montarURL({ modelo: _gtS.modelo, data: _gtS.data, variavel: _gtS.variavel, passo });
+                        } finally { modelos[_gtS.modelo] = orig; }
+                    } else {
+                        urlTif = (typeof gtDeriveTifUrl === 'function') ? gtDeriveTifUrl(url) : url;
+                    }
+                } catch (e) { console.error('deriva tif para slot', slotIdx, e); }
+            }
+            return carregarGeoTIFFParaSlot(slotIdx, urlTif);
         }
         const reqId = ++activeRequests[slotIdx];
         const buf = buffers[slotIdx];
@@ -3439,7 +3523,12 @@
         atualizarProgresso();
         atualizarTooltipsInfo();
         for (let i = 0; i < state.layout; i++) renderSlot(i);
-        if (appMode === 'gtiff') { try { gtLoadFromState(); } catch (_) {} }
+        if (appMode === 'gtiff') {
+            try { gtLoadFromState(); } catch (_) {}
+            try { gtRenderPanelPins(); } catch (_) {}
+            // Se painel ativo virou inválido (layout mudou), volta pra 0
+            if (gtActivePanel >= state.layout) try { gtSelectPanel(0); } catch (_) {}
+        }
         setTimeout(preCarregarProximos, 50);
         scheduleSavePrefs();
     }
@@ -5253,11 +5342,22 @@
             return out;
         }
         const GT_PALETTES = {
-            viridis: makeRamp([[68,1,84],[72,35,116],[64,67,135],[52,94,141],[41,120,142],[32,144,140],[34,167,132],[68,190,112],[121,209,81],[189,222,38],[253,231,36]]),
-            jet:     makeRamp([[0,0,131],[0,60,170],[5,255,255],[255,255,0],[250,0,0],[128,0,0]]),
-            rdbu:    makeRamp([[5,48,97],[33,102,172],[67,147,195],[146,197,222],[209,229,240],[247,247,247],[253,219,199],[244,165,130],[214,96,77],[178,24,43],[103,0,31]]),
-            gray:    makeRamp([[0,0,0],[255,255,255]]),
-            turbo:   makeRamp([[48,18,59],[70,107,227],[40,191,224],[70,250,162],[186,252,67],[255,192,33],[243,95,30],[165,25,8],[122,4,3]])
+            viridis:  makeRamp([[68,1,84],[72,35,116],[64,67,135],[52,94,141],[41,120,142],[32,144,140],[34,167,132],[68,190,112],[121,209,81],[189,222,38],[253,231,36]]),
+            plasma:   makeRamp([[13,8,135],[75,3,161],[125,3,168],[168,34,150],[203,71,119],[230,107,90],[248,149,64],[253,195,40],[240,249,33]]),
+            inferno:  makeRamp([[0,0,4],[40,11,84],[101,21,110],[159,42,99],[212,72,66],[245,125,21],[250,193,39],[252,255,164]]),
+            magma:    makeRamp([[0,0,4],[40,11,84],[101,21,110],[158,47,127],[212,80,121],[247,137,118],[253,201,141],[252,253,191]]),
+            cividis:  makeRamp([[0,32,76],[24,59,107],[55,86,118],[87,113,123],[122,142,128],[160,172,130],[202,202,127],[244,234,80],[253,231,37]]),
+            jet:      makeRamp([[0,0,131],[0,60,170],[5,255,255],[255,255,0],[250,0,0],[128,0,0]]),
+            turbo:    makeRamp([[48,18,59],[70,107,227],[40,191,224],[70,250,162],[186,252,67],[255,192,33],[243,95,30],[165,25,8],[122,4,3]]),
+            rdbu:     makeRamp([[5,48,97],[33,102,172],[67,147,195],[146,197,222],[209,229,240],[247,247,247],[253,219,199],[244,165,130],[214,96,77],[178,24,43],[103,0,31]]),
+            rdylbu:   makeRamp([[165,0,38],[215,48,39],[244,109,67],[253,174,97],[254,224,144],[255,255,191],[224,243,248],[171,217,233],[116,173,209],[69,117,180],[49,54,149]]),
+            spectral: makeRamp([[158,1,66],[213,62,79],[244,109,67],[253,174,97],[254,224,139],[255,255,191],[230,245,152],[171,221,164],[102,194,165],[50,136,189],[94,79,162]]),
+            brbg:     makeRamp([[84,48,5],[140,81,10],[191,129,45],[223,194,125],[246,232,195],[245,245,245],[199,234,229],[128,205,193],[53,151,143],[1,102,94],[0,60,48]]),
+            seismic:  makeRamp([[0,0,76],[0,0,255],[127,127,255],[255,255,255],[255,127,127],[255,0,0],[127,0,0]]),
+            coolwarm: makeRamp([[59,76,192],[123,165,228],[197,222,233],[221,221,221],[240,200,166],[225,128,108],[180,4,38]]),
+            terrain:  makeRamp([[51,51,153],[38,128,179],[126,179,77],[217,179,77],[128,77,51],[230,210,180],[255,255,255]]),
+            ocean:    makeRamp([[0,0,0],[0,40,127],[0,90,140],[40,127,140],[127,170,127],[191,212,153],[255,255,255]]),
+            gray:     makeRamp([[0,0,0],[255,255,255]])
         };
         function decompressPackBits(input) {
             const out = [];
@@ -5603,8 +5703,91 @@
     /* ─── Integração GeoTIFF com painéis Mi ─── */
     const gtSlotState = [];
     function getGtSlotState(i) {
-        if (!gtSlotState[i]) gtSlotState[i] = { paleta: 'viridis', autoMinMax: true, min: null, max: null };
+        if (!gtSlotState[i]) gtSlotState[i] = {
+            paleta: 'viridis', autoMinMax: true, min: null, max: null,
+            undefRaw: '', clipBelow: null, clipAbove: null,
+            mapEnabled: false, mapProvider: 'esri', opacity: 0.85
+        };
         return gtSlotState[i];
+    }
+    const _gtSlotMap = [];
+    function gtSlotEnsureMap(slotIdx) {
+        if (_gtSlotMap[slotIdx]) return _gtSlotMap[slotIdx];
+        const box = slotEl(slotIdx);
+        if (!box) return null;
+        const cv = box.querySelector('.map-canvas-gt');
+        if (!cv) return null;
+        const m = SisMOM_Map(cv);
+        _gtSlotMap[slotIdx] = m;
+        const gt = getGtSlotState(slotIdx);
+        m.setTileProvider(gt.mapProvider || 'esri');
+        return m;
+    }
+    function gtSlotApplyOpts(slotIdx) {
+        // Monta opts {paleta, min?, max?, nodataExtras?, clipBelow?, clipAbove?} a partir do gtSlotState
+        const gt = getGtSlotState(slotIdx);
+        const opts = { paleta: gt.paleta || 'viridis' };
+        if (!gt.autoMinMax && isFinite(gt.min) && isFinite(gt.max) && gt.max > gt.min) {
+            opts.min = gt.min; opts.max = gt.max;
+        }
+        const extras = (typeof gtParseUndefList === 'function') ? gtParseUndefList(gt.undefRaw || '') : null;
+        if (extras) opts.nodataExtras = extras;
+        if (gt.clipBelow != null && isFinite(gt.clipBelow)) opts.clipBelow = gt.clipBelow;
+        if (gt.clipAbove != null && isFinite(gt.clipAbove)) opts.clipAbove = gt.clipAbove;
+        return opts;
+    }
+    async function gtRerenderSlot(slotIdx) {
+        // Re-renderiza o slot Mi usando o decoded cacheado + gtSlotState (sem refetch)
+        const decoded = gtSlotDecoded[slotIdx];
+        if (!decoded) return;
+        const buf = buffers[slotIdx];
+        if (!buf) return;
+        const box = slotEl(slotIdx);
+        const gt = getGtSlotState(slotIdx);
+        const opts = gtSlotApplyOpts(slotIdx);
+        const imgData = SisMOM_GeoTIFF.aplicarPaleta(decoded, opts);
+        if (gt.mapEnabled && decoded.bbox) {
+            // Modo mapa: usa SisMOM_Map do slot (tiles + raster overlay + opacidade)
+            const m = gtSlotEnsureMap(slotIdx);
+            if (!m) return;
+            // Mostra canvas, esconde imgs
+            const cvEl = box && box.querySelector('.map-canvas-gt');
+            if (cvEl) cvEl.style.display = '';
+            if (box) box.classList.add('gt-map-active');
+            // Aplica provider + viewport + overlay
+            m.setTileProvider(gt.mapProvider || 'esri');
+            try { m.fitTo(decoded.bbox); } catch (_) {}
+            const op = (gt.opacity == null) ? 0.85 : gt.opacity;
+            await m.setRasterOverlay(imgData, decoded.bbox, op);
+            return;
+        }
+        // Modo sem mapa: pipeline original com <img> + blob
+        if (box) {
+            box.classList.remove('gt-map-active');
+            const cvEl = box.querySelector('.map-canvas-gt');
+            if (cvEl) cvEl.style.display = 'none';
+        }
+        const frontKey = buf.active;
+        const backKey  = frontKey === 'a' ? 'b' : 'a';
+        const back  = slotBuf(slotIdx, backKey);
+        const front = slotBuf(slotIdx, frontKey);
+        if (!back || !front) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = decoded.width; canvas.height = decoded.height;
+        canvas.getContext('2d').putImageData(imgData, 0, 0);
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        const blobUrl = URL.createObjectURL(blob);
+        if (!gtBlobUrls[slotIdx]) gtBlobUrls[slotIdx] = { a: null, b: null };
+        const oldUrl = gtBlobUrls[slotIdx][backKey];
+        gtBlobUrls[slotIdx][backKey] = blobUrl;
+        back.onload = () => {
+            back.classList.add('active');
+            front.classList.remove('active');
+            buf.active = backKey;
+            if (oldUrl) URL.revokeObjectURL(oldUrl);
+        };
+        back.onerror = () => { URL.revokeObjectURL(blobUrl); };
+        back.src = blobUrl;
     }
     const gtBlobUrls = [];
     async function carregarGeoTIFFParaSlot(slotIdx, url) {
@@ -5625,9 +5808,14 @@
             const ab = await resp.arrayBuffer();
             if (reqId !== activeRequests[slotIdx]) return;
             const decoded = await SisMOM_GeoTIFF.decodeTIFF(ab);
-            const gt = getGtSlotState(slotIdx);
-            const opts = { paleta: gt.paleta };
-            if (!gt.autoMinMax) { opts.min = gt.min; opts.max = gt.max; }
+            gtSlotDecoded[slotIdx] = decoded;
+            if (slotIdx === (gtActivePanel || 0)) {
+                gtLastDecoded = decoded;
+                try { gtAtualizarInfoEMinMax(decoded); } catch (_) {}
+                try { gtDesenharColorbar(); } catch (_) {}
+                try { gtRenderOverlayColorbars(); } catch (_) {}
+            }
+            const opts = gtSlotApplyOpts(slotIdx);
             const imgData = SisMOM_GeoTIFF.aplicarPaleta(decoded, opts);
             const canvas = document.createElement('canvas');
             canvas.width = decoded.width; canvas.height = decoded.height;
@@ -5851,6 +6039,144 @@
     let gtActiveLayerId = 'primary';
     let gtPrimaryVisible = true;
     let gtPrimaryName = '';   // nome do arquivo da camada base (file picker ou último segmento da URL)
+    let gtActivePanel = 0;    // índice do painel Mi sendo controlado pelo painel direito
+    const gtSlotDecoded = []; // cache do decoded por slot Mi (para painel direito refletir)
+    function gtRenderPanelPins() {
+        document.querySelectorAll('.map-box').forEach((box, idx) => {
+            // só painéis dentro de mainPNG
+            const inMain = box.closest && box.closest('#main-content');
+            if (!inMain) return;
+            const body = box.querySelector('.map-body');
+            if (!body) return;
+            // Limpa pin antigo no .map-box (de versões anteriores)
+            const stale = box.querySelector(':scope > .gt-panel-pin');
+            if (stale) stale.remove();
+            let pin = body.querySelector(':scope > .gt-panel-pin');
+            if (!pin) {
+                pin = document.createElement('button');
+                pin.type = 'button';
+                pin.className = 'gt-panel-pin';
+                pin.addEventListener('click', (e) => { e.stopPropagation(); gtSelectPanel(idx); });
+                body.appendChild(pin);
+            }
+            pin.textContent = 'Painel M' + (idx + 1);
+            box.classList.toggle('gt-active', idx === gtActivePanel);
+        });
+    }
+    function gtSelectPanel(idx) {
+        if (typeof idx !== 'number' || idx < 0) idx = 0;
+        gtActivePanel = idx;
+        // Marca visual
+        document.querySelectorAll('.map-box').forEach((box, i) => {
+            box.classList.toggle('gt-active', i === idx);
+        });
+        // Carrega o decoded cacheado deste slot na variável global
+        const dec = gtSlotDecoded[idx];
+        if (dec) {
+            gtLastDecoded = dec;
+            try { gtAtualizarInfoEMinMax(dec); } catch (_) {}
+            try { gtDesenharColorbar(); } catch (_) {}
+            try { gtRenderOverlayColorbars(); } catch (_) {}
+        }
+        // Atualiza nome no painel direito
+        const s = state.slots && state.slots[idx];
+        const m = s && modelos[s.modelo];
+        const v = s && m && (Array.isArray(m.variaveis) ? m.variaveis.find(x => x.id === s.variavel) : null);
+        gtPrimaryName = (m && v) ? (m.nome + ' · ' + (v.label || v.id)) : ('Painel M' + (idx + 1));
+        // Reflete gtSlotState[idx] nos inputs do painel direito
+        try { gtSyncRightPanelFromSlot(idx); } catch (_) {}
+    }
+    function gtSyncRightPanelFromSlot(slotIdx) {
+        const gt = getGtSlotState(slotIdx);
+        const palEl = document.getElementById('gtPaleta');
+        if (palEl) palEl.value = gt.paleta || 'viridis';
+        const minEl = document.getElementById('gtMin');
+        const maxEl = document.getElementById('gtMax');
+        const btnEdit = document.getElementById('btnGtEdit');
+        const btnAuto = document.getElementById('btnGtAuto');
+        if (minEl && maxEl) {
+            if (gt.autoMinMax) {
+                minEl.removeAttribute('data-editing');
+                minEl.setAttribute('readonly',''); maxEl.setAttribute('readonly','');
+                if (btnEdit) btnEdit.style.display = '';
+                if (btnAuto) btnAuto.style.display = 'none';
+                const dec = gtSlotDecoded[slotIdx];
+                if (dec) { minEl.value = dec.min; maxEl.value = dec.max; }
+            } else {
+                minEl.setAttribute('data-editing','1');
+                minEl.removeAttribute('readonly'); maxEl.removeAttribute('readonly');
+                if (btnEdit) btnEdit.style.display = 'none';
+                if (btnAuto) btnAuto.style.display = '';
+                if (gt.min != null) minEl.value = gt.min;
+                if (gt.max != null) maxEl.value = gt.max;
+            }
+        }
+        const undefEl = document.getElementById('gtUndef');
+        if (undefEl) undefEl.value = gt.undefRaw || '';
+        const clMin = document.getElementById('gtClipMin');
+        const clMax = document.getElementById('gtClipMax');
+        if (clMin) clMin.value = (gt.clipBelow != null ? gt.clipBelow : '');
+        if (clMax) clMax.value = (gt.clipAbove != null ? gt.clipAbove : '');
+        // Mapa por slot
+        const dec = gtSlotDecoded[slotIdx];
+        const hasGeo = !!(dec && dec.bbox);
+        const showMap = document.getElementById('gtShowMap');
+        if (showMap) {
+            showMap.disabled = !hasGeo;
+            showMap.checked = !!(hasGeo && gt.mapEnabled);
+            showMap.title = hasGeo ? 'Sobrepor o raster a um mapa-base'
+                                   : 'GeoTIFF sem georreferência';
+        }
+        const tileLabel = document.getElementById('gtTileLabel');
+        const opLabel = document.getElementById('gtOpacityLabel');
+        const showMapOn = !!(hasGeo && gt.mapEnabled);
+        if (tileLabel) tileLabel.style.display = showMapOn ? 'inline-flex' : 'none';
+        if (opLabel)   opLabel.style.display   = showMapOn ? 'inline-flex' : 'none';
+        const tp = document.getElementById('gtTileProvider');
+        if (tp) tp.value = gt.mapProvider || 'esri';
+        const opEl = document.getElementById('gtOpacity');
+        if (opEl) opEl.value = Math.round(((gt.opacity == null ? 0.85 : gt.opacity)) * 100);
+    }
+    function gtCaptureRightPanelToSlot(slotIdx) {
+        const gt = getGtSlotState(slotIdx);
+        const palEl = document.getElementById('gtPaleta');
+        if (palEl) gt.paleta = palEl.value || 'viridis';
+        const minEl = document.getElementById('gtMin');
+        const maxEl = document.getElementById('gtMax');
+        if (minEl && maxEl) {
+            const editing = minEl.hasAttribute('data-editing');
+            gt.autoMinMax = !editing;
+            if (editing) {
+                const mn = parseFloat(minEl.value);
+                const mx = parseFloat(maxEl.value);
+                if (isFinite(mn) && isFinite(mx) && mx > mn) { gt.min = mn; gt.max = mx; }
+            } else {
+                gt.min = null; gt.max = null;
+            }
+        }
+        const undefEl = document.getElementById('gtUndef');
+        gt.undefRaw = (undefEl && undefEl.value) ? undefEl.value : '';
+        const clMin = document.getElementById('gtClipMin');
+        const clMax = document.getElementById('gtClipMax');
+        gt.clipBelow = (clMin && clMin.value.trim() !== '') ? parseFloat(clMin.value) : null;
+        gt.clipAbove = (clMax && clMax.value.trim() !== '') ? parseFloat(clMax.value) : null;
+        const showMap = document.getElementById('gtShowMap');
+        if (showMap && !showMap.disabled) gt.mapEnabled = !!showMap.checked;
+        const tp = document.getElementById('gtTileProvider');
+        if (tp) gt.mapProvider = tp.value || 'esri';
+        const opEl = document.getElementById('gtOpacity');
+        if (opEl) {
+            const pct = parseInt(opEl.value, 10);
+            if (isFinite(pct)) gt.opacity = Math.max(0, Math.min(1, pct / 100));
+        }
+    }
+    async function gtApplySlotControlsFromActive() {
+        // Captura inputs e re-renderiza somente o Mi ativo (sem refetch)
+        gtCaptureRightPanelToSlot(gtActivePanel);
+        await gtRerenderSlot(gtActivePanel);
+        try { gtDesenharColorbar(); } catch (_) {}
+        try { gtRenderOverlayColorbars(); } catch (_) {}
+    }
     // Props por camada (primary tem props globais; extras têm props no objeto)
     const gtPrimaryProps = { paleta: 'viridis', autoMinMax: true, customMin: null, customMax: null,
                               undefRaw: '', clipBelow: null, clipAbove: null };
@@ -6074,7 +6400,7 @@
                 alert('Erro ao decodificar GeoTIFF: ' + ((err && err.message) || err));
             }
         });
-        document.getElementById('gtPaleta').addEventListener('change', () => { gtApplyActiveLayer(); });
+        document.getElementById('gtPaleta').addEventListener('change', () => { if (appMode === 'gtiff') { gtApplySlotControlsFromActive(); } else { gtApplyActiveLayer(); } });
         const btnEdit = document.getElementById('btnGtEdit');
         const btnAuto = document.getElementById('btnGtAuto');
         btnEdit.addEventListener('click', () => {
@@ -6083,6 +6409,10 @@
             m.setAttribute('data-editing', '1');
             btnEdit.style.display = 'none';
             btnAuto.style.display = '';
+            if (appMode === 'gtiff') {
+                const gt = getGtSlotState(gtActivePanel);
+                gt.autoMinMax = false;
+            }
         });
         btnAuto.addEventListener('click', () => {
             const m = document.getElementById('gtMin'), M = document.getElementById('gtMax');
@@ -6090,21 +6420,44 @@
             m.removeAttribute('data-editing');
             btnEdit.style.display = '';
             btnAuto.style.display = 'none';
-            if (gtLastDecoded) { m.value = gtLastDecoded.min; M.value = gtLastDecoded.max; }
-            gtRenderar();
+            if (appMode === 'gtiff') {
+                const gt = getGtSlotState(gtActivePanel);
+                gt.autoMinMax = true; gt.min = null; gt.max = null;
+                const dec = gtSlotDecoded[gtActivePanel];
+                if (dec) { m.value = dec.min; M.value = dec.max; }
+                gtApplySlotControlsFromActive();
+            } else {
+                if (gtLastDecoded) { m.value = gtLastDecoded.min; M.value = gtLastDecoded.max; }
+                gtRenderar();
+            }
         });
-        document.getElementById('gtMin').addEventListener('change', () => { gtApplyActiveLayer(); });
-        document.getElementById('gtMax').addEventListener('change', () => { gtApplyActiveLayer(); });
+        document.getElementById('gtMin').addEventListener('change', () => { if (appMode === 'gtiff') { gtApplySlotControlsFromActive(); } else { gtApplyActiveLayer(); } });
+        document.getElementById('gtMax').addEventListener('change', () => { if (appMode === 'gtiff') { gtApplySlotControlsFromActive(); } else { gtApplyActiveLayer(); } });
         // Mapa
         const tm = document.getElementById('gtShowMap');
-        if (tm) tm.addEventListener('change', gtToggleMapUI);
+        if (tm) tm.addEventListener('change', () => {
+            if (appMode === 'gtiff') {
+                gtApplySlotControlsFromActive();
+                // Mostrar/ocultar labels associados
+                const tlbl = document.getElementById('gtTileLabel');
+                const olbl = document.getElementById('gtOpacityLabel');
+                const on = !!tm.checked;
+                if (tlbl) tlbl.style.display = on ? 'inline-flex' : 'none';
+                if (olbl) olbl.style.display = on ? 'inline-flex' : 'none';
+            } else {
+                gtToggleMapUI();
+            }
+        });
         const op = document.getElementById('gtOpacity');
         if (op) op.addEventListener('input', () => {
+            if (appMode === 'gtiff') {
+                gtApplySlotControlsFromActive();
+                return;
+            }
             const val = parseInt(op.value, 10) / 100;
             if (_gtMap && _gtMap.setOverlayOpacity) {
                 _gtMap.setOverlayOpacity(gtActiveLayerId, val);
             }
-            // Atualiza opacity no objeto da camada (para persistência ao reordenar)
             const layer = (gtActiveLayerId !== 'primary')
                 ? gtExtraLayers.find(l => l.id === gtActiveLayerId)
                 : null;
@@ -6112,6 +6465,10 @@
         });
         const tp = document.getElementById('gtTileProvider');
         if (tp) tp.addEventListener('change', () => {
+            if (appMode === 'gtiff') {
+                gtApplySlotControlsFromActive();
+                return;
+            }
             if (_gtMap) _gtMap.setTileProvider(tp.value);
         });
         // Camadas extras
@@ -6159,8 +6516,11 @@
         }
         // Filtros UNDEF / clip
         function applyMaskAndRender() {
-            // Aplica nas props da camada ATIVA, não globalmente
-            gtApplyActiveLayer();
+            if (appMode === 'gtiff') {
+                gtApplySlotControlsFromActive();
+            } else {
+                gtApplyActiveLayer();
+            }
         }
         ['gtUndef','gtClipMin','gtClipMax'].forEach(id => {
             const el = document.getElementById(id);
@@ -7720,26 +8080,27 @@
         const mainPNG = document.getElementById('main-content');
         const mainGT  = document.getElementById('mainGT');
         const modal   = document.getElementById('modalGeoTIFF');
+        // Sempre devolve o modal para fora do mainGT (volta a ser modal pop-up)
+        if (modal) {
+            modal.classList.remove('inline');
+            modal.classList.remove('gt-sidebar');
+            modal.classList.remove('open');
+            if (_gtModalParent && modal.parentNode !== _gtModalParent) {
+                _gtModalParent.appendChild(modal);
+            }
+        }
+        if (mainPNG) mainPNG.style.display = '';
+        if (mainGT)  mainGT.style.display  = 'none';
+        document.body.classList.toggle('gt-mode-active', mode === 'gtiff');
         if (mode === 'gtiff') {
-            if (modal && mainGT && modal.parentNode !== mainGT) {
-                _gtModalParent = modal.parentNode;
-                mainGT.appendChild(modal);
-            }
-            if (modal) { modal.classList.add('inline'); modal.classList.add('open'); }
-            if (mainPNG) mainPNG.style.display = 'none';
-            if (mainGT)  mainGT.style.display  = '';
-            try { gtBindToolbar(); gtSyncToolbarFromState(); } catch (_) {}
-            gtLoadFromState().catch(() => {});
-        } else {
+            // Mostra o modal como sidebar à direita
             if (modal) {
-                modal.classList.remove('inline');
-                modal.classList.remove('open');
-                if (_gtModalParent && modal.parentNode !== _gtModalParent) {
-                    _gtModalParent.appendChild(modal);
-                }
+                modal.classList.add('gt-sidebar');
+                modal.classList.add('open');
             }
-            if (mainPNG) mainPNG.style.display = '';
-            if (mainGT)  mainGT.style.display  = 'none';
+            try { renderTudo(); } catch (_) {}
+            try { gtRenderPanelPins(); } catch (_) {}
+            try { gtSelectPanel(gtActivePanel || 0); } catch (_) {}
         }
     }
 
