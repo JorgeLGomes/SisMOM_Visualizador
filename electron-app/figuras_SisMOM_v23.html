@@ -344,13 +344,19 @@
                        padding-bottom: 3px; }
         .gt-layer-item { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 4px;
                           background: rgba(255,255,255,0.04); margin-bottom: 4px; cursor: pointer;
-                          border: 1px solid transparent; }
+                          border: 1px solid transparent;
+                          width: 100%; box-sizing: border-box; min-width: 0; max-width: 100%; }
         .gt-layer-item.active { border-color: var(--accent-cyan, #4dd0e1); background: rgba(77,208,225,0.10); }
-        .gt-layer-item .gl-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+        .gt-layer-item .gl-name { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+                                    white-space: nowrap; font-size: 12px; }
         .gt-layer-item button { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 3px;
-                                  font-size: 12px; line-height: 1; }
+                                  font-size: 12px; line-height: 1; flex: 0 0 auto; }
         .gt-layer-item .gl-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
         .gt-layer-item .gl-rm { color: #f88; font-size: 14px; font-weight: 700; }
+        /* Container dos chips: full width vertical (cada chip ocupa uma linha) */
+        #gtLayerChips { display: flex !important; flex-direction: column; width: 100%; min-width: 0; gap: 4px; }
+        /* Painel lateral: trava overflow horizontal para não criar scroll lateral */
+        #gtSidePanel, .gt-side { overflow-x: hidden; }
         .icon-btn {
             width: 36px; height: 36px;
             display: grid; place-items: center;
@@ -7052,7 +7058,9 @@
             dot.style.background = (l.type === 'geojson') ? (l.color || '#aaa') : (l.id === 'primary' ? '#4dd0e1' : '#4caf50');
             const name = document.createElement('span');
             name.className = 'gl-name';
-            name.textContent = l.name || l.id;
+            const fullName = l.name || l.id;
+            name.textContent = fullName;
+            name.title = fullName;
             name.style.opacity = (l.visible === false) ? '0.45' : '1';
             const up = document.createElement('button');
             up.type = 'button'; up.title = 'Subir';  up.textContent = '↑';
