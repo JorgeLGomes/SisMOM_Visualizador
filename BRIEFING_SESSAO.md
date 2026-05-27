@@ -135,7 +135,9 @@ npm run dist:linux
 
 ## 9. Estado atual / último commit pendente
 
-**Última mudança aplicada:** **seções do painel direito como dropdowns/accordions**. Cada cabeçalho `<h4>` (Arquivo/Visual, NoData/Clip, Camadas) virou clicável com chevron `▾`/`▸` e wrapper `.gt-section-body` que colapsa com transição CSS (`max-height` + `opacity`). Estado por seção persistido em `localStorage['sismom_gt_sections']`. Nova `gtMakeAccordion()` invocada ao final de `gtReorganizeLayout`. +3 KB no HTML.
+**Última mudança aplicada:** **reposicionar toggle do painel + chevrons à direita**. O botão de ocultar painel direito (`›/‹`) estava em `top: 6px`, colado no chevron `▾/▸` do primeiro header e parecia sobrepor o controle vertical do accordion. Correções: (1) botão movido para `top: 50%; transform: translateY(-50%)`, altura `44px` (área clicável mais confortável e claramente separada do topo). (2) Headers de seção usam `justify-content: space-between` com o **chevron alinhado à direita** (antes era à esquerda do título). +0.1 KB no HTML.
+
+**Antes disso:** **seções do painel direito como dropdowns/accordions**. Cada cabeçalho `<h4>` (Arquivo/Visual, NoData/Clip, Camadas) virou clicável com chevron `▾`/`▸` e wrapper `.gt-section-body` que colapsa com transição CSS (`max-height` + `opacity`). Estado por seção persistido em `localStorage['sismom_gt_sections']`. Nova `gtMakeAccordion()` invocada ao final de `gtReorganizeLayout`. +3 KB no HTML.
 
 **Antes disso:** **truncar nomes longos nos chips**. Nomes resultantes de cálculos repetidos (ex.: `(((temp-0010.tif + 273) + temp-0010.tif) + ...)`) expandiam o chip e empurravam os controles ↑↓👁✕ pra fora. Correção CSS: chip ocupa 100% da largura do painel (`width:100%; min-width:0; max-width:100%`), `.gl-name` ganha `flex:1 1 0 + min-width:0` para encolher com `ellipsis`, botões com `flex-shrink:0` para não encolherem, `#gtLayerChips` em column layout. Painel lateral com `overflow-x:hidden`. Tooltip do nome no hover mostra texto completo. +1 KB no HTML.
 
