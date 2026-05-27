@@ -1713,6 +1713,12 @@
                 <button class="btn btn-ghost" id="btnGtEdit">Editar escala</button>
                 <button class="btn btn-ghost" id="btnGtAuto" style="display:none">Auto</button>
             </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+                <label style="display:inline-flex;align-items:center;gap:6px">UNDEF: <input type="text" id="gtUndef" placeholder="ex: -999, -9999" style="width:160px"></label>
+                <label style="display:inline-flex;align-items:center;gap:6px">Clip ≥: <input type="number" id="gtClipMin" step="any" placeholder="—" style="width:110px"></label>
+                <label style="display:inline-flex;align-items:center;gap:6px">Clip ≤: <input type="number" id="gtClipMax" step="any" placeholder="—" style="width:110px"></label>
+                <button class="btn btn-ghost" id="btnGtUndefClear" type="button" title="Limpar filtros">Limpar</button>
+            </div>
             <div id="gtInfo" style="color:var(--text-muted);font-size:12px;margin-bottom:8px;min-height:1em">Abra um arquivo .tif/.tiff para visualizar.</div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
                 <label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="gtShowMap" disabled> Mostrar mapa</label>
@@ -5219,15 +5225,23 @@
             const max = (opts && opts.max != null) ? opts.max : decoded.max;
             const range = (max - min) || 1;
             const flipY = opts && opts.flipY === true;
+            // Filtros adicionais
+            const extras = (opts && Array.isArray(opts.nodataExtras)) ? opts.nodataExtras : null;
+            const nExtras = extras ? extras.length : 0;
+            const clipBelow = (opts && opts.clipBelow != null && isFinite(opts.clipBelow)) ? opts.clipBelow : null;
+            const clipAbove = (opts && opts.clipAbove != null && isFinite(opts.clipAbove)) ? opts.clipAbove : null;
             const N = width * height;
             const rgba = new Uint8ClampedArray(N * 4);
             for (let i = 0; i < N; i++) {
                 const v = data[i];
-                const isNoData = (!isFinite(v)) || (nodata != null && v === nodata);
+                let masked = (!isFinite(v)) || (nodata != null && v === nodata);
+                if (!masked && nExtras) { for (let k = 0; k < nExtras; k++) if (v === extras[k]) { masked = true; break; } }
+                if (!masked && clipBelow != null && v < clipBelow) masked = true;
+                if (!masked && clipAbove != null && v > clipAbove) masked = true;
                 let dst = i;
                 if (flipY) { const y = (i / width) | 0; const x = i - y * width; dst = (height - 1 - y) * width + x; }
                 const o = dst * 4;
-                if (isNoData) { rgba[o]=0; rgba[o+1]=0; rgba[o+2]=0; rgba[o+3]=0; }
+                if (masked) { rgba[o]=0; rgba[o+1]=0; rgba[o+2]=0; rgba[o+3]=0; }
                 else {
                     let t = (v - min) / range;
                     if (t < 0) t = 0; else if (t > 1) t = 1;
@@ -5340,6 +5354,9 @@
             const mx = parseFloat(maxEl.value);
             if (isFinite(mn) && isFinite(mx) && mx > mn) { opts.min = mn; opts.max = mx; }
         }
+        if (gtMaskOpts.extras)    opts.nodataExtras = gtMaskOpts.extras;
+        if (gtMaskOpts.clipBelow != null) opts.clipBelow = gtMaskOpts.clipBelow;
+        if (gtMaskOpts.clipAbove != null) opts.clipAbove = gtMaskOpts.clipAbove;
         const img = SisMOM_GeoTIFF.aplicarPaleta(gtLastDecoded, opts);
         const cv = document.getElementById('gtCanvas');
         cv.width = gtLastDecoded.width; cv.height = gtLastDecoded.height;
@@ -5411,6 +5428,30 @@
         const tp = document.getElementById('gtTileProvider');
         if (tp) tp.addEventListener('change', () => {
             if (_gtMap) _gtMap.setTileProvider(tp.value);
+        });
+        // Mouse sobre o canvas raster (modo sem mapa): também sample o valor
+        const rcv = document.getElementById('gtCanvas');
+        if (rcv) {
+            rcv.addEventListener('mousemove', (e) => gtSampleAtCanvasXY(rcv, e));
+            rcv.addEventListener('mouseleave', gtClearCoord);
+        }
+        // Filtros UNDEF / clip
+        function applyMaskAndRender() {
+            gtParseMaskFromUI();
+            gtRecomputeMinMaxAuto();
+            gtRenderar();
+        }
+        ['gtUndef','gtClipMin','gtClipMax'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', applyMaskAndRender);
+        });
+        const btnClr = document.getElementById('btnGtUndefClear');
+        if (btnClr) btnClr.addEventListener('click', () => {
+            ['gtUndef','gtClipMin','gtClipMax'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            applyMaskAndRender();
         });
     }
 
@@ -5906,8 +5947,7 @@
             const mapCv = document.getElementById('gtMapCanvas');
             _gtMap = SisMOM_Map(mapCv);
             _gtMap.onCursor(p => {
-                const el = document.getElementById('gtCoord');
-                if (el) el.textContent = `${p.lat.toFixed(3)}°, ${p.lon.toFixed(3)}°`;
+                gtAtualizarCoord(p.lat, p.lon);
             });
             const attribEl = document.getElementById('gtAttrib');
             if (attribEl) _gtMap.setAttributionElement(attribEl);
@@ -5925,9 +5965,114 @@
             const mn = parseFloat(minEl.value), mx = parseFloat(maxEl.value);
             if (isFinite(mn) && isFinite(mx) && mx > mn) { opts.min = mn; opts.max = mx; }
         }
+        if (gtMaskOpts.extras)    opts.nodataExtras = gtMaskOpts.extras;
+        if (gtMaskOpts.clipBelow != null) opts.clipBelow = gtMaskOpts.clipBelow;
+        if (gtMaskOpts.clipAbove != null) opts.clipAbove = gtMaskOpts.clipAbove;
         const img = SisMOM_GeoTIFF.aplicarPaleta(gtLastDecoded, opts);
         const op = (parseInt(document.getElementById('gtOpacity').value, 10) || 85) / 100;
         await _gtMap.setRasterOverlay(img, gtLastDecoded.bbox, op);
+    }
+    /* ─── Filtros NoData / clipping definidos pelo usuário ─── */
+    let gtMaskOpts = { extras: null, clipBelow: null, clipAbove: null };
+    function gtParseMaskFromUI() {
+        const undefIn = document.getElementById('gtUndef');
+        const minIn   = document.getElementById('gtClipMin');
+        const maxIn   = document.getElementById('gtClipMax');
+        const extras = [];
+        if (undefIn && undefIn.value.trim()) {
+            for (const tok of undefIn.value.split(/[,;\s]+/)) {
+                const x = parseFloat(tok);
+                if (isFinite(x)) extras.push(x);
+            }
+        }
+        const cb = minIn && minIn.value.trim() !== '' ? parseFloat(minIn.value) : null;
+        const ca = maxIn && maxIn.value.trim() !== '' ? parseFloat(maxIn.value) : null;
+        gtMaskOpts = {
+            extras: extras.length ? extras : null,
+            clipBelow: (cb != null && isFinite(cb)) ? cb : null,
+            clipAbove: (ca != null && isFinite(ca)) ? ca : null
+        };
+        return gtMaskOpts;
+    }
+    function gtIsMasked(v) {
+        if (!gtLastDecoded) return false;
+        if (!isFinite(v)) return true;
+        if (gtLastDecoded.nodata != null && v === gtLastDecoded.nodata) return true;
+        if (gtMaskOpts.extras) { for (const e of gtMaskOpts.extras) if (v === e) return true; }
+        if (gtMaskOpts.clipBelow != null && v < gtMaskOpts.clipBelow) return true;
+        if (gtMaskOpts.clipAbove != null && v > gtMaskOpts.clipAbove) return true;
+        return false;
+    }
+    function gtRecomputeMinMaxAuto() {
+        // Só se 'Auto' estiver ativo (não em modo Editar)
+        const minEl = document.getElementById('gtMin');
+        const maxEl = document.getElementById('gtMax');
+        if (!minEl || !maxEl || minEl.hasAttribute('data-editing')) return;
+        if (!gtLastDecoded) return;
+        let mn = Infinity, mx = -Infinity;
+        const d = gtLastDecoded.data;
+        for (let i = 0; i < d.length; i++) {
+            const v = d[i];
+            if (gtIsMasked(v)) continue;
+            if (v < mn) mn = v;
+            if (v > mx) mx = v;
+        }
+        if (!isFinite(mn)) { mn = 0; mx = 1; }
+        gtLastDecoded.min = mn; gtLastDecoded.max = mx;
+        minEl.value = mn; maxEl.value = mx;
+    }
+    function gtSampleAtLatLon(lat, lon) {
+        if (!gtLastDecoded || !gtLastDecoded.bbox) return { valid: false };
+        const { bbox, width, height, data, nodata } = gtLastDecoded;
+        if (lon < bbox.minX || lon > bbox.maxX || lat < bbox.minY || lat > bbox.maxY) return { valid: false };
+        const col = Math.min(width - 1,  Math.max(0, Math.floor((lon - bbox.minX) / (bbox.maxX - bbox.minX) * width)));
+        const row = Math.min(height - 1, Math.max(0, Math.floor((bbox.maxY - lat) / (bbox.maxY - bbox.minY) * height)));
+        const v = data[row * width + col];
+        if (gtIsMasked(v)) return { valid: true, value: null, noData: true };
+        return { valid: true, value: v, col, row };
+    }
+    function gtAtualizarCoord(lat, lon) {
+        const el = document.getElementById('gtCoord');
+        if (!el) return;
+        const coord = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+        const samp = gtSampleAtLatLon(lat, lon);
+        if (!samp.valid) { el.textContent = coord; return; }
+        if (samp.noData) { el.textContent = `${coord} · NoData`; return; }
+        // Formatação adaptativa: número grande/pequeno usa exponencial
+        const v = samp.value;
+        const abs = Math.abs(v);
+        const fmt = (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) ? v.toExponential(3) : v.toFixed(3);
+        el.textContent = `${coord} · valor = ${fmt}`;
+    }
+    function gtSampleAtCanvasXY(canvas, e) {
+        if (!gtLastDecoded) return;
+        const rect = canvas.getBoundingClientRect();
+        const fx = (e.clientX - rect.left) / rect.width;
+        const fy = (e.clientY - rect.top)  / rect.height;
+        if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return;
+        // Se há bbox, converte para lat/lon e reaproveita o pipeline; senão mostra col/row + valor
+        if (gtLastDecoded.bbox) {
+            const lon = gtLastDecoded.bbox.minX + fx * (gtLastDecoded.bbox.maxX - gtLastDecoded.bbox.minX);
+            const lat = gtLastDecoded.bbox.maxY - fy * (gtLastDecoded.bbox.maxY - gtLastDecoded.bbox.minY);
+            gtAtualizarCoord(lat, lon);
+            return;
+        }
+        const col = Math.floor(fx * gtLastDecoded.width);
+        const row = Math.floor(fy * gtLastDecoded.height);
+        const v = gtLastDecoded.data[row * gtLastDecoded.width + col];
+        const el = document.getElementById('gtCoord');
+        if (!el) return;
+        if (gtIsMasked(v)) {
+            el.textContent = `col ${col}, row ${row} · NoData`;
+        } else {
+            const abs = Math.abs(v);
+            const fmt = (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) ? v.toExponential(3) : v.toFixed(3);
+            el.textContent = `col ${col}, row ${row} · valor = ${fmt}`;
+        }
+    }
+    function gtClearCoord() {
+        const el = document.getElementById('gtCoord');
+        if (el) el.textContent = '—';
     }
     function gtToggleMapUI() {
         const toggle = document.getElementById('gtShowMap');
