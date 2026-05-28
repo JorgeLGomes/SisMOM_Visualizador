@@ -214,6 +214,54 @@ story.append(warn(
     'Limitação: em navegador via <code>file://</code>, o GeoTIFF pode falhar por CORS. Use a versão Electron para uso pleno, '
     'ou rode o servidor HTTP local (seção 10) e configure URLs <code>http://localhost:8765/...</code> nos templates.'
 ))
+
+story.append(h2('Inicialização avançada — multi-monitor (Windows)'))
+story.append(p(
+    'O GISELE.exe (instalador ou portátil) aceita opções de linha de comando para abrir a janela cobrindo '
+    'múltiplos monitores. Útil em videowalls, salas de operação ou estações com 2–8 telas.'
+))
+story.append(h3('Flags disponíveis'))
+story.append(tbl([
+    ['Flag', 'Efeito'],
+    ['--displays=1,2,5,6', 'Abre a janela cobrindo exatamente os monitores listados (1-indexed, ordem física: cima→baixo, esquerda→direita).'],
+    ['--all-displays', 'Cobre TODOS os monitores conectados.'],
+    ['--no-frame', 'Remove a borda/barra de título (modo "kiosk", visual limpo para multi-monitor).'],
+], col_widths=[5*cm, 11*cm]))
+story.append(h3('Exemplos'))
+story.append(p('Servidor com 8 monitores (2 linhas × 4 colunas), abrir cobrindo o quadrante superior-esquerdo:'))
+story.append(code(
+    '"C:\\Program Files\\GISELE\\GISELE.exe" --displays=1,2,5,6'
+))
+story.append(p('Cobrindo todos os 8 monitores em modo kiosk:'))
+story.append(code(
+    '"C:\\Program Files\\GISELE\\GISELE.exe" --all-displays --no-frame'
+))
+story.append(h3('Criando um atalho com a flag'))
+story.append(numbered([
+    'Botão direito na Área de Trabalho → <b>Novo → Atalho</b>.',
+    'No "Local do item" cole: <code>"C:\\Program Files\\GISELE\\GISELE.exe" --displays=1,2,5,6</code>',
+    'Próximo. Nomeie como "GISELE multi-monitor". Concluir.',
+    'Pronto: duplo-clique abre o app cobrindo os 4 monitores.',
+]))
+story.append(tip(
+    'A numeração dos monitores segue a ordenação física (top→bottom, left→right) detectada via <code>screen.getAllDisplays()</code>. '
+    'Geralmente coincide com a numeração em <i>Configurações → Sistema → Tela</i> do Windows. '
+    'Se a ordem estiver diferente do esperado, abra <code>%APPDATA%\\GISELE\\launch.log</code> — o log mostra todos os displays detectados com posição (x, y) e dimensões.'
+))
+story.append(h3('Atalhos de teclado dentro do app multi-monitor'))
+story.append(tbl([
+    ['Tecla', 'Ação'],
+    ['F11', 'Alterna entre tela cheia e janela normal.'],
+    ['Ctrl + Q', 'Fechar o app (essencial quando rodando com --no-frame).'],
+    ['Alt + F4', 'Fechar (padrão Windows; também funciona).'],
+], col_widths=[4*cm, 12*cm]))
+story.append(h3('Diagnóstico'))
+story.append(p(
+    'A cada inicialização, o app grava um log de diagnóstico em '
+    '<code>%APPDATA%\\GISELE\\launch.log</code>. O log contém: versões Electron/Chromium, todos os args recebidos '
+    '(<code>process.argv</code>), todos os displays detectados, o retângulo combinado calculado, e o resultado '
+    'de cada chamada <code>setBounds</code>. Útil para suporte técnico se a janela não cobrir os monitores esperados.'
+))
 story.append(PageBreak())
 
 # ===== 3. VISÃO GERAL =====
@@ -648,40 +696,6 @@ story.append(hr())
 story.append(p('GISELE — Gestão Integrada de Soluções Estratégicas e Inteligência © CPTEC/INPE — Versão 2.0.0', 'FooterStyle'))
 story.append(p(f'Manual de Uso gerado automaticamente em {date.today().strftime("%d/%m/%Y")}', 'FooterStyle'))
 
-# ─── Renderização ────────────────────────────────────────────────────
-def on_page(canvas, doc):
-    canvas.saveState()
-    canvas.setFillColor(GRAY_M)
-    canvas.setFont('Helvetica', 8.5)
-    canvas.drawCentredString(A4[0] / 2, 1*cm, f'— {doc.page} —')
-    canvas.drawString(2*cm, 1*cm, 'GISELE · Manual de Uso')
-    canvas.drawRightString(A4[0] - 2*cm, 1*cm, 'v2.0.0')
-    canvas.restoreState()
-
-doc = SimpleDocTemplate(
-    str(OUT),
-    pagesize=A4,
-    leftMargin=2.2*cm, rightMargin=2.2*cm,
-    topMargin=1.8*cm, bottomMargin=1.8*cm,
-    title='GISELE — Manual de Uso',
-    author='CPTEC / INPE',
-    subject='Manual de Uso',
-)
-doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
-print(f'OK: {OUT}  ({OUT.stat().st_size} bytes)')
-4.5*cm, 7.5*cm]))
-story.append(h2('Notas'))
-story.append(bullets([
-    'O modificador <code>%n</code> faz padding com zeros à esquerda. <code>{F%3}</code> = 024 (não 24).',
-    'No CAMINHO (endereço), os placeholders de data sempre referem à <b>rodada</b>. No NOME do arquivo, referem à <b>validade</b> (rodada + F horas).',
-    'Para análise/observação (Freq=0), não há previsão; N=0 e F=0; a validade coincide com a rodada.',
-]))
-story.append(Spacer(1, 1*cm))
-story.append(hr())
-story.append(p('GISELE — Gestão Integrada de Soluções Estratégicas e Inteligência © CPTEC/INPE — Versão 2.0.0', 'FooterStyle'))
-story.append(p(f'Manual de Uso gerado automaticamente em {date.today().strftime("%d/%m/%Y")}', 'FooterStyle'))
-
-# ─── Renderização ────────────────────────────────────────────────────
 def on_page(canvas, doc):
     canvas.saveState()
     canvas.setFillColor(GRAY_M)
