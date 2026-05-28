@@ -18,7 +18,13 @@
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
     "dist:mac": "electron-builder --mac",
-    "dist:all": "electron-builder -wlm"
+    "dist:all": "electron-builder -wlm",
+    "dist:standalone": "node scripts/build-standalone.js",
+    "postdist": "npm run dist:standalone",
+    "postdist:win": "npm run dist:standalone",
+    "postdist:linux": "npm run dist:standalone",
+    "postdist:mac": "npm run dist:standalone",
+    "postdist:all": "npm run dist:standalone"
   },
   "devDependencies": {
     "electron": "^42.2.0",
@@ -75,7 +81,7 @@
       "gatekeeperAssess": false,
       "extendInfo": {
         "CFBundleDisplayName": "GISELE",
-        "NSHumanReadableCopyright": "© CPTEC/INPE 2026"
+        "NSHumanReadableCopyright": "(c) CPTEC/INPE 2026"
       }
     },
     "dmg": {
