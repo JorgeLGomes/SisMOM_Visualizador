@@ -1,7 +1,7 @@
 {
-  "name": "sismom-visualizador",
-  "version": "1.0.0",
-  "description": "SisMOM - Visualizador de modelos meteorologicos (CPTEC/INPE)",
+  "name": "gisele",
+  "version": "2.0.0",
+  "description": "GISELE - Gestao Integrada de Solucoes Estrategicas e Inteligencia (CPTEC/INPE)",
   "main": "main.js",
   "homepage": "https://",
   "author": {
@@ -11,23 +11,30 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
+    "clean": "node -e \"const fs=require('fs');try{fs.rmSync('dist',{recursive:true,force:true});console.log('dist limpo');}catch(e){}\"",
+    "prebuild": "npm run clean",
+    "build": "electron-builder --win",
     "dist": "electron-builder --win",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
-    "dist:all": "electron-builder -wl"
+    "dist:mac": "electron-builder --mac",
+    "dist:all": "electron-builder -wlm"
   },
   "devDependencies": {
     "electron": "^42.2.0",
     "electron-builder": "^26.8.1"
   },
   "build": {
-    "appId": "br.gov.inpe.cptec.sismom",
-    "productName": "SisMOM Visualizador",
+    "appId": "br.gov.inpe.cptec.gisele",
+    "productName": "GISELE",
     "files": [
       "main.js",
       "figuras_SisMOM_v23.html",
+      "manifest.webmanifest",
       "icon.ico",
-      "icon.png"
+      "icon.png",
+      "sismom-icon-192.png",
+      "sismom-icon-512.png"
     ],
     "win": {
       "target": ["nsis", "portable"],
@@ -37,20 +44,46 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "SisMOM Visualizador"
+      "shortcutName": "GISELE"
+    },
+    "portable": {
+      "artifactName": "GISELE-${version}-portable.exe"
     },
     "linux": {
       "target": ["AppImage", "deb"],
       "icon": "icon.png",
       "category": "Science",
-      "synopsis": "Visualizador de modelos meteorologicos SisMOM",
+      "synopsis": "GISELE - visualizador de modelos meteorologicos (CPTEC/INPE)",
       "maintainer": "Jorge Luis Gomes <jorge.gomes@inpe.br>",
       "desktop": {
         "entry": {
-          "Name": "SisMOM Visualizador",
-          "Comment": "Visualizador de modelos do SisMOM (CPTEC/INPE)"
+          "Name": "GISELE",
+          "Comment": "GISELE - Gestao Integrada de Solucoes Estrategicas e Inteligencia (CPTEC/INPE)"
         }
       }
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ],
+      "icon": "icon.png",
+      "category": "public.app-category.education",
+      "darkModeSupport": true,
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "CFBundleDisplayName": "GISELE",
+        "NSHumanReadableCopyright": "© CPTEC/INPE 2026"
+      }
+    },
+    "dmg": {
+      "title": "GISELE ${version}",
+      "artifactName": "GISELE-${version}-${arch}.dmg"
+    },
+    "directories": {
+      "output": "dist"
     }
   }
 }

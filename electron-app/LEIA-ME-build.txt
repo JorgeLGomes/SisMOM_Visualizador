@@ -1,41 +1,74 @@
-========================================================
- SisMOM - Visualizador : gerar executaveis (Windows / Linux)
-========================================================
+============================================================
+ GISELE - GERAR VERSAO DE DISTRIBUICAO
+============================================================
 
-Pre-requisito (uma vez): instalar o Node.js LTS  ->  https://nodejs.org
+VERSAO ATUAL: 2.0.0   (package.json)
 
-IMPORTANTE: builde FORA do OneDrive (ou marque a pasta como "Sempre manter
-neste dispositivo"). Arquivos "somente na nuvem" quebram o build (icone/JSON).
+Pre-requisito (uma vez):
+  - Node.js LTS  ->  https://nodejs.org   (recomendado v20+)
+  - IMPORTANTE: builde FORA do OneDrive (ou marque a pasta como
+    "Sempre manter neste dispositivo"). Arquivos somente-na-nuvem
+    quebram o build (icone/JSON).
 
-------------------------------------------
- WINDOWS (.exe)  -> rode no Windows
-------------------------------------------
-  1) Abra o Prompt nesta pasta "electron-app".
-  2) npm install
-  3) npm run dist           (ou: npm run dist:win)
-  Saida em "dist":
-   - "SisMOM Visualizador Setup x.y.z.exe"  (instalador, cria atalho)
-   - "SisMOM Visualizador x.y.z.exe"        (portatil)
+CHECKLIST ANTES DE BUILDAR
+-----------------------------------------------------------
+  [ ] electron-app\figuras_SisMOM_v23.html esta sincronizado
+      com a raiz (build.bat / build.sh fazem isso automaticamente).
+  [ ] Versao em package.json esta correta.
+  [ ] icon.ico (Windows) e icon.png (Linux) existem.
+  [ ] sismom-icon-192.png e sismom-icon-512.png existem.
+  [ ] manifest.webmanifest existe.
+  [ ] Pasta dist\ pode existir (sera limpa).
 
-------------------------------------------
- LINUX (AppImage / .deb)  -> rode no Linux
-------------------------------------------
-  1) Abra o terminal nesta pasta "electron-app".
-  2) npm install
-  3) npm run dist:linux
-  Saida em "dist":
-   - "SisMOM Visualizador-x.y.z.AppImage"   (executavel unico)
-       chmod +x "SisMOM Visualizador-x.y.z.AppImage"  && ./"SisMOM ...AppImage"
-   - "sismom-visualizador_x.y.z_amd64.deb"  (instalador Debian/Ubuntu)
+ARQUIVOS QUE ENTRAM NO PACOTE (campo "files" do package.json):
+  - main.js
+  - figuras_SisMOM_v23.html
+  - manifest.webmanifest
+  - icon.ico, icon.png
+  - sismom-icon-192.png, sismom-icon-512.png
 
-  Dica: dependencias do AppImage podem exigir FUSE:  sudo apt install libfuse2
+============================================================
+ BUILD macOS (.dmg + .zip)  -> rode em macOS (gera Intel + ARM)
+============================================================
+  Pre-requisito adicional: Xcode Command Line Tools
+      xcode-select --install
 
-------------------------------------------
- SEM BUILD (uso imediato)
-------------------------------------------
-  Windows: duplo-clique em  SisMOM.bat
-  Linux:   ./SisMOM.sh      (antes:  chmod +x SisMOM.sh)
-  Ambos abrem o painel como janela de aplicativo (Edge/Chrome/Chromium).
+  Modo automatico:
+      chmod +x build-mac.sh
+      ./build-mac.sh
 
-Obs.: os 5 modelos ja vem embutidos; a configuracao do usuario fica salva
-automaticamente. Use Configurar > Exportar/Importar para levar entre maquinas.
+  Modo manual:
+      cd electron-app
+      cp ../figuras_SisMOM_v23.html ./figuras_SisMOM_v23.html
+      npm install
+      npm run dist:mac
+
+  Saida em dist/:
+   - GISELE-2.0.0-x64.dmg          (Intel Mac)
+   - GISELE-2.0.0-arm64.dmg        (Apple Silicon M1/M2/M3)
+   - GISELE-2.0.0-mac-x64.zip      (Intel zipado)
+   - GISELE-2.0.0-mac-arm64.zip    (ARM zipado)
+   - GISELE-2.0.0-standalone/      (HTML puro)
+   - GISELE-2.0.0-standalone.zip   (HTML puro zipado)
+
+  Para distribuir: usuarios montam o .dmg e arrastam GISELE.app
+  para a pasta Applications. Na 1a abertura, podem precisar
+  clicar com botao direito > Abrir (Gatekeeper, app nao notarizado).
+
+============================================================
+ BUILD WINDOWS (.exe instalador + .exe portavel)
+============================================================
+  Modo automatico (recomendado):
+      duplo-clique em build.bat
+        (sincroniza HTML, npm install, limpa dist/, gera .exe)
+
+  Modo manual:
+      cd electron-app
+      copy /Y ..\figuras_SisMOM_v23.html figuras_SisMOM_v23.html
+      npm install
+      npm run dist:win
+
+  Saida em dist\:
+   - GISELE Setup 2.0.0.exe              (instalador NSIS)
+   - GISELE-2.0.0-portable.exe           (portavel, sem instalacao)
+   - SisMOM-Visualizador-2.0

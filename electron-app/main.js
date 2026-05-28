@@ -7,7 +7,7 @@ function createWindow() {
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    title: 'SisMOM - Visualizador',
+    title: 'GISELE - Gestão Integrada de Soluções Estratégicas e Inteligência',
     backgroundColor: '#0b1220',
     icon: path.join(__dirname, 'icon.ico'),
     autoHideMenuBar: true,

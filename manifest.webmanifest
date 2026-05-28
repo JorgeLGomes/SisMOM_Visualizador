@@ -1,0 +1,13 @@
+{
+  "name": "GISELE",
+  "short_name": "GISELE",
+  "description": "GISELE - Gestao Integrada de Solucoes Estrategicas e Inteligencia (CPTEC/INPE)",
+  "start_url": "./figuras_SisMOM_v23.html",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "icons": [
+    { "src": "sismom-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "sismom-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
