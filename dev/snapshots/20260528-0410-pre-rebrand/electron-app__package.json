@@ -1,0 +1,52 @@
+{
+  "name": "sismom-visualizador",
+  "version": "2.0.0",
+  "description": "SisMOM - Visualizador de modelos meteorologicos (CPTEC/INPE)",
+  "main": "main.js",
+  "homepage": "https://",
+  "author": {
+    "name": "Jorge Luis Gomes",
+    "email": "jorge.gomes@inpe.br"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "clean": "node -e \"const fs=require('fs');try{fs.rmSync('dist',{recursive:true,force:true});console.log('dist limpo');}catch(e){}\"",
+    "prebuild": "npm run clean",
+    "build": "electron-builder --win",
+    "dist": "electron-builder --win",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
+    "dist:all": "electron-builder -wl"
+  },
+  "devDependencies": {
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "br.gov.inpe.cptec.sismom",
+    "productName": "SisMOM Visualizador",
+    "files": [
+      "main.js",
+      "figuras_SisMOM_v23.html",
+      "manifest.webmanifest",
+      "icon.ico",
+      "icon.png",
+      "sismom-icon-192.png",
+      "sismom-icon-512.png"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "SisMOM Visualizador"
+    },
+    "portable": {
+      "artifactName": "SisMOM-Visualizador-${version}-portable.exe"
+    },
+    "linux": {
+      "t
