@@ -38,3 +38,7 @@ logs/
 __novo.html
 _preview*.png
 *_temp.*
+electron-app/dist.tar
+electron-app/dist*.tar
+electron-app/dist*.zip
+*.tar
