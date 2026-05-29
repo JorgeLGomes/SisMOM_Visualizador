@@ -428,6 +428,46 @@ story.append(p(
     'e checkboxes <b>PNG</b> e <b>TIF</b> indicando em quais formatos a variável está disponível. '
     'Variáveis sem TIF não aparecem no seletor da aba GeoTIFF.'
 ))
+story.append(h2('Atalho: Preset FTP CPTEC'))
+story.append(p(
+    'Logo abaixo dos templates TIF existe o botão <b>Preset FTP CPTEC (PNG /fig/ → TIF /geotiff/)</b>. '
+    'Ele preenche automaticamente os campos seguindo a convenção do FTP do CPTEC:'
+))
+story.append(bullets([
+    'Marca <b>PNG/GIF</b> e <b>GeoTIFF</b> como disponíveis.',
+    'Desmarca "usar o mesmo do PNG" para que o TIF tenha rota dedicada.',
+    'Deriva o template de URL TIF substituindo <code>/fig/</code> por <code>/geotiff/</code> no template PNG existente.',
+    'Define o nome do arquivo TIF como <code>{prefixo}-{F%4}.tif</code> (padrão do CPTEC).',
+]))
+story.append(tip(
+    'Útil ao criar/clonar um novo modelo do CPTEC: preencha primeiro o template PNG, clique no preset, e o TIF fica pronto.'
+))
+story.append(h2('Trabalhar com .tif locais (sem FTP)'))
+story.append(p(
+    'Para inspecionar um GeoTIFF do disco, existem dois caminhos:'
+))
+story.append(bullets([
+    '<b>Inspeção rápida:</b> no header, clique no ícone "Abrir GeoTIFF" para abrir o modal. Escolha o arquivo, '
+    'selecione paleta e ajuste min/max — útil para validar um TIF sem envolvê-lo na configuração de modelo.',
+    '<b>Como camada extra no painel ativo:</b> no painel direito (aba GeoTIFF), bloco <b>Camadas extras</b>, '
+    'clique em <b>+ Adicionar GeoTIFF/GeoJSON…</b> e selecione o arquivo. Ele entra na lista de camadas como '
+    'sobreposição ao primary do painel, com paleta/opacidade/contornos configuráveis individualmente.',
+]))
+story.append(p(
+    'Em ambos os casos o decoder próprio do GISELE aceita TIFF baseline em qualquer dos formatos:'
+))
+story.append(tbl([
+    ['Bits/sample', 'Sample format', 'Suportado'],
+    ['8',   'UINT',     'Sim (imagem RGB ou grayscale)'],
+    ['16',  'UINT/INT', 'Sim'],
+    ['32',  'FLOAT',    'Sim (uso típico — saída de modelos)'],
+    ['64',  'FLOAT',    'Sim'],
+], col_widths=[3*cm, 4*cm, 9*cm]))
+story.append(p(
+    'Tags GeoTIFF reconhecidas: <code>ModelPixelScale (33550)</code>, <code>ModelTiepoint (33922)</code>, '
+    '<code>GeoKeyDirectory (34735)</code>. Suporta <code>GTRasterTypeGeoKey</code> para distinguir pixel-is-point vs pixel-is-area '
+    '(o GISELE ajusta o bbox automaticamente). NoData detectado via heurística de sentinels (range >1e6) com fallback por percentil 1/99.'
+))
 story.append(PageBreak())
 
 # ===== 8. TEMPLATES DE URL =====
@@ -843,6 +883,27 @@ story.append(p(
     'Em qualquer dúvida sobre versão, abra o DevTools (F12 no Electron) e veja a primeira linha do console: '
     '<code>[GISELE] build = YYYYMMDD-NNNN-nome</code>. Reporte esse marker ao suporte para acelerar o diagnóstico.'
 ))
+story.append(h2('CORS e a flag --strict-cors'))
+story.append(p(
+    'O GISELE empacotado (Electron) roda com <code>webSecurity: false</code> e <code>allowRunningInsecureContent: true</code> por padrão. '
+    'Esse modo é necessário porque o FTP do CPTEC não envia headers CORS: sem ele, imagens PNG/GIF cross-origin '
+    '"taintam" o canvas e o recurso "Salvar vídeo MP4 da evolução temporal" produz frames pretos.'
+))
+story.append(p('Verifique o modo atual no log: ao iniciar, <code>%APPDATA%/GISELE/launch.log</code> mostra a linha:'))
+story.append(code('CORS mode: permissive (default, webSecurity=false)'))
+story.append(p(
+    'Se você prefere isolamento estrito (ex.: ao carregar conteúdo de origens não confiáveis), passe a flag '
+    '<code>--strict-cors</code> ao executável. Nesse modo:'
+))
+story.append(bullets([
+    'CORS é enforced normalmente (mesma origem-policy ativa).',
+    'Conteúdo HTTPS pode ser bloqueado se misturado com HTTP.',
+    'O vídeo MP4 PNG/GIF deixa de funcionar (canvas tainted, frames pretos).',
+    'GeoTIFF e GeoJSON continuam funcionando (fetch via ArrayBuffer, sem taint).',
+]))
+story.append(tip(
+    'Para uso normal com dados do CPTEC, mantenha o padrão (sem a flag). O <code>--strict-cors</code> é um modo de seguranca alternativo.'
+))
 story.append(PageBreak())
 
 # ===== 15. APÊNDICE =====
@@ -861,6 +922,11 @@ story.append(tbl([
     ['{step}',     'Passo de previsão (ex: 000, 003, 006 ... ou f00, f03 conforme modelo).'],
     ['{ext}',      'Extensão do arquivo (png, gif, tif).'],
     ['{base}',     'Base do template (raiz do modelo, prefixo antes do path).'],
+    ['{N%4}',      'Índice do arquivo (file_idx = passo / Freq) com N casas (ex: 0024).'],
+    ['{F%3}',      'Horas de previsão (passo_h = file_idx * Freq) com N casas (ex: 024).'],
+    ['{prefixo}',  'Prefixo definido por variável (campo "arquivo" da config).'],
+    ['{escopo1}',  'Token livre do modelo/variável (ex: nível, componente).'],
+    ['{escopo2}',  'Segundo token livre.'],
 ], col_widths=[3.5*cm, 12.4*cm]))
 story.append(tip(
     'Os placeholders são case-sensitive. Use <code>{yyyy}</code>, não <code>{YYYY}</code>.'

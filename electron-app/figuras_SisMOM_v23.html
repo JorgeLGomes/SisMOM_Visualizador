@@ -1813,6 +1813,10 @@
                     <label style="font-weight:normal;font-size:11px;color:var(--text-muted);display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="cfgSameNameForTif" checked> usar o mesmo do PNG</label>
                 </label>
                 <input type="text" id="cfgFileNameTif" placeholder="{prefixo}{f%3}.tif">
+                <div style="grid-column:1/-1;display:flex;gap:6px;align-items:center;padding:6px 0;border-top:1px dashed var(--border-subtle)">
+                    <span style="color:var(--text-muted);font-size:11px;font-weight:600">Atalhos:</span>
+                    <button type="button" class="btn btn-ghost" id="btnCfgPresetCptecTif" title="Preenche os templates com o padrão do FTP do CPTEC: PNG em /fig/, TIF em /geotiff/" style="font-size:11px;padding:3px 8px">Preset FTP CPTEC (PNG /fig/ → TIF /geotiff/)</button>
+                </div>
                 <div class="hint">
                     <strong>Endereço</strong> — placeholders de caminho (data da <em>rodada</em>): <code>{yyyy}</code> <code>{mm}</code> <code>{dd}</code> <code>{hh}</code>
                     <code>{escopo1}</code> <code>{escopo2}</code> <code>{data}</code>.<br>
@@ -4905,6 +4909,31 @@
         sameUrl.onchange = updTifVis;
         sameName.onchange = updTifVis;
         updTifVis();
+        // Preset: FTP do CPTEC — PNG em /fig/, TIF em /geotiff/
+        const btnPreset = document.getElementById('btnCfgPresetCptecTif');
+        if (btnPreset) btnPreset.onclick = () => {
+            const cbTif  = document.getElementById('cfgTemTif');
+            const cbPng  = document.getElementById('cfgTemPng');
+            const sameU  = document.getElementById('cfgSameUrlForTif');
+            const sameN  = document.getElementById('cfgSameNameForTif');
+            const inpUrl = document.getElementById('cfgUrlPath');
+            const inpTifUrl = document.getElementById('cfgUrlPathTif');
+            const inpTifName = document.getElementById('cfgFileNameTif');
+            // Marca PNG+TIF disponíveis
+            if (cbPng) cbPng.checked = true;
+            if (cbTif) cbTif.checked = true;
+            // Desmarca "usar mesmo do PNG" pra TIF ter rota dedicada
+            if (sameU) sameU.checked = false;
+            if (sameN) sameN.checked = false;
+            // Deriva URL TIF a partir do PNG: /fig/ → /geotiff/
+            const urlPng = (inpUrl && inpUrl.value) || 'https://ftp1.cptec.inpe.br/pesquisa/SisMOM/sismom_fig/sismom_oper/{data}/{escopo2}/{escopo1}/fig';
+            const urlTif = urlPng.replace(/\/fig(\b|$)/g, '/geotiff$1').replace(/\/fig\//g, '/geotiff/');
+            if (inpTifUrl) inpTifUrl.value = urlTif;
+            // Nome TIF: padrão {prefixo}-{F%4}.tif
+            if (inpTifName) inpTifName.value = '{prefixo}-{F%4}.tif';
+            updTifVis();
+            try { showToast && showToast('Preset CPTEC aplicado'); } catch (_) {}
+        };
         const tbody = document.getElementById('varTableBody');
         tbody.innerHTML = '';
         (m.variaveis || []).forEach((v, idx) => tbody.appendChild(makeVarRow(v, idx)));
@@ -5725,7 +5754,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260529-1900-videofitfps'); document.documentElement.setAttribute('data-build', '20260529-1900-videofitfps'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260529-2000-cptecpreset'); document.documentElement.setAttribute('data-build', '20260529-2000-cptecpreset'); } catch (_) {}
         loadModelos();
         buildSlots();
         const restored = loadUIPrefs();

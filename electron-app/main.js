@@ -67,6 +67,17 @@ function parseDisplaysArg() {
 
 function hasFlag(flag) { return process.argv.indexOf(flag) >= 0; }
 
+// ─── Política de segurança (CORS) ─────────────────────────────────────
+// Por padrão GISELE roda com webSecurity:false para conseguir desenhar
+// imagens cross-origin (FTP CPTEC) em <canvas> sem taint — necessário
+// para o recurso de "Salvar vídeo MP4 da evolução temporal" e para
+// carregar imagens PNG/GIF do FTP no Eta/Global/etc.
+//
+// O usuário pode forçar isolamento estrito com a flag --strict-cors.
+// Isso re-ativa CORS — útil quando carrega conteúdo de origens não
+// confiáveis. Nesse caso o vídeo MP4 PNG pode emitir frames pretos.
+function corsStrict() { return hasFlag('--strict-cors'); }
+
 // ─── Cria janela ────────────────────────────────────────────────────
 function createWindow() {
   const displayIndices = parseDisplaysArg();
@@ -93,8 +104,8 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: false,
-      allowRunningInsecureContent: true
+      webSecurity: corsStrict() ? true : false,
+      allowRunningInsecureContent: corsStrict() ? false : true
     }
   };
 
@@ -145,6 +156,7 @@ app.whenReady().then(() => {
   debugLog('=== GISELE launch ===');
   debugLog('Versão Electron: ' + process.versions.electron);
   debugLog('Versão Chromium: ' + process.versions.chrome);
+  debugLog('CORS mode: ' + (corsStrict() ? 'strict (--strict-cors)' : 'permissive (default, webSecurity=false)'));
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
