@@ -1,13 +1,15 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.2.0 — Build marker `20260529-1900-videofitfps`
+**Versão atual:** v2.5.0 — Build marker `20260529-3600-removetiflocal`
 **Arquivos críticos (sempre em lockstep):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
 - `miscelaneas/manifest.json` + `miscelaneas/*.geojson` (raiz + electron-app)
 
 > **Importante:** todo patch no HTML deve ser aplicado nos DOIS arquivos. Validar com `node --check` e `md5sum` antes de seguir. O Edit tool tem tendência a truncar o tail; SEMPRE checar `</html>` final e reconstruir a partir do `gt-misc-data-corais_br` se faltar.
+
+> **Mudanças de UI v2.4 → v2.5:** o painel direito foi reorganizado em árvore ERMA-style (Background / Miscelânea / Camadas / Ferramentas) com sub-menu **Configuração da Camada** por nó (paleta/min-max/clip/contornos/calc per-layer) movido fisicamente por `appendChild`. Nova **Calculadora dupla**: expressão livre entre camadas em Ferramentas + operador-escalar per-layer na Configuração da Camada. Item **"Abrir TIF local (inspeção)"** foi removido do menu Ferramentas (use **+ Adicionar GeoTIFF/GeoJSON** ou a aba dedicada do header).
 
 ---
 
@@ -69,7 +71,9 @@
 | Adicionar do FTP (modelo+variável+data+passo) | "Sobreposição: adicionar modelo/variável como camada extra" | Edit |
 | Reordenar (↑/↓) | "Reordenação de camadas (↑/↓)" | Edit |
 | Olho/× nos chips | "Camada ativa + controles por camada" | Edit |
-| Calculadora raster (A+B, A−B, A×B, A÷B, escalar) | "Calculadora de camadas (raster algebra)" | Edit |
+| Calculadora raster v1 (A+B, A−B, A×B, A÷B, escalar) | "Calculadora de camadas (raster algebra)" | Edit |
+| **Calculadora v2 — expressão entre camadas** (NOVO) | "dentro do menu Ferramentas inserir uma aba Calculadora… cálculos entre camadas, que pode ser definido através de uma expressão (ex: Camada1*1000+Camada1)" | Edit (parser recursive-descent `gtParseExpr` + `gtCreateLayerFromExpression`, tokens clicáveis, sub-nó Ferramentas) |
+| **Calculadora v2 — per-layer (op + escalar)** (NOVO) | (idem prompt) | Edit (gtBuildLayerConfigPanel adiciona linha `🧮 Calc: camada [op] [esc] [Aplicar]`, monta expressão `CamadaN op esc`) |
 
 ### 2.5. Contornos (isolinhas)
 
@@ -168,6 +172,29 @@
 | Manual PDF GISELE (15 seções, 24 páginas) | "PDF manual de uso da aplicação" + várias atualizações ("atualizar o manual", "atualizar manual e commit") | Python + reportlab (`dev/gerar_manual_uso.py`) |
 | Rebrand SisMOM → GISELE | "Rebrand SisMOM Visualizador → GISELE" | Edit + Python script (`dev/patch_rebrand_gisele.py`) |
 | Manual com seções multi-monitor, servidor Linux | "Manual PDF: expandir instruções Linux do servidor HTTP" + "Atualizar manual PDF com seção multi-monitor" | Edit do .py + regenerar |
+| **ESPECIFICACOES_GISELE (.md + 18p PDF)** (NOVO) | "Gerar um relatório com as especificações para o desenvolvimento dessa plataforma do zero. Gerar um pdf" | Write `.md` + pandoc/xelatex |
+| **Manual v2.4 — seção 6 ERMA tree, seção 9 calculadora dupla, seção 11 checkbox Miscelânea** (NOVO) | "atualizar a documentação e commit" | Edit `dev/gerar_manual_uso.py` |
+
+### 2.13. UI v2.4+ (árvore ERMA-style)
+
+| Feature | Prompts originais | Ferramentas |
+|---|---|---|
+| **Painel direito como árvore ERMA com 4 grupos colapsáveis** (NOVO) | "Organizar o painel da direita como nesse exemplo da plataforma erma utilizando dropdown menu Background... Miscelânea... Camadas... Ferramentas..." | Edit (HTML tree skeleton + `gtRenderLayerChips` re-render por grupo) |
+| **Sub-menu "Configuração da Camada" por nó** (NOVO) | "Essas funcionalidades devem estar disponíveis em um segundo nivel de menu, associado à cada camada Regional Eta .... \|_ Configuração da Camada" + "Os controles da camada já estão presentes na Configuração da Camada, pode remover os campos persistentes" | Edit (`#gtLayerConfigPanel` único movido por `appendChild` entre `#gtLayerConfigHome` invisível e `.gt-tree-config-host`; layout vertical em `gtBuildLayerConfigPanel`) |
+| **Fix toggle recursivo do sub-menu** | "O menu Configuração de Camada abre não está respondendo e depois de aberto não fecha" | Edit (click handler em `summary` com `e.preventDefault()` no lugar do toggle event — toggle re-renderiza re-criando `details open=true` e entrando em loop) |
+| **Botão Collapse/Expand folders** (NOVO) | "Colocar um botão Collapse folders" | Edit (toolbar topo da árvore, alterna `details[open]` de todos os grupos, rótulo dinâmico) |
+| **Fix "Adicionar Modelo" invisível** | "Funcionalidade de Adicionar Modelo não está responsiva" | Edit (form `#gtAddFromModelForm` movido fisicamente por `appendChild` para dentro do nó Ferramentas; antes ficava dentro de `.gt-old-controls` `<details>` fechado) |
+| **Calculadora dupla** (NOVO) | "dentro do menu Ferramentas inserir uma aba Calculadora com as opções algébricas básicas (+,-,x,/), colocar essas opções também na configuração da camada. Na configuração da camada, o cálculo será executado na camada específica, no menu ferramentas, estará disponível para cálculos entre camadas, que pode ser definido através de uma expressão (ex: Camada1*1000+Camada1)" | Edit (parser recursive-descent + AST `num/ident/bin/neg` + `gtCreateLayerFromExpression`; tokens clicáveis no sub-nó Ferramentas; linha `🧮 Calc` em `gtBuildLayerConfigPanel`) |
+| **Background com radios mutex** (NOVO em v2.4) | "no executável, o geotif entra sem o mapa de background. O satélite (Esri) está selecionado, mas não está sendo plotado" | Edit (default `mapEnabled: true` + `mapProvider: 'esri'` em `gtSlotState`; radio change chama `_gtApplyMapView` imediatamente) |
+| **Miscelânea com checkboxes que add/remove** (NOVO em v2.4) | (parte da reestruturação ERMA) | Edit (`onchange` da checkbox chama `gtPushMiscLayer` / `gtRemoveMiscLayer` reusando engine antiga) |
+| **Fix Miscelâneas v1: gtLayerPushToMap retorna early sem `maps`** | "Não está plotando os corais e plataformas" | Edit (criar mapa do slot mesmo sem TIF, com bbox default Brasil) |
+| **Fix Miscelâneas v2: ordem canvas display vs createMap** | "Continua não plotando" | Edit (`box.classList.add('gt-map-active')` ANTES de `cvEl.style.display=''` ANTES de `void cvEl.offsetWidth` ANTES de `gtSlotEnsureMap`) |
+| **Fix Miscelâneas v3: expor resize() na API** | (idem) | Edit (`SisMOM_Map` retorna `resize` + `getCanvasRect`; chamado após push do extra layer) |
+| **Fix Miscelâneas v4: ReferenceError gtFindMiscLayerByConfigId** | "nenhuma das duas seleções estão funcionando, não plota nenhuma informação" (com console screenshot) | Edit (restaurar função `gtFindMiscLayerByConfigId(id)` que tinha sido removida em #153; tree handler ainda chamava → ReferenceError abortava todo o handler) |
+| **Remover "Abrir TIF local (inspeção)" do menu Ferramentas** (NOVO) | "Remover do menu 'Ferramentas' 'Abrir TIF local (inspeção)'" | Edit (remover `<details class="gt-tree-tif-inspect">` da árvore; aba dedicada no header continua) |
+| **Bump v2.4.0 (dist file lock)** | "Travou na geração da dist" + screenshot do `output file is locked for writing` | Edit (`electron-app/package.json` 2.0.0 → 2.4.0 para forçar nome de artifact novo; `rebuild-electron.bat` com `taskkill /F /IM GISELE-*.exe`) |
+| **--strict-cors flag (Electron)** | "Avaliar webSecurity:false caso CORS bloqueie" | Edit (`electron-app/main.js`: default `webSecurity:false`, `--strict-cors` reativa `true`; log `CORS mode:` em `launch.log`) |
+| **Preset FTP CPTEC na configuração** | "Configurar modelo .tif via FTP" | Edit (botão "Preset FTP CPTEC" marca PNG+TIF, deriva `/fig/` → `/geotiff/`, nome `{prefixo}-{F%4}.tif`) |
 
 ---
 
@@ -254,124 +281,4 @@ C:\Projetos\Visualizador\
 │   └── servir_dados.bat
 ├── docs/
 │   ├── GISELE_Manual_Uso.pdf      # Manual gerado por gerar_manual_uso.py (24p)
-│   └── SisMOM_Manual_Uso.pdf      # Versão antiga (anterior ao rebrand)
-├── dev/
-│   ├── gerar_manual_uso.py        # Gerador do PDF (reportlab)
-│   ├── patch_rebrand_gisele.py    # Rebrand mass replace
-│   ├── snapshots/                 # Backups para restauração de tail
-│   └── patch_*.py                 # Patches históricos (referência)
-├── commit-changes.bat             # Script que remove lock + commit
-├── HANDOVER_GISELE.md             # ESTE arquivo
-└── .git/                          # Repo git (tem index.lock órfão)
-```
-
----
-
-## 7. Próximos passos identificados (pendings)
-
-Tasks ainda pendentes no rastreador:
-
-| ID | Tarefa | Sugestão |
-|---|---|---|
-| #7 | Pasta local com varredura (webkitdirectory) | Input com `webkitdirectory` para o usuário escolher pasta, varrer recursivamente todos `.tif` |
-| #62 | Fase 3: paleta/min/max por variável (salvar e carregar default) | Adicionar `defaultPaleta`, `defaultMin`, `defaultMax` em cada variável; aplicar em `gtSelectPanel` similar ao mapProvider |
-| #63 | Fase 4: controles de paleta por painel Mi no header | Movê-los para próximo do título de cada slot |
-
-Outras melhorias úteis sugeridas:
-
-- **Vídeo em paralelo:** pré-busca atualmente é paralela mas decode/render é serial. Para Eta (120 passos), 5 painéis paralelos demoram. Worker offline + IndexedDB cache poderiam acelerar.
-- **Webhooks/eventos:** uma API JS pública para terceiros embedarem o GISELE e reagirem a passos. Hoje tudo é IIFE encapsulado.
-- **Exportar configuração de painel** (modelo+variável+data+paleta+contornos) como link compartilhável.
-- **Comparação A−B nativa** para evaluation de modelos (já tem na calculadora, mas UI manual). Botão "Diff" no header de M2..M4 que pega M1 como referência.
-
----
-
-## 8. Como rodar a verificação completa após mudanças
-
-```bash
-# 1. Verifica que ambos HTMLs estão íntegros
-md5sum figuras_SisMOM_v23.html electron-app/figuras_SisMOM_v23.html
-# Devem ser idênticos
-
-# 2. Termina com </html>?
-python3 -c "print(open('figuras_SisMOM_v23.html').read().rstrip().endswith('</html>'))"
-
-# 3. JSON inline parseável?
-python3 -c "
-import re, json
-html = open('figuras_SisMOM_v23.html').read()
-for tagid in ['gt-misc-data-plataformas_br', 'gt-misc-data-corais_br', 'gt-misc-manifest']:
-    m = re.search(r'<script type=\"application/json\" id=\"' + tagid + r'\">([\\s\\S]*?)</script>', html)
-    d = json.loads(m.group(1).strip())
-    print(tagid, len(d.get('features', d.get('items', []))))
-"
-
-# 4. JS syntax check
-python3 -c "
-import re, subprocess, tempfile, os
-html = open('figuras_SisMOM_v23.html').read()
-scripts = re.findall(r'<script(?![^>]*type=[\"\\']application/json[\"\\'])(?:[^>]*)>([\\s\\S]*?)</script>', html)
-combined = '\\n;\\n'.join(s for s in scripts if s.strip())
-with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
-    f.write(combined); tmp = f.name
-print(subprocess.run(['node', '--check', tmp], capture_output=True, text=True).returncode)
-os.unlink(tmp)
-"
-
-# 5. Build marker
-grep -n "20260529" figuras_SisMOM_v23.html | head -2
-```
-
----
-
-## 9. Build markers da história recente
-
-| Marker | Conteúdo |
-|---|---|
-| `20260528-4500-coraistail` | Restaurar tail truncado dos corais |
-| `20260528-4600-notoggle` | Remover switch Liga/Desliga do dropdown |
-| `20260529-1100-keepfill` | Contornos default keepFill = true |
-| `20260529-1200-stepfix` | Fix swap PNG→GeoTIFF passo (parte 1) |
-| `20260529-1300-mapdefault` | mapProvider config |
-| `20260529-1400-mapenable` | Auto-ativa mapa quando modelo tem mapProvider |
-| `20260529-1500-video` | Vídeo MP4 (versão inicial) |
-| `20260529-1600-videopng` | Fix PNG taint via blob fetch |
-| `20260529-1700-videoprefetch` | Pré-fetch todos os frames antes |
-| `20260529-1800-videoclip` | Crop pela área visível (zoom/pan) |
-| `20260529-1900-videofitfps` | object-fit math + força emissão de frames |
-
----
-
-## 10. Glossário de identificadores JS importantes
-
-| Símbolo | Função |
-|---|---|
-| `appMode` | `'png'` ou `'gtiff'` |
-| `state` | Estado global (slots, passoAtual, maxPassos, stepFreq, layout, animando, tempo, interval) |
-| `state.slots[i]` | `{modelo, variavel, data, sync, lastVarByModel, passoBase}` |
-| `gtSlotState[i]` | Por-slot GeoTIFF: `{paleta, autoMinMax, min, max, undefRaw, clipBelow, clipAbove, mapEnabled, mapProvider, opacity, _lastModelForMap, _mapProviderUserSet, _mapEnabledUserSet}` |
-| `gtSlotDecoded[i]` | Cache de decoded TIFF por slot |
-| `gtActivePanel` | Índice do Mi ativo (recebe edições da sidebar direita) |
-| `gtExtraLayers` | Array de camadas extras (overlays GeoTIFF/GeoJSON) |
-| `gtSlotAnnotations[i]` | Anotações por slot (medições, textos, ferramentas) |
-| `gtToolDraft[i]` | Rascunho de ferramenta em desenho |
-| `montarURL({modelo, data, variavel, passo})` | Build URL com placeholders |
-| `getEffectivePasso(slotIdx)` | Passo efetivo do slot (com offset de data) |
-| `atualizarMaxPassos()` | Recomputa stepFreq/maxPassos baseado nos slots ativos |
-| `_gtFetchAndDecode(url)` | Fetch + decode TIFF + cache |
-| `gtSampleDecodedAtLatLon(decoded, lat, lon)` | Amostra valor no ponto |
-| `SisMOM_Map(canvas)` | Factory do mapa custom |
-| `SisMOM_GeoTIFF.decodeTIFF(buffer)` | Decoder próprio |
-| `SisMOM_GeoTIFF.aplicarPaleta(decoded, opts)` | Paletiza para ImageData |
-| `gtSelectPanel(idx)` | Ativa painel Mi e aplica mapa-base padrão do modelo |
-| `gtCaptureControlsToActive()` | Captura UI da sidebar → gt[gtActivePanel] |
-| `gtApplyActiveLayer()` | Aplica mudanças ao mapa |
-| `gravarVideoEvolucaoTemporal()` | Grava MP4 da animação |
-| `gtSampleTimeSeries(slotIdx, lat, lon, onProgress)` | Série temporal |
-| `gtOpenProfilePopup(slotIdx, coords)` | Popup do perfil |
-| `_stateRestore(snap)` | Restaura snapshot por aba + snap obrigatório de passoAtual |
-| `setAppMode(mode)` | Troca PNG ↔ GeoTIFF + cleanup + re-render |
-
----
-
-*Documento gerado em 29/05/2026 para handover. Última build verificada: `20260529-1900-videofitfps`.*
+│   └─

@@ -91,6 +91,23 @@ def tbl(data, col_widths=None, header=True):
     t.setStyle(TableStyle(s))
     return t
 
+# ─── Documento ────────────────────────────────────────────────────────
+def _draw_footer(canvas, doc_):
+    canvas.saveState()
+    canvas.setFont('Helvetica', 8)
+    canvas.setFillColor(GRAY_M)
+    canvas.drawCentredString(A4[0]/2, 1.2*cm, f"GISELE - Manual de Uso | pagina {doc_.page}")
+    canvas.restoreState()
+
+doc = SimpleDocTemplate(
+    str(OUT),
+    pagesize=A4,
+    leftMargin=2.2*cm, rightMargin=2.2*cm,
+    topMargin=2*cm, bottomMargin=2*cm,
+    title='GISELE - Manual de Uso',
+    author='CPTEC/INPE'
+)
+
 # ─── Conteúdo ────────────────────────────────────────────────────────
 story = []
 
@@ -367,30 +384,79 @@ story.append(p(
 story.append(PageBreak())
 
 # ===== 6. PAINEL DIREITO =====
-story.append(h1('6. Painel direito — controles do painel ativo'))
-story.append(p('O painel direito está dividido em seções colapsáveis. Tudo o que você ajusta afeta APENAS o painel Mi ativo.'))
-story.append(h2('Arquivo / Visual'))
+story.append(h1('6. Painel direito — árvore ERMA-style (v2.4+)'))
+story.append(p(
+    'A partir da versão 2.4 o painel direito foi reorganizado em uma <b>árvore estilo ERMA</b>, com quatro '
+    'grupos colapsáveis que organizam todos os controles do painel Mi ativo. Tudo o que você ajusta afeta '
+    'APENAS o painel Mi ativo.'
+))
+story.append(h2('Estrutura geral'))
+story.append(p('Os quatro grupos da árvore são, de cima para baixo:'))
+story.append(tbl([
+    ['Grupo', 'Conteúdo'],
+    ['📦 Background',
+     'Tile provider do mapa-base do slot ativo: <i>Nenhum</i>, <i>Esri World Imagery</i> (satélite), '
+     '<i>OpenStreetMap</i> e <i>OpenTopoMap</i>, escolhidos via <b>radios mutuamente exclusivos</b>. A seleção '
+     'sincroniza com a checkbox "Mostrar mapa".'],
+    ['🐠 Miscelânea',
+     'Checkboxes para adicionar/remover camadas vetoriais pré-empacotadas (Plataformas offshore, Corais '
+     'brasileiros, etc.). Marcar = adiciona a camada no slot; desmarcar = remove. A cor pode ser ajustada no '
+     'chip da camada (ver seção 11).'],
+    ['🗺️ Camadas',
+     'Lista de camadas ativas no slot — primary (GeoTIFF do modelo) + extras (TIF, GeoJSON, resultado da '
+     'calculadora). Cada nó tem ícones de cor, visibilidade (👁), remover (×) e — para rasters — um '
+     'sub-menu <b>Configuração da Camada</b> (▸) que se expande inline.'],
+    ['🛠️ Ferramentas',
+     'Sub-nós para: <b>Adicionar GeoTIFF/GeoJSON</b>, <b>Adicionar Modelo</b> (formulário inline com '
+     'modelo/variável/data), e <b>Calculadora</b> (expressão entre camadas).'],
+], col_widths=[3.5*cm, 12.4*cm]))
+
+story.append(h2('Botão Collapse folders / Expand folders'))
+story.append(p(
+    'No topo do painel há um botão que <b>recolhe ou expande todos os quatro grupos de uma vez</b>. Útil '
+    'quando você tem várias camadas + Ferramentas abertas e quer voltar a uma visão limpa rapidamente. O '
+    'rótulo alterna conforme o estado (todos abertos = "Collapse folders", todos fechados = "Expand folders").'
+))
+
+story.append(h2('Sub-menu "Configuração da Camada" (por nó)'))
+story.append(p(
+    'Cada camada raster (primary ou extra) tem um sub-menu <b>Configuração da Camada</b> que se abre '
+    '<b>inline dentro do nó da camada</b>, em layout vertical, com os controles que antes ficavam soltos '
+    'na sidebar:'
+))
 story.append(bullets([
-    '<b>Paleta:</b> 15 paletas disponíveis, agrupadas em Sequenciais (Viridis, Plasma, Inferno, Magma, Cividis, Jet, Turbo, Cinza), Divergentes (RdBu, RdYlBu, Spectral, BrBG, Seismic, Coolwarm) e Topográficas (Terrain, Ocean).',
-    '<b>Min / Max:</b> faixa de valores mapeada na paleta. Em modo "Auto" usa o min/max do dado; clique em <b>Editar escala</b> para fixar manualmente.',
-    '<b>Editar / Auto:</b> alterna entre escala manual e automática.',
-]))
-story.append(h2('NoData / Clip'))
-story.append(bullets([
-    '<b>UNDEF:</b> lista de valores sentinela tratados como "sem dado" (ex: <code>-999, -9999</code>). Esses pixels ficam transparentes.',
-    '<b>Clip ≥:</b> valores menores que esse limite são mascarados.',
-    '<b>Clip ≤:</b> valores maiores que esse limite são mascarados.',
-    '<b>Limpar:</b> remove todos os filtros.',
+    '<b>Paleta:</b> 15 paletas (Sequenciais: Viridis, Plasma, Inferno, Magma, Cividis, Jet, Turbo, Cinza; '
+    'Divergentes: RdBu, RdYlBu, Spectral, BrBG, Seismic, Coolwarm; Topográficas: Terrain, Ocean).',
+    '<b>Min / Max + Editar/Auto:</b> escala automática (percentil 5–95%) ou fixa.',
+    '<b>UNDEF + Clip ≥/≤:</b> sentinels e thresholds de mascaramento.',
+    '<b>Contornos:</b> liga/desliga marching squares, intervalo entre isolinhas, espessura, '
+    'preservar shaded (<i>keepFill</i> default ON).',
+    '<b>Calculadora per-layer:</b> linha "🧮 Calc: camada [op] [escalar] [Aplicar]" — aplica '
+    '<code>op</code> (+, −, ×, ÷) entre a camada atual e um escalar. Resultado vira nova camada extra.',
 ]))
 story.append(tip(
-    'O decoder já detecta automaticamente sentinelas grandes (ex: <code>-3.4e+38</code> do GrADS) e o NoData declarado no header do TIF. '
-    'Use UNDEF/Clip para casos onde a detecção automática não pega.'
+    'O painel de configuração é fisicamente <b>um único elemento DOM</b> (<code>#gtLayerConfigPanel</code>) '
+    'movido por <code>appendChild</code> entre os nós conforme você expande/contrai. Listeners são '
+    'preservados. Apenas <b>um sub-menu de configuração</b> fica aberto por vez — abrir outro fecha o '
+    'anterior automaticamente.'
 ))
-story.append(h2('Camadas'))
-story.append(p(
-    'A camada base é o GeoTIFF do painel ativo. Você pode adicionar camadas extras (outros TIFs ou GeoJSONs) que ficam sobrepostas. '
-    'Cada camada extra tem botões de subir/descer ordem, mostrar/ocultar (👁) e remover. Configurar uma camada como ativa permite editar suas propriedades pelo painel.'
+story.append(warn(
+    'A versão anterior do manual descrevia um painel persistente de "Arquivo / Visual" na sidebar. <b>Essa '
+    'área foi removida</b> — todos os controles de paleta/min-max/clip/contornos ficam agora <b>somente</b> '
+    'dentro do sub-menu Configuração da Camada de cada nó.'
 ))
+
+story.append(h2('Grupo Ferramentas — sub-nós'))
+story.append(bullets([
+    '<b>Adicionar GeoTIFF/GeoJSON:</b> botão que abre seletor de arquivo do disco; a camada entra como '
+    'extra no slot.',
+    '<b>Adicionar Modelo:</b> formulário inline (movido fisicamente para dentro do nó por '
+    '<code>appendChild</code>) com seletores de modelo/variável/data/passo. Útil para empilhar uma '
+    'previsão alternativa sobre a camada base sem trocar o modelo do slot.',
+    '<b>Calculadora (expressão entre camadas):</b> tokens clicáveis Camada1..N + textarea para expressão '
+    'algébrica (ex.: <code>Camada1 * 1000 + Camada2</code>) + botão Calcular. Avalia pixel a pixel '
+    'propagando máscara NoData. Veja seção 9 para detalhes.',
+]))
 story.append(PageBreak())
 
 # ===== 7. CONFIGURAR MODELOS =====
@@ -512,31 +578,70 @@ story.append(tip(
 story.append(PageBreak())
 
 # ===== 9. CALCULADORA =====
-story.append(h1('9. Camadas extras e calculadora'))
-story.append(h2('Adicionando camadas'))
+story.append(h1('9. Camadas e calculadora dupla'))
+story.append(h2('Adicionando camadas via árvore'))
 story.append(p(
-    'Na seção <b>Camadas</b> do painel direito, clique em <b>+ Adicionar GeoTIFF/GeoJSON...</b> e escolha um arquivo do disco. '
-    'A camada aparece na lista, sobreposta à camada base.'
+    'No grupo <b>🛠️ Ferramentas</b> da árvore, sub-nó <b>+ Adicionar GeoTIFF/GeoJSON</b>, escolha um '
+    'arquivo do disco. A camada aparece como nó dentro de <b>🗺️ Camadas</b>, sobreposta à camada base.'
 ))
+story.append(p('Cada nó de camada oferece:'))
 story.append(bullets([
-    '<b>↑ ↓</b> reorganiza a ordem (camadas no topo aparecem na frente).',
     '<b>👁</b> oculta/mostra a camada.',
-    '<b>🗑</b> remove.',
-    'Clique no chip da camada para torná-la a camada <b>ativa</b> — os controles do painel direito (paleta, min/max) passam a operar sobre ela.',
+    '<b>×</b> remove a camada.',
+    '<b>▸ Configuração da Camada</b> (apenas para rasters) expande o sub-menu inline com paleta, '
+    'min/max, contornos e calculadora per-layer.',
+    'Para GeoJSONs, um seletor de <b>cor</b> inline troca o estilo de stroke/fill em tempo real.',
 ]))
-story.append(h2('Calculadora de raster'))
+story.append(h2('Calculadora — duas modalidades'))
 story.append(p(
-    'Permite operações entre camadas (ou entre camada e escalar). Resultado vira uma nova camada.'
+    'A partir da v2.4 a calculadora aparece em <b>dois lugares</b> com semânticas diferentes:'
+))
+
+story.append(h2('A) Ferramentas → Calculadora (expressão entre camadas)'))
+story.append(p(
+    'No grupo <b>🛠️ Ferramentas</b>, sub-nó <b>🧮 Calculadora (expressão entre camadas)</b>. Use para '
+    'composições que envolvem <b>múltiplas camadas</b> e operações algébricas livres.'
 ))
 story.append(numbered([
-    'Em <b>Calc</b>, escolha a <b>camada A</b>.',
-    'Escolha o <b>operador</b>: + (soma), − (diferença), × (produto), ÷ (razão).',
-    'Escolha a <b>camada B</b> (outro raster) <i>ou</i> "(valor escalar)" e digite um número.',
-    'Clique em <b>Calcular</b>. Uma nova camada aparece na lista.',
+    'Expanda o sub-nó. Aparece a lista de tokens clicáveis (Camada1, Camada2, ...) que correspondem às '
+    'camadas atualmente no slot.',
+    'Clique nos tokens para inseri-los no textarea, ou digite manualmente.',
+    'Escreva a expressão usando: identificadores <code>Camada<i>N</i></code>, números (decimais com '
+    '<code>.</code>), operadores <code>+ − * /</code>, e parênteses.',
+    'Clique em <b>Calcular</b>. Uma nova camada extra é adicionada com o nome da expressão.',
+]))
+story.append(p('<b>Exemplos:</b>'))
+story.append(code(
+    'Camada1 * 1000<br/>'
+    '(Camada1 + Camada2) / 2<br/>'
+    'Camada1 - Camada2<br/>'
+    'Camada3 * 0.01 + 273.15'
+))
+story.append(tip(
+    'O parser é um <b>recursive-descent</b> próprio, sem <code>eval</code> nem <code>Function()</code>. '
+    'Aceita apenas números, identificadores, parênteses e os quatro operadores básicos. Qualquer outro '
+    'token gera erro.'
+))
+
+story.append(h2('B) Configuração da Camada → Calc per-layer (operador + escalar)'))
+story.append(p(
+    'No sub-menu <b>Configuração da Camada</b> de qualquer raster, há uma linha:'
+))
+story.append(code('🧮 Calc: camada  [+ / − / × / ÷ ]  [escalar]  [Aplicar]'))
+story.append(p(
+    'Use para aplicar uma <b>operação simples sobre uma camada só</b> — caso comum: conversão de unidade '
+    '(multiplicar precipitação por 1000, somar 273.15 para Kelvin, etc.).'
+))
+story.append(numbered([
+    'Abra <b>Configuração da Camada</b> no nó da camada-alvo (a camada que será operada).',
+    'Escolha o operador no select (<code>+</code>, <code>−</code>, <code>×</code>, <code>÷</code>).',
+    'Digite o escalar no input.',
+    'Clique em <b>Aplicar</b>. Uma nova camada é adicionada ao slot — a camada original permanece intacta.',
 ]))
 story.append(tip(
-    'Os pixels mascarados (NoData) em qualquer dos operandos resultam em pixel mascarado no resultado. '
-    'Útil para diferença entre rodadas, razões, ou conversões de unidade.'
+    'Internamente esta variante reusa o mesmo engine <code>gtCreateLayerFromExpression</code> da '
+    'modalidade A, montando a expressão equivalente (ex.: <code>Camada2 * 1000</code>). Os pixels '
+    'mascarados (NoData) são propagados normalmente.'
 ))
 story.append(PageBreak())
 
@@ -628,11 +733,14 @@ story.append(tbl([
      'Banco dos Abrolhos, Banco de Vitória/Trindade). Fonte: UNEP-WCMC Global distribution of warm-water '
      'coral reefs (2018), recortado para o bbox brasileiro.'],
 ], col_widths=[5*cm, 3*cm, 8*cm]))
-story.append(h2('Adicionando uma camada'))
+story.append(h2('Adicionando uma camada (árvore ERMA v2.4+)'))
 story.append(numbered([
-    'No painel direito, no bloco <b>Miscelâneas</b>, escolha o item no dropdown.',
-    'Clique em <b>+ Adicionar</b>. A camada aparece como um chip na lista de Camadas, com seu próprio ícone de cor.',
-    'Use o olho (👁) para ocultar/mostrar, e o × para remover.',
+    'Na árvore ERMA do painel direito, expanda o grupo <b>🐠 Miscelânea</b>.',
+    'Marque o <b>checkbox</b> ao lado do item desejado (Plataformas offshore, Corais brasileiros, etc.). '
+    'A camada é imediatamente adicionada ao slot — desmarcando, ela é removida.',
+    'A camada também aparece como nó dentro do grupo <b>🗺️ Camadas</b>, com ícone de cor, olho (👁) para '
+    'ocultar/mostrar e × para remover.',
+    'A cor pode ser alterada inline no chip da camada (seletor de cor nativo do sistema).',
 ]))
 story.append(h2('Estilização — hachura nos polígonos'))
 story.append(p(
@@ -897,68 +1005,11 @@ story.append(p(
 ))
 story.append(bullets([
     'CORS é enforced normalmente (mesma origem-policy ativa).',
-    'Conteúdo HTTPS pode ser bloqueado se misturado com HTTP.',
-    'O vídeo MP4 PNG/GIF deixa de funcionar (canvas tainted, frames pretos).',
-    'GeoTIFF e GeoJSON continuam funcionando (fetch via ArrayBuffer, sem taint).',
+    'Imagens PNG/GIF cross-origin não tintam o canvas se vierem com header <code>Access-Control-Allow-Origin</code>; sem o header, a gravação de vídeo MP4 produz frames pretos.',
+    'A linha no <code>launch.log</code> muda para: <code>CORS mode: strict (--strict-cors, webSecurity=true)</code>.',
 ]))
-story.append(tip(
-    'Para uso normal com dados do CPTEC, mantenha o padrão (sem a flag). O <code>--strict-cors</code> é um modo de seguranca alternativo.'
-))
 story.append(PageBreak())
 
-# ===== 15. APÊNDICE =====
-story.append(h1('15. Apêndice — referência de placeholders'))
-story.append(p(
-    'Os templates de URL aceitam os placeholders abaixo. Eles são substituídos no momento da requisição '
-    'com base na data/modelo/passo selecionado no painel.'
-))
-story.append(tbl([
-    ['Placeholder', 'Substituído por'],
-    ['{yyyy}',     'Ano da rodada (ex: 2026).'],
-    ['{mm}',       'Mês da rodada com zero à esquerda (ex: 05).'],
-    ['{dd}',       'Dia da rodada com zero à esquerda (ex: 28).'],
-    ['{hh}',       'Hora da rodada (00, 06, 12, 18 etc.).'],
-    ['{var}',      'Sigla da variável escolhida (ex: prec, t2m, u10).'],
-    ['{step}',     'Passo de previsão (ex: 000, 003, 006 ... ou f00, f03 conforme modelo).'],
-    ['{ext}',      'Extensão do arquivo (png, gif, tif).'],
-    ['{base}',     'Base do template (raiz do modelo, prefixo antes do path).'],
-    ['{N%4}',      'Índice do arquivo (file_idx = passo / Freq) com N casas (ex: 0024).'],
-    ['{F%3}',      'Horas de previsão (passo_h = file_idx * Freq) com N casas (ex: 024).'],
-    ['{prefixo}',  'Prefixo definido por variável (campo "arquivo" da config).'],
-    ['{escopo1}',  'Token livre do modelo/variável (ex: nível, componente).'],
-    ['{escopo2}',  'Segundo token livre.'],
-], col_widths=[3.5*cm, 12.4*cm]))
-story.append(tip(
-    'Os placeholders são case-sensitive. Use <code>{yyyy}</code>, não <code>{YYYY}</code>.'
-))
-story.append(h2('Exemplos de templates funcionais'))
-story.append(code(
-    'CPTEC Eta 3 km (PNG):<br/>'
-    'https://ftp1.cptec.inpe.br/modelos/tempo/Eta3km/{yyyy}/{mm}/{dd}/{hh}/fig/{var}/Eta3km_{yyyy}{mm}{dd}{hh}_f{step}.png<br/>'
-    '<br/>'
-    'CPTEC Eta 3 km (GeoTIFF — derivado automaticamente):<br/>'
-    'https://ftp1.cptec.inpe.br/modelos/tempo/Eta3km/{yyyy}/{mm}/{dd}/{hh}/geotiff/{var}/Eta3km_{yyyy}{mm}{dd}{hh}_f{step}.tif<br/>'
-    '<br/>'
-    'Servidor local:<br/>'
-    'http://localhost:8765/Eta3km/{yyyy}{mm}{dd}{hh}/{var}_f{step}.tif'
-))
-
-# ─── Build do documento ──────────────────────────────────────────────
-doc = SimpleDocTemplate(
-    str(OUT), pagesize=A4,
-    leftMargin=2.4*cm, rightMargin=2.4*cm,
-    topMargin=2.2*cm,  bottomMargin=2.2*cm,
-    title='GISELE - Manual de Uso',
-    author='CPTEC/INPE'
-)
-
-def _on_page(canvas, doc):
-    canvas.saveState()
-    canvas.setFont('Helvetica', 8)
-    canvas.setFillColor(GRAY_M)
-    canvas.drawString(2.4*cm, 1.3*cm, 'GISELE - Manual de Uso')
-    canvas.drawRightString(A4[0] - 2.4*cm, 1.3*cm, 'Pagina %d' % doc.page)
-    canvas.restoreState()
-
-doc.build(story, onFirstPage=_on_page, onLaterPages=_on_page)
-print('PDF gerado:', OUT)
+# ===== Build do PDF =====
+doc.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
+print(f'PDF gerado: {OUT}')

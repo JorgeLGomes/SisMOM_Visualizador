@@ -2111,7 +2111,6 @@
                         <li><button type="button" class="gt-tree-action" id="gtTreeAddTif">＋ Adicionar GeoTIFF/GeoJSON…</button></li>
                         <li><button type="button" class="gt-tree-action" id="gtTreeAddModel">＋ Adicionar Modelo</button></li>
                         <li id="gtTreeAddModelFormHost" style="display:block;padding:0"></li>
-                        <li><button type="button" class="gt-tree-action" id="gtTreeOpenLocal" title="Abre um TIF local apenas para inspeção (não vira camada)">＋ Abrir TIF local (inspeção)</button></li>
                         <li style="padding:0;flex-direction:column;align-items:stretch">
                             <details class="gt-tree-calc">
                                 <summary style="cursor:pointer;font-size:12px;padding:4px 0">🧮 Calculadora (expressão entre camadas)</summary>
@@ -5873,7 +5872,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260529-3000-calc'); document.documentElement.setAttribute('data-build', '20260529-3000-calc'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260529-3600-removetiflocal'); document.documentElement.setAttribute('data-build', '20260529-3600-removetiflocal'); } catch (_) {}
         loadModelos();
         buildSlots();
         const restored = loadUIPrefs();
@@ -6373,7 +6372,9 @@
         if (!gtSlotState[i]) gtSlotState[i] = {
             paleta: 'viridis', autoMinMax: true, min: null, max: null,
             undefRaw: '', clipBelow: null, clipAbove: null,
-            mapEnabled: false, mapProvider: 'esri', opacity: 0.85
+            // mapEnabled default TRUE para que o usuário veja o satélite Esri
+            // automaticamente ao entrar no modo GeoTIFF. Provider default 'esri'.
+            mapEnabled: true, mapProvider: 'esri', opacity: 0.85
         };
         return gtSlotState[i];
     }
@@ -6841,6 +6842,11 @@
             opt.value = it.id; opt.textContent = it.nome || it.id;
             sel.appendChild(opt);
         }
+    }
+    // Encontra uma camada misc já carregada no array gtExtraLayers pelo configId
+    // (usado pelo checkbox da árvore Miscelânea pra detectar se já foi adicionada).
+    function gtFindMiscLayerByConfigId(id) {
+        return gtExtraLayers.find(l => l && l.isMisc && l.miscConfig && l.miscConfig.id === id) || null;
     }
     async function gtAddMiscLayer(id) {
         const man = await gtLoadMiscManifest();
@@ -10197,6 +10203,9 @@
             zoomBy,
             setTileProvider, setProjection, setAttributionElement,
             redraw: draw,
+            resize,
+            // Diagnóstico: dimensões atuais do canvas
+            getCanvasRect() { return rectPx(); },
             setStyle(s) { Object.assign(self.style, s); draw(); },
             onCursor(fn) { self.onCursor = fn; },
             // Cópia rasa dos overlays — usado por código externo (HUD de navegação)
@@ -10497,9 +10506,82 @@
     const GJ_PALETTE = ['#4dd0e1','#ffeb3b','#ff9800','#e91e63','#9c27b0','#3f51b5','#8bc34a','#f44336'];
 
     function gtLayerEnsureMap() {
-        // Garante que o mapa esteja inicializado (já ativa toggle de mapa)
+        // Garante que o mapa esteja inicializado.
+        // Legacy: ativa o toggle "Mostrar mapa" do modal antigo.
         const tg = document.getElementById('gtShowMap');
         if (tg && !tg.checked && !tg.disabled) { tg.checked = true; gtToggleMapUI(); }
+        // Multi-Mi: força criação do mapa do slot ativo + torna visível, mesmo
+        // antes de qualquer TIF ser carregado. Necessário para Miscelâneas
+        // (Plataformas/Corais) serem plotadas quando adicionadas antes de TIF.
+        try {
+            if (typeof gtActivePanel === 'undefined' || typeof gtSlotEnsureMap !== 'function') return;
+            const idx = gtActivePanel || 0;
+            const box = (typeof slotEl === 'function') ? slotEl(idx) : null;
+            if (!box) return;
+            const cvEl = box.querySelector('.map-canvas-gt');
+            // ORDEM CRÍTICA: deixar o canvas visível ANTES de criar o
+            // SisMOM_Map. Sem isso o canvas tem dimensões 0×0 e o map
+            // renderiza vazio. Após display='' o layout flow dá tamanho real.
+            box.classList.add('gt-map-active');
+            if (cvEl) cvEl.style.display = '';
+            // Força reflow do layout pra canvas pegar tamanho antes de criar o map
+            try { if (cvEl) void cvEl.offsetWidth; } catch (_) {}
+            const m = gtSlotEnsureMap(idx);
+            if (!m) return;
+            const gt = (typeof getGtSlotState === 'function') ? getGtSlotState(idx) : null;
+            if (gt && gt.mapEnabled && gt.mapProvider) {
+                try { m.setTileProvider(gt.mapProvider); } catch (_) {}
+            }
+            // Aplica viewport: bbox do TIF se existir, senão bbox padrão da camada misc
+            const dec = (typeof gtSlotDecoded !== 'undefined') ? gtSlotDecoded[idx] : null;
+            if (dec && dec.bbox) {
+                try { m.fitTo(dec.bbox); } catch (_) {}
+            } else {
+                // Sem TIF: ajusta para a bbox da última camada misc adicionada
+                // (Plataformas/Corais → costa brasileira)
+                try {
+                    const last = gtExtraLayers[gtExtraLayers.length - 1];
+                    if (last && last.type === 'geojson' && last.data) {
+                        const bb = _gtComputeGeoJSONBbox(last.data);
+                        if (bb) m.fitTo(bb);
+                    }
+                } catch (_) {}
+            }
+            // Após canvas ficar visível, FORÇA o map a recalcular suas dimensões
+            // (resize internamente faz canvas.width/height + adjustViewportToAspect + draw).
+            // Sem isso, se o map foi criado com canvas display:none, vp e canvas ficam
+            // dessincronizados — o ResizeObserver normalmente pega, mas precisamos
+            // de uma chamada síncrona pra garantir.
+            const forceResize = () => {
+                try {
+                    const r = (typeof m.getCanvasRect === 'function') ? m.getCanvasRect() : null;
+                    console.log('[GISELE/Misc] canvas rect:', r ? (r.width + 'x' + r.height) : 'unknown');
+                    if (typeof m.resize === 'function') m.resize();
+                    else if (m.redraw) m.redraw();
+                } catch (e) { console.warn('forceResize', e); }
+            };
+            forceResize();
+            // 2 passes diferidos pra pegar o layout final após reflow do flexbox
+            requestAnimationFrame(forceResize);
+            setTimeout(forceResize, 100);
+            setTimeout(forceResize, 300);
+        } catch (e) { console.error('gtLayerEnsureMap multi-Mi', e); }
+    }
+    // Helper: computa bbox de um GeoJSON FeatureCollection
+    function _gtComputeGeoJSONBbox(gj) {
+        let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
+        function visit(c) {
+            if (typeof c[0] === 'number') {
+                if (c[0] < xmin) xmin = c[0]; if (c[0] > xmax) xmax = c[0];
+                if (c[1] < ymin) ymin = c[1]; if (c[1] > ymax) ymax = c[1];
+            } else { for (const x of c) visit(x); }
+        }
+        const feats = (gj && gj.type === 'FeatureCollection') ? gj.features : (gj ? [gj] : []);
+        for (const f of feats) { if (f && f.geometry && f.geometry.coordinates) visit(f.geometry.coordinates); }
+        if (!isFinite(xmin)) return null;
+        // Adiciona margem 10% para enquadrar
+        const dx = (xmax - xmin) * 0.1, dy = (ymax - ymin) * 0.1;
+        return { minX: xmin - dx, maxX: xmax + dx, minY: ymin - dy, maxY: ymax + dy };
     }
 
     async function gtAddExtraLayerFromFile(file) {
@@ -10578,7 +10660,16 @@
             for (const m of maps) {
                 m.addGeoJSON(layer.data, style, layer.id);
                 m.setGeoJSONVisible(layer.id, layer.visible);
+                // Força redraw após adicionar, com 2 passes diferidos pra
+                // garantir que se o canvas estava em transição de dimensões
+                // (ex: acabou de sair de display:none), o frame final tem o desenho.
+                try {
+                    if (m.resize) m.resize(); else if (m.redraw) m.redraw();
+                    setTimeout(() => { try { if (m.redraw) m.redraw(); } catch (_) {} }, 50);
+                    setTimeout(() => { try { if (m.redraw) m.redraw(); } catch (_) {} }, 250);
+                } catch (_) {}
             }
+            console.log('[GISELE/Misc] pushed geojson layer "' + (layer.name || layer.id) + '" to ' + maps.length + ' map(s), features=' + ((layer.data && layer.data.features && layer.data.features.length) || 0));
         }
     }
 
@@ -10677,6 +10768,25 @@
                     if (sel) sel.value = it.id;
                     const cb  = document.getElementById('gtShowMap');
                     if (cb) cb.checked = g.mapEnabled;
+                    // CRÍTICO: aplica a mudança AO VIVO no mapa do slot. Se o TIF
+                    // já foi carregado, troca o tile provider e mostra/esconde o
+                    // canvas do mapa. Sem isso a UI mostra "esri" selecionado
+                    // mas tiles não aparecem no canvas.
+                    try {
+                        const m = (typeof gtSlotEnsureMap === 'function') ? gtSlotEnsureMap(idx) : null;
+                        const box = (typeof slotEl === 'function') ? slotEl(idx) : null;
+                        const dec = (typeof gtSlotDecoded !== 'undefined') ? gtSlotDecoded[idx] : null;
+                        const cvEl = box && box.querySelector('.map-canvas-gt');
+                        if (g.mapEnabled && m && dec && dec.bbox) {
+                            if (cvEl) cvEl.style.display = '';
+                            if (box) box.classList.add('gt-map-active');
+                            _gtApplyMapView(idx, m, g.mapProvider, dec.bbox);
+                            if (typeof m.redraw === 'function') m.redraw();
+                        } else if (!g.mapEnabled) {
+                            if (cvEl) cvEl.style.display = 'none';
+                            if (box) box.classList.remove('gt-map-active');
+                        }
+                    } catch (e) { console.error('tree bg apply view', e); }
                     if (typeof gtApplySlotControlsFromActive === 'function') gtApplySlotControlsFromActive();
                 } catch (e) { console.error('tree bg', e); }
             });
@@ -10707,7 +10817,7 @@
             cb.checked = !!(existing && existing.visible !== false);
             cb.addEventListener('change', () => {
                 if (cb.checked) {
-                    const e2 = gtFindMiscLayerByConfigId && gtFindMiscLayerByConfigId(it.id);
+                    const e2 = (typeof gtFindMiscLayerByConfigId === 'function') ? gtFindMiscLayerByConfigId(it.id) : null;
                     if (e2) { if (e2.visible === false) gtToggleExtraLayer(e2.id); }
                     else { gtAddMiscLayer(it.id); }
                 } else {
@@ -11237,11 +11347,6 @@
             if (form && form.style.display !== 'none') {
                 form.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }
-        });
-        const btLocal = document.getElementById('gtTreeOpenLocal');
-        if (btLocal) btLocal.addEventListener('click', () => {
-            const btnPick = document.getElementById('btnGtPick');
-            if (btnPick) btnPick.click();
         });
         // Wire da Calculadora (Ferramentas) — calcular expressão entre camadas
         const btCalcRun = document.getElementById('btnGtTreeCalcRun');
@@ -12090,3 +12195,4 @@
 </script>
 </body>
 </html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
