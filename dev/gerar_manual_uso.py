@@ -307,6 +307,25 @@ story.append(tip(
     'A primeira passagem da animação carrega cada passo do servidor (pode ser lento em modelos pesados como Eta). '
     'Após uma volta completa, os passos ficam em cache local e a 2ª volta fica instantânea.'
 ))
+story.append(h2('Salvar vídeo da evolução temporal (MP4)'))
+story.append(p(
+    'Logo abaixo do seletor de velocidade existe o botão <b>Salvar vídeo (MP4)</b>. Disponível nas duas abas '
+    '(PNG/GIF e GeoTIFF). Ao clicar:'
+))
+story.append(numbered([
+    '<b>Fase 1 — Pré-busca:</b> a ferramenta varre todos os passos da rodada, monta as URLs via o template do modelo, e baixa as imagens em paralelo (popup mostra "Pré-buscando: X/Y").',
+    '<b>Fase 2 — Gravação:</b> reproduz cada passo no canvas off-screen por ~400 ms, capturando via <code>MediaRecorder</code> a 30 fps em <code>video/mp4</code> (ou <code>video/webm</code> em browsers sem suporte ao MP4).',
+    'Ao terminar, o arquivo <code>evolucao_&lt;modelo&gt;_&lt;variavel&gt;_&lt;timestamp&gt;.mp4</code> é baixado automaticamente.',
+]))
+story.append(bullets([
+    'A região visível (zoom/pan) é preservada — o vídeo grava exatamente o crop que está na tela.',
+    'A passagem é <b>uma única vez</b>, do primeiro passo ao último — sem looping circular como na animação normal.',
+    'Layouts multi-painel (M1+M2+…) são gravados juntos no mesmo vídeo, com cada painel em sua posição.',
+]))
+story.append(tip(
+    'Em variáveis com horizonte muito longo (ex.: Global PREC 720 h = 30 passos diários), a pré-busca pode demorar alguns segundos. '
+    'O popup tem botão <b>Cancelar</b> que aborta a gravação e descarta o vídeo parcial.'
+))
 story.append(h2('Layouts'))
 story.append(p('A coluna esquerda tem 4 botões de layout: 1, 2, 3 ou 4 painéis. O layout escolhido persiste entre sessões.'))
 story.append(PageBreak())
@@ -401,6 +420,7 @@ story.append(bullets([
     '<b>Template Nome Arq. (PNG/GIF):</b> nome do arquivo, com placeholders de prefixo/passo/extensão.',
     '<b>Formatos disponíveis no FTP:</b> marque PNG/GIF e/ou GeoTIFF (.tif). Modelos sem TIF são automaticamente filtrados da aba GeoTIFF.',
     '<b>Templates TIF:</b> se marcar GeoTIFF, configure rota e nome próprios — ou marque "usar o mesmo do PNG" para reaproveitar.',
+    '<b>Mapa-base padrão (GeoTIFF):</b> escolha qual tile provider entra automaticamente quando o modelo é carregado na aba GeoTIFF — opções <i>Nenhum</i>, <i>Esri World Imagery</i> (satélite), <i>OpenStreetMap</i> ou <i>OpenTopoMap</i> (relevo). Ao trocar de modelo no painel, o mapa-base é reaplicado; se você mudar manualmente o select da sidebar direita, sua escolha vale enquanto o modelo continuar o mesmo.',
 ]))
 story.append(h2('Tabela de variáveis'))
 story.append(p(
@@ -497,13 +517,14 @@ story.append(numbered([
 story.append(h2('Ferramentas disponíveis'))
 story.append(tbl([
     ['Ícone', 'Ferramenta', 'O que mede / faz'],
-    ['📏', 'Distância',  'Soma do comprimento dos segmentos da linha (Haversine, em km).'],
-    ['▦',  'Área',       'Área do polígono fechado pelos cliques (km², esférica).'],
-    ['▭',  'Retângulo',  'Caixa lat/lon definida por dois cliques diagonais; reporta a área.'],
-    ['◯',  'Círculo',    'Raio definido a partir do centro; reporta raio em km e área em km².'],
-    ['╱',  'Linha',      'Polilinha simples (anotação visual).'],
-    ['T',  'Texto',      'Rótulo no mapa numa posição clicada.'],
-    ['∿',  'Perfil',     'Amostra a camada ativa ao longo da polilinha e abre um gráfico.'],
+    ['📏', 'Distância',     'Soma do comprimento dos segmentos da linha (Haversine, em km).'],
+    ['▦',  'Área',          'Área do polígono fechado pelos cliques (km², esférica).'],
+    ['▭',  'Retângulo',     'Caixa lat/lon definida por dois cliques diagonais; reporta a área.'],
+    ['◯',  'Círculo',       'Raio definido a partir do centro; reporta raio em km e área em km².'],
+    ['╱',  'Linha',         'Polilinha simples (anotação visual).'],
+    ['T',  'Texto',          'Rótulo no mapa numa posição clicada.'],
+    ['∿',  'Perfil',        'Amostra a camada ativa ao longo da polilinha e abre um gráfico.'],
+    ['⏱', 'Série temporal', 'Clique único em um ponto — varre todos os passos do slot e abre gráfico tempo×valor.'],
 ], col_widths=[1.2*cm, 3.2*cm, 11.5*cm]))
 story.append(h2('Ferramenta de perfil'))
 story.append(p(
@@ -519,6 +540,28 @@ story.append(bullets([
 story.append(tip(
     'O perfil sempre usa a <b>camada ativa</b>. Se quiser perfil de outra camada, clique no chip dela primeiro '
     'pra torná-la ativa, depois ative a ferramenta de perfil.'
+))
+story.append(h2('Série temporal num ponto'))
+story.append(p(
+    'Ativa pelo ícone do relógio. Clique <b>uma vez</b> em qualquer ponto do mapa. A ferramenta volta '
+    'automaticamente para o modo Pan e abre uma janela "Série temporal" mostrando o progresso da '
+    'amostragem (passo i/N).'
+))
+story.append(p(
+    'Internamente, para cada passo da rodada (de <code>frequencia</code> até <code>horizonte</code>) a ferramenta '
+    'constrói a URL do TIF via o mesmo pipeline da animação, baixa, decodifica e amostra o valor em '
+    '(lat, lon). Quando termina, abre um gráfico com:'
+))
+story.append(bullets([
+    'Eixo X: data/hora UTC da validade (rodada + N×Freq).',
+    'Eixo Y: valor do raster na coordenada.',
+    'Pontos azuis nos passos válidos (sem NoData).',
+    'Tooltip ao passar o mouse — data, "+Nh da rodada", valor exato.',
+    'Botão <b>Baixar CSV</b> (colunas: índice, passo_h, time_utc, lat, lon, valor).',
+    'Botão <b>Salvar PNG</b> do gráfico.',
+]))
+story.append(tip(
+    'Variáveis de análise/observação (frequência = 0) não têm grade temporal — a ferramenta alerta e não plota.'
 ))
 story.append(h2('Zoom com a roda do mouse durante uso de ferramentas'))
 story.append(p(
@@ -787,6 +830,13 @@ story.append(bullets([
     'Verifique se a ferramenta ativa é <b>Pan</b> (mãozinha) — clicar com uma ferramenta de medição ativa cria vértice, não consulta info.',
     'Confirme que a camada miscelânea está visível (olho aberto no chip).',
     'Para polígonos a detecção é point-in-polygon exato; para pontos a tolerância é ~10 px.',
+]))
+story.append(h2('Vídeo MP4 sai escuro ou só com poucos frames'))
+story.append(bullets([
+    'Verifique se está usando o GISELE empacotado (Electron). A versão standalone via <code>file://</code> tem CORS restritivo no fetch.',
+    'Para a aba PNG/GIF a gravação faz uma pré-busca de todos os passos antes de iniciar — espere a mensagem "Pré-buscando: X/Y" terminar antes de avaliar.',
+    'A duração mínima de cada passo no vídeo é 400 ms (≈ 24 frames a 30 fps). Velocidades de animação muito rápidas (0.2 s) são <i>ignoradas</i> na gravação para garantir playback fluido.',
+    'Se o vídeo abre mas o codec não é reconhecido pelo player, é WebM em vez de MP4 — qualquer browser moderno reproduz (VLC, Chrome, Edge).',
 ]))
 story.append(h2('Build marker e diagnóstico'))
 story.append(p(

@@ -1663,6 +1663,12 @@
                     <option value="2000">2.0 s</option>
                 </select>
             </div>
+            <div class="row">
+                <button class="btn btn-ghost" id="btnGravarVideo" title="Gera um MP4/WebM passando por todos os passos da rodada uma única vez (do primeiro ao último) e salva no disco." style="flex:1">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"><rect x="3" y="6" width="14" height="12" rx="1"/><polygon points="17 10 22 7 22 17 17 14"/></svg>
+                    Salvar vídeo (MP4)
+                </button>
+            </div>
             <div class="progress-bar" aria-hidden="true"><div class="progress-bar-fill" id="progressFill"></div></div>
             <button class="btn btn-ghost btn-block" id="btnResetZoom" title="Resetar zoom (R)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -1785,6 +1791,13 @@
                     <label style="display:inline-flex;gap:4px;align-items:center;font-weight:normal;color:var(--text)"><input type="checkbox" id="cfgTemPng" checked> PNG/GIF</label>
                     <label style="display:inline-flex;gap:4px;align-items:center;font-weight:normal;color:var(--text)"><input type="checkbox" id="cfgTemTif"> GeoTIFF (.tif)</label>
                 </label>
+                <label for="cfgMapProvider">Mapa-base padrão (GeoTIFF)</label>
+                <select id="cfgMapProvider" title="Tile provider aplicado por padrão quando este modelo é selecionado na aba GeoTIFF.">
+                    <option value="none">Nenhum (sem mapa)</option>
+                    <option value="esri" selected>Esri — World Imagery (satélite)</option>
+                    <option value="osm">OpenStreetMap</option>
+                    <option value="topo">OpenTopoMap (relevo)</option>
+                </select>
                 <label for="cfgExtensaoTif">Sufixo do arquivo TIF</label>
                 <select id="cfgExtensaoTif">
                     <option value=".tif" selected>.tif</option>
@@ -2053,8 +2066,8 @@
                 <label style="display:inline-flex;align-items:center;gap:6px">Cor: <input type="color" id="gtContourColor" value="#ffffff" style="width:36px;height:24px;padding:0;border:1px solid var(--border-soft);border-radius:3px"></label>
                 <label style="display:inline-flex;align-items:center;gap:6px">Largura: <input type="number" id="gtContourWidth" min="0.5" max="5" step="0.5" value="1" style="width:60px"></label>
                 <label style="display:inline-flex;align-items:center;gap:6px" title="0 = sem rótulos. N = rotular a cada N-ésimo contorno.">Rotular cada: <input type="number" id="gtContourLabel" min="0" max="20" step="1" value="0" style="width:60px"></label>
-                <label style="display:inline-flex;align-items:center;gap:6px" title="Quando marcado, mostra os contornos POR CIMA do shading. Sem marcar, mostra só as isolinhas (sem preenchimento).">
-                    <input type="checkbox" id="gtContourKeepFill"> Manter preenchimento
+                <label style="display:inline-flex;align-items:center;gap:6px" title="Marcado (padrão): mostra os contornos POR CIMA do shading. Desmarque para ver só as isolinhas.">
+                    <input type="checkbox" id="gtContourKeepFill" checked> Manter preenchimento
                 </label>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
@@ -4043,6 +4056,283 @@
         announce('Animação pausada');
     }
     function toggleAnimacao() { state.animando ? pararAnimacao() : iniciarAnimacao(); }
+
+    // ─── Gravação de vídeo MP4/WebM da evolução temporal ───
+    // Varre todos os passos UMA ÚNICA VEZ (do primeiro ao último), compõe cada
+    // frame num canvas off-screen (juntando todos os slots visíveis), grava via
+    // MediaRecorder e salva como arquivo. Funciona em ambas as abas (PNG/GIF e
+    // GeoTIFF) porque desenha o que ESTÁ na tela: <img> ativos para PNG e
+    // canvas .map-canvas-gt para GeoTIFF.
+    let _gtRecordingActive = false;
+    async function gravarVideoEvolucaoTemporal() {
+        if (_gtRecordingActive) { showToast && showToast('Gravação já em andamento.'); return; }
+        if (!window.MediaRecorder) { alert('Seu navegador não suporta MediaRecorder.'); return; }
+        if (state.animando) pararAnimacao();
+        const mapContainer = document.querySelector('.map-container');
+        if (!mapContainer) { alert('Container de mapa não encontrado.'); return; }
+        const rect = mapContainer.getBoundingClientRect();
+        const W = Math.max(64, Math.round(rect.width));
+        const H = Math.max(64, Math.round(rect.height));
+        // Canvas de gravação
+        const recCv = document.createElement('canvas');
+        recCv.width = W; recCv.height = H;
+        const recCtx = recCv.getContext('2d');
+        recCtx.fillStyle = '#0e1622'; recCtx.fillRect(0, 0, W, H);
+        // Escolhe melhor mimetype disponível (MP4 primeiro)
+        const mimeCandidates = [
+            'video/mp4;codecs=avc1.42E01E',
+            'video/mp4;codecs=h264',
+            'video/mp4',
+            'video/webm;codecs=h264',
+            'video/webm;codecs=vp9',
+            'video/webm;codecs=vp8',
+            'video/webm'
+        ];
+        let mime = '';
+        for (const mc of mimeCandidates) {
+            try { if (MediaRecorder.isTypeSupported(mc)) { mime = mc; break; } } catch (_) {}
+        }
+        if (!mime) { alert('Nenhum codec de vídeo suportado.'); return; }
+        // Captura sempre a 30 fps; o que controla a duração de cada step no vídeo
+        // é o intervalo de tempo entre setPasso + drawStepFrame. Capturas a fps alto
+        // garantem que o MediaRecorder sample cada frame ao menos uma vez.
+        const fps = 30;
+        const stream = recCv.captureStream(fps);
+        const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+        const chunks = [];
+        recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+        // Popup de progresso (com botão Cancelar)
+        const pop = document.createElement('div');
+        pop.id = 'gtVideoRecPopup';
+        pop.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;color:#0f172a;padding:18px 26px;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.35);z-index:99999;font-family:ui-sans-serif,system-ui,sans-serif;text-align:center;min-width:280px';
+        pop.innerHTML = ''
+            + '<div style="font-weight:600;font-size:14px;margin-bottom:8px">Gravando vídeo…</div>'
+            + '<div id="gtRecProg" style="font-size:12px;color:#475569;margin-bottom:10px">Passo 0 / 0</div>'
+            + '<div style="font-size:11px;color:#94a3b8;margin-bottom:10px">Codec: ' + mime.split(';')[0] + ' · ' + fps + ' fps</div>'
+            + '<button id="gtRecCancel" style="padding:5px 14px;background:#dc2626;border:0;color:#fff;border-radius:5px;cursor:pointer;font-size:12px">Cancelar</button>';
+        document.body.appendChild(pop);
+        const progEl = pop.querySelector('#gtRecProg');
+        let canceled = false;
+        pop.querySelector('#gtRecCancel').addEventListener('click', () => { canceled = true; });
+        // Fetch via blob → Image (não tainta canvas)
+        async function _fetchAsBlobImage(url) {
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const blob = await resp.blob();
+                const objUrl = URL.createObjectURL(blob);
+                const img = new Image();
+                await new Promise((res, rej) => {
+                    img.onload = () => res();
+                    img.onerror = () => rej(new Error('img load fail'));
+                    img.src = objUrl;
+                });
+                return { img, objUrl };
+            } catch (e) {
+                console.warn('[GISELE/Video] fetch blob falhou:', url, e && e.message);
+                return null;
+            }
+        }
+        // Determina geometria dos slots (uma vez). Em modo PNG, o conteúdo do
+        // .map-viewport pode ter transform (zoom/pan) — só capturamos a região
+        // visível VEM da intersecção do <img> transformado com o slot (clip).
+        const slotGeoms = []; // [{ dx, dy, w, h, mode: 'gt'|'png', cvGt?, slot, slotIdx }]
+        const slotList = Array.from(mapContainer.querySelectorAll('.map-box'));
+        slotList.forEach((slot, idx) => {
+            const cs = getComputedStyle(slot);
+            if (cs.display === 'none' || cs.visibility === 'hidden') return;
+            const sr = slot.getBoundingClientRect();
+            if (sr.width === 0 || sr.height === 0) return;
+            const dx = sr.left - rect.left;
+            const dy = sr.top - rect.top;
+            const cvGt = slot.querySelector('.map-canvas-gt');
+            const isGt = !!(cvGt && slot.classList.contains('gt-map-active'));
+            slotGeoms.push({ dx, dy, w: sr.width, h: sr.height, mode: isGt ? 'gt' : 'png', cvGt, slot, slotIdx: idx, slotRect: sr });
+        });
+        // Listas de passos e janela de tempo
+        const step = state.stepFreq || 1;
+        const totalSteps = Math.max(1, Math.floor((state.maxPassos || step) / step));
+        const interval = Math.max(120, state.tempo || 500);
+        _gtRecordingActive = true;
+        const btn = document.getElementById('btnGravarVideo');
+        if (btn) { btn.disabled = true; btn.textContent = 'Gravando…'; }
+        // ─── FASE 1: PRÉ-BUSCA ───
+        // Pra cada slot PNG e cada passo, monta a URL e busca o blob.
+        // Em GT mode, vamos snapshotar o canvas a cada passo durante a gravação.
+        progEl.textContent = 'Pré-buscando imagens…';
+        const pngJobs = slotGeoms.filter(g => g.mode === 'png');
+        const hasPng = pngJobs.length > 0;
+        // urls[stepNo][slotIdx] = url; frames[stepNo][slotIdx] = {img, objUrl} or null
+        const stepValues = [];
+        for (let p = step; p <= state.maxPassos; p += step) stepValues.push(p);
+        const frames = stepValues.map(() => []);
+        if (hasPng) {
+            const allTasks = [];
+            stepValues.forEach((passo_h, sIdx) => {
+                pngJobs.forEach(geom => {
+                    const slot = state.slots[geom.slotIdx];
+                    if (!slot || !slot.modelo || !slot.data || !slot.variavel) return;
+                    // Calcula passo efetivo para slot N (offset por data)
+                    let effPasso = passo_h;
+                    if (geom.slotIdx > 0) {
+                        const s0 = state.slots[0];
+                        if (s0 && s0.data && slot.data && s0.data !== slot.data) {
+                            try {
+                                const dh = (dataFTPtoDate(s0.data) - dataFTPtoDate(slot.data)) / 3600000;
+                                effPasso = passo_h + Math.round(dh);
+                            } catch (_) {}
+                        }
+                    }
+                    const url = montarURL({ modelo: slot.modelo, data: slot.data, variavel: slot.variavel, passo: effPasso });
+                    if (!url) return;
+                    allTasks.push(
+                        _fetchAsBlobImage(url).then(r => { frames[sIdx][geom.slotIdx] = r; })
+                    );
+                });
+            });
+            // Progresso enquanto pré-busca (não atualiza por task; só conta done)
+            let done = 0;
+            const total = allTasks.length;
+            const tracked = allTasks.map(p => p.finally(() => {
+                done++;
+                if (progEl) progEl.textContent = 'Pré-buscando: ' + done + '/' + total;
+            }));
+            await Promise.all(tracked);
+        }
+        if (canceled) {
+            _gtRecordingActive = false;
+            try { pop.remove(); } catch (_) {}
+            if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"><rect x="3" y="6" width="14" height="12" rx="1"/><polygon points="17 10 22 7 22 17 17 14"/></svg> Salvar vídeo (MP4)'; }
+            return;
+        }
+        // ─── FASE 2: GRAVAÇÃO ───
+        // Função de composição: usa frames pré-carregados (PNG) e captura ao vivo (GT).
+        // Para PNG, lê transforms (zoom/pan) AO VIVO em cada frame e aplica como
+        // crop no drawImage usando (sx,sy,sw,sh,dx,dy,dw,dh) — replica a área visível.
+        function drawStepFrame(stepIdx) {
+            slotGeoms.forEach(geom => {
+                if (geom.mode === 'gt' && geom.cvGt) {
+                    try { recCtx.drawImage(geom.cvGt, geom.dx, geom.dy, geom.w, geom.h); } catch (_) {}
+                } else if (geom.mode === 'png') {
+                    const cell = frames[stepIdx] && frames[stepIdx][geom.slotIdx];
+                    if (!cell || !cell.img) {
+                        recCtx.fillStyle = '#0e1622';
+                        recCtx.fillRect(geom.dx, geom.dy, geom.w, geom.h);
+                        return;
+                    }
+                    // Lê o <img> AO VIVO pra pegar transform (zoom/pan). O <img> tem
+                    // object-fit: contain, então a IMAGEM EXIBIDA fica centralizada
+                    // dentro do box do <img> com aspect ratio preservado — NÃO usa
+                    // o box inteiro. Precisamos calcular o sub-rect contained.
+                    const liveImg = geom.slot.querySelector('.map-img.active');
+                    let boxRect = null;
+                    try { if (liveImg) boxRect = liveImg.getBoundingClientRect(); } catch (_) {}
+                    const srect = geom.slot.getBoundingClientRect();
+                    if (!boxRect || boxRect.width === 0 || boxRect.height === 0) {
+                        try { recCtx.drawImage(cell.img, geom.dx, geom.dy, geom.w, geom.h); } catch (_) {}
+                        return;
+                    }
+                    // object-fit: contain → imagem ocupa o maior retângulo que cabe
+                    // mantendo aspect, centralizada
+                    const nW = cell.img.naturalWidth, nH = cell.img.naturalHeight;
+                    const fit = Math.min(boxRect.width / nW, boxRect.height / nH);
+                    const dispW = nW * fit;
+                    const dispH = nH * fit;
+                    const irect = {
+                        left:   boxRect.left + (boxRect.width  - dispW) / 2,
+                        top:    boxRect.top  + (boxRect.height - dispH) / 2,
+                        width:  dispW,
+                        height: dispH
+                    };
+                    irect.right  = irect.left + irect.width;
+                    irect.bottom = irect.top  + irect.height;
+                    // Intersecção da imagem exibida com a janela (slot) — clipping
+                    const ix0 = Math.max(irect.left,  srect.left);
+                    const iy0 = Math.max(irect.top,   srect.top);
+                    const ix1 = Math.min(irect.right,  srect.right);
+                    const iy1 = Math.min(irect.bottom, srect.bottom);
+                    // Fundo escuro fora da intersecção
+                    recCtx.fillStyle = '#0e1622';
+                    recCtx.fillRect(geom.dx, geom.dy, geom.w, geom.h);
+                    if (ix1 <= ix0 || iy1 <= iy0) return;
+                    // Source rect em pixels naturais (proporcional → aspect preservado)
+                    const sx = (ix0 - irect.left) / dispW * nW;
+                    const sy = (iy0 - irect.top)  / dispH * nH;
+                    const sw = (ix1 - ix0)        / dispW * nW;
+                    const sh = (iy1 - iy0)        / dispH * nH;
+                    // Destino no canvas de gravação: mesma proporção do source
+                    const ddx = (ix0 - srect.left) + geom.dx;
+                    const ddy = (iy0 - srect.top)  + geom.dy;
+                    const ddw = ix1 - ix0;
+                    const ddh = iy1 - iy0;
+                    try {
+                        recCtx.drawImage(cell.img, sx, sy, sw, sh, ddx, ddy, ddw, ddh);
+                    } catch (e) { console.warn('drawImage clip', e); }
+                }
+            });
+        }
+        // captureStream só emite frame QUANDO O CANVAS MUDA. Se eu desenhar uma
+        // vez e dormir, só sai 1 frame por passo. Pra ter playback suave, redesenho
+        // a cada ~33 ms (30 fps) durante toda a janela frameDuration. Isso força
+        // captureStream a emitir um frame em cada tick.
+        const frameDuration = Math.max(400, interval);
+        async function holdAndPaint(stepIdx, durationMs) {
+            const start = performance.now();
+            while (performance.now() - start < durationMs) {
+                if (canceled) break;
+                drawStepFrame(stepIdx);
+                // Pixel "anti-dedup": pinta 1px de cor variável fora da área visível
+                // para garantir que o canvas seja considerado "modificado" e o
+                // captureStream emita um novo frame mesmo com conteúdo idêntico.
+                recCtx.fillStyle = 'rgba(' + (Math.floor(performance.now()) & 255) + ',0,0,0)';
+                recCtx.fillRect(0, 0, 1, 1);
+                await new Promise(r => requestAnimationFrame(r));
+            }
+        }
+        // Inicia no primeiro passo (também atualiza UI principal pra GT)
+        setPasso(step);
+        await new Promise(r => setTimeout(r, Math.min(200, interval)));
+        recorder.start(100);  // timeslice 100 ms → flush dataavailable mais frequente
+        if (progEl) progEl.textContent = 'Gravando 1 / ' + totalSteps;
+        await holdAndPaint(0, frameDuration);
+        // Loop
+        for (let i = 1; i < stepValues.length; i++) {
+            if (canceled) break;
+            setPasso(stepValues[i]);
+            // Espera GT renderizar (no-op em PNG)
+            await new Promise(r => setTimeout(r, 80));
+            if (progEl) progEl.textContent = 'Gravando ' + (i + 1) + ' / ' + totalSteps;
+            await holdAndPaint(i, frameDuration);
+        }
+        // Mantém o último frame mais tempo (continua repintando)
+        await holdAndPaint(stepValues.length - 1, 500);
+        try { recorder.stop(); } catch (_) {}
+        // Cleanup dos objUrls
+        frames.forEach(row => row.forEach(cell => { if (cell && cell.objUrl) try { URL.revokeObjectURL(cell.objUrl); } catch (_) {} }));
+        // Aguarda finalização do recorder
+        await new Promise(r => { recorder.onstop = r; setTimeout(r, 800); });
+        _gtRecordingActive = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"><rect x="3" y="6" width="14" height="12" rx="1"/><polygon points="17 10 22 7 22 17 17 14"/></svg> Salvar vídeo (MP4)'; }
+        try { pop.remove(); } catch (_) {}
+        if (canceled || !chunks.length) {
+            try { showToast && showToast('Gravação cancelada'); } catch (_) {}
+            return;
+        }
+        // Salva o blob
+        const blob = new Blob(chunks, { type: mime });
+        const url = URL.createObjectURL(blob);
+        const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+        const s0 = state.slots && state.slots[0];
+        const m0 = s0 && modelos[s0.modelo];
+        const tag = (m0 ? (m0.nome || s0.modelo) : 'evolucao') + (s0 && s0.variavel ? '_' + s0.variavel : '');
+        const safeTag = String(tag).replace(/[^a-z0-9]/gi, '_').slice(0, 60);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'evolucao_' + safeTag + '_' + new Date().toISOString().replace(/[:.]/g,'-').slice(0,19) + '.' + ext;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        try { showToast && showToast('Vídeo salvo (' + (blob.size / 1024 / 1024).toFixed(1) + ' MB)'); } catch (_) {}
+    }
+
     function pararEResetar() {
         if (state.animando) pararAnimacao();
         setPasso(state.stepFreq || 1);
@@ -4595,6 +4885,8 @@
         const cbTif = document.getElementById('cfgTemTif');
         cbPng.checked = (m.tem_png !== false);  // default true
         cbTif.checked = !!m.tem_tif;
+        const mapProvSel = document.getElementById('cfgMapProvider');
+        if (mapProvSel) mapProvSel.value = (['none','esri','osm','topo'].indexOf(m.mapProvider) >= 0) ? m.mapProvider : 'esri';
         const extTifSel = document.getElementById('cfgExtensaoTif');
         if (extTifSel) extTifSel.value = m.extensao_tif || '.tif';
         const sameUrl = document.getElementById('cfgSameUrlForTif');
@@ -4659,6 +4951,8 @@
         m.file_name = document.getElementById('cfgFileName').value;
         m.tem_png = !!document.getElementById('cfgTemPng').checked;
         m.tem_tif = !!document.getElementById('cfgTemTif').checked;
+        const _mpSel = document.getElementById('cfgMapProvider');
+        if (_mpSel && _mpSel.value) m.mapProvider = _mpSel.value;
         m.extensao_tif = document.getElementById('cfgExtensaoTif').value || '.tif';
         m.same_url_for_tif = !!document.getElementById('cfgSameUrlForTif').checked;
         m.same_name_for_tif = !!document.getElementById('cfgSameNameForTif').checked;
@@ -4820,6 +5114,10 @@
         DOM.btnPrev.addEventListener('click', passoAnterior);
         DOM.btnNext.addEventListener('click', passoProximo);
         DOM.btnStop.addEventListener('click', pararEResetar);
+        const btnGravar = document.getElementById('btnGravarVideo');
+        if (btnGravar) btnGravar.addEventListener('click', () => {
+            gravarVideoEvolucaoTemporal().catch(e => { console.error('gravar video', e); alert('Falha na gravação: ' + (e && e.message)); });
+        });
         DOM.btnResetZoom.addEventListener('click', () => { resetarZoom(true); showToast('Zoom resetado'); });
 
         DOM.velocidade.addEventListener('change', (e) => setVelocidade(Number(e.target.value)));
@@ -5427,7 +5725,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260528-4600-notoggle'); document.documentElement.setAttribute('data-build', '20260528-4600-notoggle'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260529-1900-videofitfps'); document.documentElement.setAttribute('data-build', '20260529-1900-videofitfps'); } catch (_) {}
         loadModelos();
         buildSlots();
         const restored = loadUIPrefs();
@@ -6933,6 +7231,363 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 200);
     }
+    // ─── Série temporal num ponto ───
+    // Reusa montarURL/gtDeriveTifUrl/_gtFetchAndDecode para cada passo do slot ativo
+    // e amostra a camada PRIMARY no (lat,lon).
+    async function gtSampleTimeSeries(slotIdx, lat, lon, onProgress) {
+        const s = state && state.slots && state.slots[slotIdx];
+        if (!s || !s.modelo || !s.data || !s.variavel) {
+            throw new Error('slot ' + slotIdx + ' sem modelo/data/variável.');
+        }
+        const m = modelos[s.modelo];
+        const v = getVariavel(s.modelo, s.variavel);
+        if (!m || !v) throw new Error('modelo/variável inválido.');
+        const freqRaw = (v.frequencia == null) ? 1 : Number(v.frequencia);
+        if (freqRaw <= 0) throw new Error('série temporal indisponível: variável de análise/observação (Freq=0).');
+        const freq = Math.max(1, freqRaw);
+        // Mesma lógica do UI (linha ~3711): variável manda; m.maxPassos é só fallback
+        // — NÃO usar como teto, porque modelos legacy têm maxPassos=30 enquanto
+        // a variável tem horizonte=720 (ex.: BESM Global PREC freq=24, horizonte=720).
+        const horizon = Math.max(freq, (v.horizonte || m.maxPassos || 24));
+        // Passos: passo_h = file_idx * freq, file_idx=1..horizon/freq
+        const fileMax = Math.floor(horizon / freq);
+        if (fileMax < 1) throw new Error('horizonte zero — sem passos.');
+        console.log('[GISELE/TS]', { modelo: s.modelo, variavel: s.variavel, freq, horizon, fileMax });
+        // Nome de exibição da camada (modelo · variável)
+        const layerName = ((m.nome || s.modelo) + ' · ' + s.variavel);
+        // Decide se precisamos derivar URL .tif a partir do template png/gif
+        const isNativeGt = (typeof SisMOM_GeoTIFF !== 'undefined') && SisMOM_GeoTIFF.isGeoTiffModel(m);
+        const hasOwnTifRoute = !isNativeGt && ((m.url_path_tif && !m.same_url_for_tif) || (m.file_name_tif && !m.same_name_for_tif));
+        const samples = [];
+        let firstBbox = null;
+        for (let file_idx = 1; file_idx <= fileMax; file_idx++) {
+            const passo_h = file_idx * freq;
+            // Constrói URL do TIF para este passo
+            let urlTif = null;
+            try {
+                if (isNativeGt) {
+                    urlTif = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
+                } else if (hasOwnTifRoute) {
+                    const mTif = Object.assign({}, m, {
+                        url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path),
+                        file_name: m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name),
+                        extensao: m.extensao_tif || '.tif'
+                    });
+                    const orig = modelos[s.modelo];
+                    modelos[s.modelo] = mTif;
+                    try { urlTif = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h }); }
+                    finally { modelos[s.modelo] = orig; }
+                } else {
+                    const urlPng = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
+                    urlTif = (typeof gtDeriveTifUrl === 'function') ? gtDeriveTifUrl(urlPng) : urlPng;
+                }
+            } catch (e) { console.warn('[gtSampleTimeSeries] passo', passo_h, 'url err', e); }
+            // Data de validade = rodada + passo_h
+            const validDate = new Date(dataFTPtoDate(s.data).getTime() + passo_h * 3600000);
+            if (!urlTif) {
+                samples.push({ passo_h, time: validDate, value: null, url: null });
+                if (onProgress) onProgress(file_idx, fileMax, validDate, null);
+                continue;
+            }
+            let value = null;
+            try {
+                const decoded = await _gtFetchAndDecode(urlTif);
+                if (!firstBbox) firstBbox = decoded.bbox;
+                const sample = gtSampleDecodedAtLatLon(decoded, lat, lon);
+                value = (sample && sample.valid && !sample.noData) ? sample.value : null;
+            } catch (e) {
+                console.warn('[gtSampleTimeSeries] passo', passo_h, 'fetch err', e && e.message);
+            }
+            samples.push({ passo_h, time: validDate, value, url: urlTif });
+            if (onProgress) onProgress(file_idx, fileMax, validDate, value);
+        }
+        return { samples, layerName, lat, lon, runDate: dataFTPtoDate(s.data), bbox: firstBbox };
+    }
+    function gtOpenTimeSeriesPopup(slotIdx, lat, lon) {
+        try { const old = document.getElementById('gtTSPopup'); if (old) old.remove(); } catch (_) {}
+        const pop = document.createElement('div');
+        pop.id = 'gtTSPopup';
+        pop.style.cssText = [
+            'position:fixed', 'left:50%', 'top:50%', 'transform:translate(-50%,-50%)',
+            'width:760px', 'height:500px', 'min-width:520px', 'min-height:340px',
+            'max-width:95vw', 'max-height:90vh',
+            'background:#ffffff', 'border:1px solid #d4dbe6', 'border-radius:8px',
+            'box-shadow:0 12px 40px rgba(0,0,0,0.35)', 'z-index:99999',
+            'font-family:ui-sans-serif,system-ui,sans-serif', 'color:#1f2937',
+            'display:flex', 'flex-direction:column',
+            'resize:both', 'overflow:hidden'
+        ].join(';');
+        pop.innerHTML = ''
+            + '<div style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;display:flex;align-items:center;gap:8px;flex:0 0 auto">'
+            +   '<strong style="color:#0f172a">Série temporal</strong>'
+            +   '<span style="color:#475569">·</span>'
+            +   '<span id="gtTSHeader">carregando…</span>'
+            +   '<span id="gtTSProgress" style="margin-left:auto;color:#475569;font-size:11px"></span>'
+            +   '<button id="gtTSCancel" title="Cancelar/Fechar" style="background:transparent;border:0;color:#475569;font-size:22px;cursor:pointer;line-height:1;padding:0 6px">&times;</button>'
+            + '</div>'
+            + '<div id="gtTSChartWrap" style="flex:1 1 auto;position:relative;background:#ffffff;overflow:hidden">'
+            +   '<canvas id="gtTSChart" style="display:block;width:100%;height:100%"></canvas>'
+            +   '<div id="gtTSTip" style="position:absolute;display:none;pointer-events:none;background:#0f172a;color:#fff;padding:6px 9px;border-radius:5px;font-size:11px;font-family:ui-monospace,monospace;box-shadow:0 4px 12px rgba(0,0,0,0.25);line-height:1.4;white-space:nowrap;z-index:2"></div>'
+            +   '<div id="gtTSCursor" style="position:absolute;display:none;pointer-events:none;top:0;bottom:0;width:1px;background:rgba(15,23,42,0.35);z-index:1"></div>'
+            + '</div>'
+            + '<div style="padding:8px 14px;border-top:1px solid #e5e7eb;flex:0 0 auto;display:flex;gap:8px;align-items:center">'
+            +   '<span style="color:#475569;font-size:11px">Ponto: lat <strong>' + lat.toFixed(4) + '°</strong>, lon <strong>' + lon.toFixed(4) + '°</strong></span>'
+            +   '<button id="gtTSDownload" style="margin-left:auto;padding:5px 12px;background:#2563eb;border:0;color:#fff;border-radius:5px;cursor:pointer;font-size:12px">Baixar CSV</button>'
+            +   '<button id="gtTSSavePNG" style="padding:5px 12px;background:#0ea5e9;border:0;color:#fff;border-radius:5px;cursor:pointer;font-size:12px">Salvar PNG</button>'
+            + '</div>';
+        document.body.appendChild(pop);
+        // State pra redraw e hover
+        const state2 = { ts: null, chartGeom: null, aborted: false };
+        pop._tsState = state2;
+        const drawNow = () => _gtDrawTimeSeriesChart(pop, state2);
+        try {
+            const ro = new ResizeObserver(() => drawNow());
+            ro.observe(pop);
+            pop._gtRO = ro;
+        } catch (_) {}
+        // Hover tooltip + cursor (após termos os dados)
+        const wrap = pop.querySelector('#gtTSChartWrap');
+        const tip  = pop.querySelector('#gtTSTip');
+        const cursor = pop.querySelector('#gtTSCursor');
+        wrap.addEventListener('mousemove', (e) => {
+            const g = state2.chartGeom;
+            const ts = state2.ts;
+            if (!g || !ts || !ts.samples.length) return;
+            const r = wrap.getBoundingClientRect();
+            const mx = e.clientX - r.left, my = e.clientY - r.top;
+            if (mx < g.plotX || mx > g.plotX + g.plotW || my < g.plotY || my > g.plotY + g.plotH) {
+                tip.style.display = 'none'; cursor.style.display = 'none'; return;
+            }
+            const xFrac = (mx - g.plotX) / g.plotW;
+            const targetT = g.tMin + xFrac * (g.tMax - g.tMin);
+            let best = 0, bestDiff = Infinity;
+            for (let i = 0; i < ts.samples.length; i++) {
+                const d = Math.abs(ts.samples[i].time.getTime() - targetT);
+                if (d < bestDiff) { bestDiff = d; best = i; }
+            }
+            const s = ts.samples[best];
+            cursor.style.display = 'block';
+            cursor.style.left = mx + 'px';
+            const valTxt = (s.value == null || !isFinite(s.value)) ? '—' : gtFmtValue(s.value);
+            tip.innerHTML = ''
+                + '<div><strong>' + _gtFmtDateTime(s.time) + ' UTC</strong></div>'
+                + '<div>+' + s.passo_h + 'h da rodada</div>'
+                + '<div>Valor: <strong>' + valTxt + '</strong></div>';
+            tip.style.display = 'block';
+            const tipW = tip.offsetWidth, tipH = tip.offsetHeight;
+            let tx = mx + 10, ty = my + 10;
+            if (tx + tipW > r.width - 8) tx = mx - tipW - 10;
+            if (ty + tipH > r.height - 8) ty = my - tipH - 10;
+            tip.style.left = Math.max(4, tx) + 'px';
+            tip.style.top = Math.max(4, ty) + 'px';
+        });
+        wrap.addEventListener('mouseleave', () => {
+            tip.style.display = 'none'; cursor.style.display = 'none';
+        });
+        // Botões
+        pop.querySelector('#gtTSCancel').addEventListener('click', () => {
+            state2.aborted = true;
+            try { pop._gtRO && pop._gtRO.disconnect(); } catch (_) {}
+            pop.remove();
+        });
+        pop.querySelector('#gtTSDownload').addEventListener('click', () => {
+            if (state2.ts) _gtDownloadTimeSeriesCSV(state2.ts);
+        });
+        pop.querySelector('#gtTSSavePNG').addEventListener('click', () => {
+            if (!state2.ts) return;
+            try {
+                _gtDrawTimeSeriesChart(pop, state2);
+                const cv = pop.querySelector('#gtTSChart');
+                const dataUrl = cv.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = 'serie_' + state2.ts.layerName.replace(/[^a-z0-9]/gi, '_').slice(0, 40) + '.png';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            } catch (e) { console.error('savePNG TS', e); alert('Não foi possível salvar PNG: ' + (e && e.message)); }
+        });
+        // Header básico
+        const headerEl = pop.querySelector('#gtTSHeader');
+        const progEl   = pop.querySelector('#gtTSProgress');
+        // Mensagem inicial enquanto carrega
+        const ctx0 = pop.querySelector('#gtTSChart').getContext('2d');
+        ctx0.fillStyle = '#ffffff';
+        ctx0.fillRect(0, 0, 9999, 9999);
+        ctx0.fillStyle = '#475569';
+        ctx0.font = '14px ui-sans-serif, system-ui, sans-serif';
+        ctx0.fillText('Carregando passos…', 24, 40);
+        // Dispara o sampling em background
+        (async () => {
+            try {
+                const ts = await gtSampleTimeSeries(slotIdx, lat, lon, (i, total, t, v) => {
+                    if (state2.aborted) return;
+                    progEl.textContent = i + '/' + total + ' passos';
+                    // Atualiza header com layer name + janela temporal
+                    if (i === 1) {
+                        headerEl.textContent = '(carregando…)';
+                    }
+                });
+                if (state2.aborted) return;
+                state2.ts = ts;
+                const validVals = ts.samples.filter(s => s.value != null && isFinite(s.value));
+                headerEl.textContent = ts.layerName
+                    + ' · ' + ts.samples.length + ' passos'
+                    + ' · ' + validVals.length + ' válidos';
+                progEl.textContent = 'concluído';
+                drawNow();
+                setTimeout(drawNow, 30);
+            } catch (e) {
+                console.error('TS sampling err', e);
+                progEl.textContent = 'erro';
+                ctx0.clearRect(0, 0, 9999, 9999);
+                ctx0.fillStyle = '#b91c1c';
+                ctx0.font = '13px ui-sans-serif, system-ui, sans-serif';
+                ctx0.fillText('Falha: ' + (e && e.message), 24, 40);
+            }
+        })();
+    }
+    function _gtFmtDateTime(d) {
+        const y = d.getUTCFullYear();
+        const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(d.getUTCDate()).padStart(2, '0');
+        const hh = String(d.getUTCHours()).padStart(2, '0');
+        return dd + '/' + mm + '/' + y + ' ' + hh + 'h';
+    }
+    function _gtFmtDateShort(d) {
+        const dd = String(d.getUTCDate()).padStart(2, '0');
+        const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const hh = String(d.getUTCHours()).padStart(2, '0');
+        return dd + '/' + mm + ' ' + hh + 'h';
+    }
+    function _gtDrawTimeSeriesChart(pop, st) {
+        const cv = pop.querySelector('#gtTSChart');
+        if (!cv) return;
+        const wrap = pop.querySelector('#gtTSChartWrap');
+        const r = wrap.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        cv.width  = Math.max(1, Math.round(r.width  * dpr));
+        cv.height = Math.max(1, Math.round(r.height * dpr));
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const W = r.width, H = r.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+        const ts = st.ts;
+        if (!ts || !ts.samples.length) {
+            ctx.fillStyle = '#475569';
+            ctx.font = '14px ui-sans-serif, system-ui, sans-serif';
+            ctx.fillText('Sem dados.', 24, 40);
+            return;
+        }
+        const margin = { l: 64, r: 16, t: 14, b: 50 };
+        const plotW = Math.max(50, W - margin.l - margin.r);
+        const plotH = Math.max(50, H - margin.t - margin.b);
+        // Ranges
+        let yMin = Infinity, yMax = -Infinity;
+        for (const s of ts.samples) {
+            if (s.value == null || !isFinite(s.value)) continue;
+            if (s.value < yMin) yMin = s.value;
+            if (s.value > yMax) yMax = s.value;
+        }
+        if (!isFinite(yMin)) { yMin = 0; yMax = 1; }
+        if (yMax === yMin) { yMin -= 1; yMax += 1; }
+        const tMin = ts.samples[0].time.getTime();
+        const tMax = ts.samples[ts.samples.length - 1].time.getTime();
+        const tSpan = Math.max(1, tMax - tMin);
+        const xToPx = (t) => margin.l + ((t - tMin) / tSpan) * plotW;
+        const yToPy = (y) => margin.t + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+        // Grid
+        ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) {
+            const py = margin.t + (i / 5) * plotH;
+            ctx.beginPath(); ctx.moveTo(margin.l, py); ctx.lineTo(margin.l + plotW, py); ctx.stroke();
+        }
+        for (let i = 0; i <= 6; i++) {
+            const px = margin.l + (i / 6) * plotW;
+            ctx.beginPath(); ctx.moveTo(px, margin.t); ctx.lineTo(px, margin.t + plotH); ctx.stroke();
+        }
+        // Eixos
+        ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(margin.l, margin.t); ctx.lineTo(margin.l, margin.t + plotH); ctx.lineTo(margin.l + plotW, margin.t + plotH);
+        ctx.stroke();
+        // Ticks X (rótulos de tempo, ~6 ticks rotacionados 30°)
+        ctx.fillStyle = '#1f2937'; ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+        for (let i = 0; i <= 6; i++) {
+            const frac = i / 6;
+            const tt = tMin + frac * tSpan;
+            const px = xToPx(tt);
+            ctx.beginPath(); ctx.moveTo(px, margin.t + plotH); ctx.lineTo(px, margin.t + plotH + 4); ctx.stroke();
+            const txt = _gtFmtDateShort(new Date(tt));
+            const tw = ctx.measureText(txt).width;
+            ctx.save();
+            ctx.translate(px - 4, margin.t + plotH + 16);
+            ctx.rotate(-Math.PI / 8);
+            ctx.fillText(txt, -tw / 2, 0);
+            ctx.restore();
+        }
+        // Ticks Y
+        for (let i = 0; i <= 5; i++) {
+            const y = yMin + (i / 5) * (yMax - yMin);
+            const py = yToPy(y);
+            ctx.beginPath(); ctx.moveTo(margin.l - 4, py); ctx.lineTo(margin.l, py); ctx.stroke();
+            const txt = gtFmtValue(y);
+            const tw = ctx.measureText(txt).width;
+            ctx.fillText(txt, margin.l - tw - 6, py + 4);
+        }
+        // Fill area + line
+        ctx.fillStyle = 'rgba(14,165,233,0.10)';
+        ctx.beginPath();
+        let started = false, lastPx = margin.l;
+        for (const s of ts.samples) {
+            if (s.value == null || !isFinite(s.value)) continue;
+            const px = xToPx(s.time.getTime()), py = yToPy(s.value);
+            if (!started) { ctx.moveTo(px, margin.t + plotH); ctx.lineTo(px, py); started = true; }
+            else { ctx.lineTo(px, py); }
+            lastPx = px;
+        }
+        if (started) { ctx.lineTo(lastPx, margin.t + plotH); ctx.closePath(); ctx.fill(); }
+        ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        started = false;
+        for (const s of ts.samples) {
+            if (s.value == null || !isFinite(s.value)) { started = false; continue; }
+            const px = xToPx(s.time.getTime()), py = yToPy(s.value);
+            if (!started) { ctx.moveTo(px, py); started = true; }
+            else { ctx.lineTo(px, py); }
+        }
+        ctx.stroke();
+        // Pontos
+        ctx.fillStyle = '#0ea5e9';
+        for (const s of ts.samples) {
+            if (s.value == null || !isFinite(s.value)) continue;
+            const px = xToPx(s.time.getTime()), py = yToPy(s.value);
+            ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fill();
+        }
+        // Labels dos eixos
+        ctx.fillStyle = '#475569'; ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+        const xLabel = 'Data/Hora UTC (validade)';
+        const xLw = ctx.measureText(xLabel).width;
+        ctx.fillText(xLabel, margin.l + plotW/2 - xLw/2, H - 6);
+        ctx.save();
+        ctx.translate(14, margin.t + plotH/2);
+        ctx.rotate(-Math.PI/2);
+        ctx.fillText('Valor', -12, 0);
+        ctx.restore();
+        st.chartGeom = { plotX: margin.l, plotY: margin.t, plotW, plotH, tMin, tMax, yMin, yMax };
+    }
+    function _gtDownloadTimeSeriesCSV(ts) {
+        let csv = 'index,passo_h,time_utc,lat,lon,value\n';
+        ts.samples.forEach((s, i) => {
+            const t = s.time.toISOString();
+            csv += i + ',' + s.passo_h + ',' + t + ',' + ts.lat.toFixed(5) + ',' + ts.lon.toFixed(5) + ',' + (s.value == null ? '' : s.value) + '\n';
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'serie_' + ts.layerName.replace(/[^a-z0-9]/gi, '_').slice(0, 40) + '.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 200);
+    }
     function gtFmtValue(v) {
         const a = Math.abs(v);
         return (a !== 0 && (a < 1e-3 || a >= 1e6)) ? v.toExponential(3) : v.toFixed(3);
@@ -7068,6 +7723,9 @@
             + '</button>'
             + '<button type="button" class="schud-btn" data-tool="profile" title="Perfil ao longo de linha (clique p/ vértices, duplo-clique abre gráfico)">'
             +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20 8 10 13 15 21 4"/><path d="M3 20 21 20"/></svg>'
+            + '</button>'
+            + '<button type="button" class="schud-btn" data-tool="timeseries" title="Série temporal em um ponto (clique no mapa para amostrar todos os passos)">'
+            +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>'
             + '</button>'
             + '<button type="button" class="schud-btn" data-action="clear-annotations" title="Limpar anotações">'
             +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6 18 20H6L5 6"/></svg>'
@@ -7241,6 +7899,24 @@
                             style: { stroke: GT_TOOL_COLOR }
                         });
                         if (m.redraw) m.redraw();
+                    }
+                    return;
+                }
+                // Série temporal: clique único; varre todos os passos do slot ativo
+                if (tool === 'timeseries') {
+                    // Adiciona um marker pinpoint no mapa enquanto carrega
+                    gtAnnotsForSlot(slotIdx).push({
+                        id: 'ann_' + (++_gtAnnotSeq),
+                        type: 'text', coords: [latlon], text: '●',
+                        style: { stroke: GT_TOOL_COLOR }
+                    });
+                    if (m.redraw) m.redraw();
+                    gtSetSlotTool(slotIdx, 'pan');
+                    try {
+                        gtOpenTimeSeriesPopup(slotIdx, latlon[0], latlon[1]);
+                    } catch (err) {
+                        console.error('timeseries', err);
+                        alert('Falha ao iniciar série temporal: ' + (err && err.message));
                     }
                     return;
                 }
@@ -7722,6 +8398,27 @@
         const m = s && modelos[s.modelo];
         const v = s && m && (Array.isArray(m.variaveis) ? m.variaveis.find(x => x.id === s.variavel) : null);
         gtPrimaryName = (m && v) ? (m.nome + ' · ' + (v.label || v.id)) : ('Painel M' + (idx + 1));
+        // Default mapa-base por modelo: ao trocar de modelo, aplica o mapProvider
+        // configurado do modelo + AUTO-ATIVA o "Mostrar mapa" (a menos que o
+        // modelo opte por "none"). Override do usuário (via select da sidebar
+        // ou checkbox) é respeitado enquanto o modelo não mudar.
+        try {
+            const gt = getGtSlotState(idx);
+            const modelId = s && s.modelo;
+            const modelChanged = (gt._lastModelForMap !== modelId);
+            if (modelChanged) {
+                gt._lastModelForMap = modelId;
+                gt._mapProviderUserSet = false;
+                gt._mapEnabledUserSet = false;
+            }
+            if (m && m.mapProvider && (modelChanged || !gt._mapProviderUserSet)) {
+                gt.mapProvider = m.mapProvider;
+                // Auto-ativa o mapa salvo no select do modelo
+                if (modelChanged || !gt._mapEnabledUserSet) {
+                    gt.mapEnabled = (m.mapProvider !== 'none');
+                }
+            }
+        } catch (_) {}
         // Reflete gtSlotState[idx] nos inputs do painel direito
         try { gtSyncRightPanelFromSlot(idx); } catch (_) {}
     }
@@ -7800,9 +8497,17 @@
         gt.clipBelow = (clMin && clMin.value.trim() !== '') ? parseFloat(clMin.value) : null;
         gt.clipAbove = (clMax && clMax.value.trim() !== '') ? parseFloat(clMax.value) : null;
         const showMap = document.getElementById('gtShowMap');
-        if (showMap && !showMap.disabled) gt.mapEnabled = !!showMap.checked;
+        if (showMap && !showMap.disabled) {
+            const newEnabled = !!showMap.checked;
+            if (newEnabled !== gt.mapEnabled) gt._mapEnabledUserSet = true;  // override do usuário
+            gt.mapEnabled = newEnabled;
+        }
         const tp = document.getElementById('gtTileProvider');
-        if (tp) gt.mapProvider = tp.value || 'esri';
+        if (tp) {
+            const newProv = tp.value || 'esri';
+            if (newProv !== gt.mapProvider) gt._mapProviderUserSet = true;  // marca override do usuário
+            gt.mapProvider = newProv;
+        }
         const opEl = document.getElementById('gtOpacity');
         if (opEl) {
             const pct = parseInt(opEl.value, 10);
@@ -7833,7 +8538,9 @@
                     // Toggle shaded ↔ contornos: se contornos ativos e usuário não optou por
                     // manter preenchimento, esconde o overlay raster da primary.
                     const cf = (layer.props || {}).contours || {};
-                    const hideShaded = !!cf.enabled && !cf.keepFill;
+                    // keepFill default = TRUE (shaded permanece visível com contornos).
+                    // Só esconde o shaded se o usuário desmarcou explicitamente (keepFill === false).
+                    const hideShaded = !!cf.enabled && cf.keepFill === false;
                     for (const m of gtAllActiveMaps()) {
                         if (m && m.setOverlayVisible) m.setOverlayVisible('primary', !hideShaded);
                     }
@@ -7847,7 +8554,8 @@
             const layer = gtGetLayerObj(gtActiveLayerId);
             if (layer && layer.id !== 'primary' && layer.type === 'geotiff') {
                 const cf = (layer.props || {}).contours || {};
-                const hideShaded = !!cf.enabled && !cf.keepFill;
+                // keepFill default = TRUE (mesma lógica do primary acima).
+                const hideShaded = !!cf.enabled && cf.keepFill === false;
                 for (const m of gtAllActiveMaps()) {
                     if (m && m.setOverlayVisible) m.setOverlayVisible(layer.id, !hideShaded && layer.visible !== false);
                 }
@@ -8032,7 +8740,7 @@
             if (cCol)  cCol.value  = cf.color || '#ffffff';
             if (cW)    cW.value    = cf.lineWidth || 1;
             if (cL)    cL.value    = cf.labelEvery || 0;
-            if (cKp)   cKp.checked = !!cf.keepFill;
+            if (cKp)   cKp.checked = (cf.keepFill !== false);
         } catch(_) {}
         gtRenderLayerChips();
         gtDesenharColorbar();
@@ -10229,7 +10937,12 @@
         if (!snap) return;
         try { if (typeof pararAnimacao === 'function' && state.animando) pararAnimacao(); } catch (_) {}
         if (snap.layout != null) state.layout = snap.layout;
-        if (snap.passoAtual != null) state.passoAtual = snap.passoAtual;
+        // CRÍTICO: o snap da aba PNG e da aba GeoTIFF têm passoAtual em escalas DIFERENTES
+        // (Eta freq=1 → passo 3; Global freq=24 → passo 24). Se a aba destino tem snap
+        // antigo SEM passoAtual (legacy), state.passoAtual segue valor da aba de origem
+        // (PNG), o que quebra o GeoTIFF. Solução: SEMPRE re-snapar após restaurar slots.
+        const hasSnapPasso = (snap.passoAtual != null);
+        if (hasSnapPasso) state.passoAtual = snap.passoAtual;
         if (snap.maxPassos != null) state.maxPassos = snap.maxPassos;
         if (snap.stepFreq != null) state.stepFreq = snap.stepFreq;
         if (snap.tempo != null) state.tempo = snap.tempo;
@@ -10243,6 +10956,11 @@
                 if (s.sync != null) state.slots[i].sync = s.sync;
             }
         }
+        // Snap obrigatório: recomputa stepFreq/maxPassos com base nos slots restaurados
+        // e força state.passoAtual para o grid (não importa de onde veio).
+        try { if (typeof atualizarMaxPassos === 'function') atualizarMaxPassos(); } catch (_) {}
+        // Se o snap não tinha passoAtual ou ele caiu pra zero, começa no primeiro passo
+        if (!hasSnapPasso || state.passoAtual < state.stepFreq) state.passoAtual = state.stepFreq;
         // Re-aplica layout (re-renderiza painéis e re-popula selects/datas)
         try { if (typeof setLayout === 'function') setLayout(state.layout, true); } catch (_) {}
         try { if (typeof setStepIndicatorUI === 'function') setStepIndicatorUI(); } catch (_) {}
@@ -10419,6 +11137,15 @@
         // Sem isso, modelos com tem_tif=false ainda apareceriam no GeoTIFF e
         // vice-versa quando não há snapshot salvo da aba destino.
         try { if (typeof atualizarSlotsControles === 'function') atualizarSlotsControles(); } catch (_) {}
+        // CRÍTICO: atualizarSlotsControles pode TER TROCADO o modelo de algum slot
+        // (ex.: Eta tem_tif=false → não aparece no GeoTIFF, modelo cai pro Global).
+        // Sem recomputar maxPassos/stepFreq aqui, state.passoAtual fica em 3 (Eta freq=1)
+        // enquanto o Global tem freq=24 → montarURL retorna null/URL inválida.
+        try {
+            if (typeof atualizarMaxPassos === 'function') atualizarMaxPassos();
+            // Snap final do passo pra primeira grade válida (caso passoAtual = 0)
+            if (state.passoAtual < state.stepFreq) state.passoAtual = state.stepFreq;
+        } catch (_) {}
         if (mode === 'png') {
             // Limpa artefatos do modo gtiff: classe gt-map-active e canvas do mapa
             document.querySelectorAll('.map-box.gt-map-active').forEach(b => {
@@ -10436,9 +11163,13 @@
                 modal.classList.add('gt-sidebar');
                 modal.classList.add('open');
             }
-            try { renderTudo(); } catch (_) {}
+            // IMPORTANTE: gtSelectPanel ANTES de renderTudo, para que o mapa-base
+            // padrão do modelo (m.mapProvider) seja aplicado ao gtSlotState ANTES
+            // do primeiro carregarGeoTIFFParaSlot — senão o fetch acontece com
+            // gt.mapEnabled=false e o mapa não aparece automaticamente.
             try { gtRenderPanelPins(); } catch (_) {}
             try { gtSelectPanel(gtActivePanel || 0); } catch (_) {}
+            try { renderTudo(); } catch (_) {}
         }
     }
 
