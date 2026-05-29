@@ -1,21 +1,24 @@
 @echo off
-REM Commit v2.5.0 GISELE - sessao 29/05/2026 (final)
-REM Cobre tudo desde o commit v2.4.0:
-REM   - Fix Background Esri nao plota (mapEnabled default + apply tiles ao trocar radio)
-REM   - Fix Miscelaneas v1..v4 (plot + ordem canvas + resize() + ReferenceError gtFindMiscLayerByConfigId)
-REM   - Remover "Abrir TIF local (inspecao)" do menu Ferramentas
-REM   - bump versao 2.0.0 -> 2.4.0 (electron-app/package.json)
-REM   - rebuild-electron.bat com taskkill agressivo
-REM   - Atualizacao do manual PDF (secao 6 arvore ERMA, secao 9 calc dupla, secao 11 checkbox)
-REM   - Atualizacao do HANDOVER (v2.5.0 + secao 2.13 UI v2.4+)
-REM   - Regeneracao dos 3 PDFs (Manual, HANDOVER, ESPECIFICACOES)
+REM Commit v2.6.0 GISELE - sessao 29/05/2026 (export GeoJSON + import shapefile + calc temporal)
+REM Cobre tudo desde v2.5.0:
+REM   - Calculadora Temporal per-layer (tN/hN + ranges + sum/mean/max/min/count)
+REM   - Exportar GeoJSON: campo cheio, poligono, retangulo, camada vetorial, serie temporal
+REM   - Importar shapefile (.shp/.zip) como camada vetorial + parser puro JS + ZIP via DecompressionStream
+REM   - Preview + dialog de confirmacao no upload (canto direito, fora do mapa)
+REM   - Renderer style.noVertices p/ shapes finos sem bolinhas
+REM   - Botao 👁/⊘ explicito + dim row ao ocultar
+REM   - Fix HUD lat/lon/valor default ON + toggle ERMA
+REM   - Fix bbox object (decoded.bbox eh {minX,minY,maxX,maxY} nao array)
+REM   - Mascara via camada vetorial carregada (substitui o upload de arquivo)
+REM   - bump electron-app/package.json 2.4.0 -> 2.6.0
+REM   - Atualizacao do Manual PDF + HANDOVER v2.6.0
 
 setlocal
 cd /d "%~dp0"
 
 echo.
 echo === Removendo locks travados (.git\*.lock) ===
-for %%F in (.git\index.lock .git\index_staging.lock .git\idx_new1.lock .git\idx_v24.lock .git\idx_v25.lock .git\index_new.lock) do (
+for %%F in (.git\index.lock .git\index_staging.lock .git\idx_new1.lock .git\idx_v24.lock .git\idx_v25.lock .git\idx_v26.lock .git\index_new.lock) do (
     if exist "%%F" (
         del /F /Q "%%F" 2>nul
         if exist "%%F" (
@@ -28,7 +31,7 @@ for %%F in (.git\index.lock .git\index_staging.lock .git\idx_new1.lock .git\idx_
 
 echo.
 echo === Limpando index intermediarios criados em sandbox ===
-for %%F in (.git\index_staging .git\idx_new1 .git\idx_v24 .git\idx_v25 .git\index_new .git\index.broken) do (
+for %%F in (.git\index_staging .git\idx_new1 .git\idx_v24 .git\idx_v25 .git\idx_v26 .git\index_new .git\index.broken) do (
     if exist "%%F" del /F /Q "%%F" 2>nul
 )
 
@@ -56,34 +59,69 @@ if errorlevel 1 (
 )
 
 echo.
-echo === Commit v2.5.0 ===
+echo === Commit v2.6.0 ===
 git commit ^
- -m "v2.5.0 GISELE: fix Background Esri + fix Miscelaneas v1..v4 + remove Abrir TIF local + bump 2.4.0 + docs v2.4+" ^
+ -m "v2.6.0 GISELE: Calculadora Temporal + Exportar GeoJSON + Importar Shapefile + UX layers" ^
  -m "" ^
- -m "* Fix Background Esri nao plota no executavel: cfgMapEnabled default=true + cfgMapProvider='esri' em gtSlotState; radio change chama _gtApplyMapView imediatamente em vez de esperar o proximo gtRerenderSlot." ^
- -m "* Fix Miscelaneas (Plataformas/Corais) nao plotam:" ^
- -m "  - v1: gtLayerPushToMap retornava early se maps.length===0 (slot sem TIF nao tinha mapa); agora cria SisMOM_Map mesmo sem raster com bbox default Brasil." ^
- -m "  - v2: ordem critica em gtLayerEnsureMap: box.classList.add('gt-map-active') ANTES de cvEl.style.display='' ANTES de void cvEl.offsetWidth (reflow) ANTES de gtSlotEnsureMap." ^
- -m "  - v3: SisMOM_Map API expoe resize() e getCanvasRect(); chamado apos push extra layer pra recalcular dims do canvas." ^
- -m "  - v4 (REAL FIX): Uncaught ReferenceError: gtFindMiscLayerByConfigId is not defined. Funcao foi removida no commit anterior (remocao do toggle Liga/Desliga) mas o tree handler ainda a chamava. Re-adicionei + chamadas defensivas com typeof." ^
- -m "* Remover do menu Ferramentas o sub-no 'Abrir TIF local (inspecao)' (gt-tree-tif-inspect): use '+ Adicionar GeoTIFF/GeoJSON' ou a aba dedicada do header." ^
- -m "* Bump versao 2.0.0 -> 2.4.0 (electron-app/package.json) pra forcar nome de artifact novo e evitar 'output file is locked for writing' no electron-builder." ^
- -m "* rebuild-electron.bat com taskkill /F /IM GISELE-*.exe + WMIC node electron-builder + ping 4 (3s wait) + clean dist + npm install + npm run dist:win." ^
- -m "* Manual PDF atualizado:" ^
- -m "  - Secao 6 'Painel direito' reescrita pra descrever a arvore ERMA com 4 grupos colapsaveis (Background/Miscelanea/Camadas/Ferramentas), Configuracao da Camada como sub-menu por no, botao Collapse/Expand folders." ^
- -m "  - Secao 9 'Camadas e calculadora dupla' descreve as duas modalidades: Ferramentas (expressao livre entre camadas com tokens clicaveis) + Configuracao da Camada (operador + escalar per-layer)." ^
- -m "  - Secao 11 'Miscelaneas' atualiza fluxo de adicao via checkbox marcado/desmarcado em vez de dropdown + botao." ^
- -m "* HANDOVER_GISELE.md/.pdf atualizado pra v2.5.0:" ^
- -m "  - Build marker 20260529-3600-removetiflocal." ^
- -m "  - Bloco de mudancas v2.4 -> v2.5 no topo." ^
- -m "  - Tabela 2.4 estendida com Calculadora v2 (expressao + per-layer)." ^
- -m "  - Nova secao 2.13 'UI v2.4+ (arvore ERMA-style)' documentando 17 mudancas com prompts originais + ferramentas." ^
- -m "  - Secao 2.12 'Documentacao' lista ESPECIFICACOES_GISELE + manual v2.4." ^
- -m "* PDFs regerados:" ^
- -m "  - docs/GISELE_Manual_Uso.pdf (reportlab via gerar_manual_uso.py)." ^
- -m "  - docs/HANDOVER_GISELE.pdf (reportlab via parser markdown proprio - pandoc/xelatex falhou no C:\Projetos backslash)." ^
- -m "  - docs/ESPECIFICACOES_GISELE.pdf (mantido)." ^
- -m "* Build markers: 20260529-3000-calc -> 20260529-3600-removetiflocal."
+ -m "* Calculadora Temporal (per-layer) — sintaxe tN/hN, ranges tN..tM, funcoes sum/mean/max/min/count." ^
+ -m "  - Parser estende gtParseExpr: function calls + ranges; novas funcs gtCollectTimeIdents, gtEvalTimeAst, _gtExpandRangeIdx." ^
+ -m "  - Engine gtCreateLayerFromTimeExpression: resolve modelo/var/data da camada-fonte (primary ou extra com .source), fetch+decode sequencial, eval per-pixel propagando NoData." ^
+ -m "  - Modal de progresso gtOpenTimeCalcProgress com botao Cancelar (AbortSignal)." ^
+ -m "  - UI linha '⏱ Tempos' em gtBuildLayerConfigPanel; placeholder com exemplos sum(t1..t24), mean(h6..h72)*1000." ^
+ -m "" ^
+ -m "* Exportar GeoJSON (raster -> nuvem de pontos):" ^
+ -m "  - Sub-no '📤 Exportar GeoJSON' no menu Ferramentas." ^
+ -m "  - Modos: Campo cheio, Poligono (desenhar), Retangulo (drag), Por camada carregada (vetorial), Serie temporal de ponto." ^
+ -m "  - Engine gtExportLayerToGeoJsonPointCloud: bbox da mascara restringe iteracao, NoData filtrado, cap 500k features." ^
+ -m "  - Convencao top-down: row j=0 -> latMax; centro do pixel lat=latMax-(j+0.5)*dLat." ^
+ -m "  - gtSampleTimeSeriesToGeoJson reusa gtSampleTimeSeries; N Features Point com properties {idx, passo_h, time_utc, value}." ^
+ -m "  - Tools export-polygon, export-rect, export-timeseries aliases dos measure tools com routes diferentes em gtFinalizeDraft." ^
+ -m "" ^
+ -m "* Importar Shapefile como camada vetorial extra:" ^
+ -m "  - gtAddExtraLayerFromFile aceita .shp e .zip (alem de .tif/.tiff/.geojson/.json)." ^
+ -m "  - _gtParseShpBuffer (110 linhas): Polygon, PolygonZ, PolygonM; outer/hole pela orientacao do anel; multi-part c/ point-in-ring." ^
+ -m "  - _gtExtractFromZip via DecompressionStream('deflate-raw') nativo: EOCD + central dir + LFH; suporta stored e deflate." ^
+ -m "  - Smoke test Node com triangulo sintetico passou." ^
+ -m "  - input multiple permite arrastar varios arquivos de uma vez." ^
+ -m "" ^
+ -m "* Preview + dialog de confirmacao (upload + camada vetorial):" ^
+ -m "  - _gtShowPolygonPreview plota poligonos em ciano fininho (lineWidth=0.7, noVertices=true) com fit ao bbox." ^
+ -m "  - gtOpenConfirmExtractDialog ancora no canto superior direito (top:14 right:14), sem backdrop fullscreen." ^
+ -m "  - pointer-events:auto so no card -> permite interacao com o mapa em background." ^
+ -m "  - Enter confirma, Esc cancela. Cleanup de previews em finally/catch." ^
+ -m "" ^
+ -m "* Substituir 'Upload mascara' por 'Por camada carregada (vetorial)':" ^
+ -m "  - Filtro estendido de l.isMisc para l.type==='geojson' -> inclui Miscelaneas + Shapefiles + GeoJSONs." ^
+ -m "  - Dialog mostra bolinha de cor + nome + [Origem, N features]." ^
+ -m "  - Removido botao Upload e file input + handler 50 linhas." ^
+ -m "" ^
+ -m "* Renderer style.noVertices p/ shapes finos:" ^
+ -m "  - Renderer de poligono (linha 9967+) skipava sempre desenho de circles 3px em cada vertice." ^
+ -m "  - Para shapes complexos (100+ vertices) virava um massa cyan grossa." ^
+ -m "  - Agora flag style.noVertices=true pula o loop; lineWidth uniforme 0.7." ^
+ -m "" ^
+ -m "* Toggle 👁/⊘ explicito em cada camada da arvore:" ^
+ -m "  - Substituido checkbox pequeno por button 24x22px com cor cyan(on)/cinza(off)." ^
+ -m "  - Row inteira recebe opacity:0.5 quando oculta (feedback visual claro)." ^
+ -m "  - Funciona p/ todos os tipos: primary, geotiff extra, geojson (shapefile/misc), contour." ^
+ -m "" ^
+ -m "* Fix HUD lat/lon/valor:" ^
+ -m "  - gtNavHudEnabled default era false (toggle escondido em .gt-old-controls)." ^
+ -m "  - Agora default true; toggle visivel na toolbar da arvore ERMA espelhando legacy." ^
+ -m "" ^
+ -m "* Fix bbox object 'object is not iterable':" ^
+ -m "  - Engine fazia const [latMin,...] = decoded.bbox; mas bbox eh {minX,minY,maxX,maxY}." ^
+ -m "  - Destructuring de array sobre objeto disparava o erro Symbol(Symbol.iterator)." ^
+ -m "  - Corrigido p/ leitura por campos + validacao de tipos + convencao top-down." ^
+ -m "" ^
+ -m "* electron-app/package.json bumped 2.4.0 -> 2.6.0 (evita lock do nome de artifact)." ^
+ -m "" ^
+ -m "* Documentacao:" ^
+ -m "  - Manual PDF: secao 12 nova 'Exportar dados como GeoJSON' + Calc Temporal em secao 9 + import shp em secao 9 + toggle 👁/⊘." ^
+ -m "  - HANDOVER v2.6.0 com secao 2.14 'Importar / Exportar dados' documentando 13 features." ^
+ -m "  - 3 PDFs regerados (Manual, HANDOVER, ESPECIFICACOES)." ^
+ -m "" ^
+ -m "* Build markers: 20260529-4200-timecalc -> 20260529-4300-hudfix -> 20260529-4500-exportgj -> 20260529-4600-drawfix -> 20260529-4700-bboxfix -> 20260529-4800-shpzip -> 20260529-4900-previewcfm -> 20260529-5000-cardcorner -> 20260529-5100-thinline -> 20260529-5200-thinner -> 20260529-5300-novertex -> 20260529-5400-importshp -> 20260529-5500-toggleui -> 20260529-5600-vectormask."
 
 if errorlevel 1 (
     echo.
@@ -93,10 +131,10 @@ if errorlevel 1 (
 )
 
 echo.
-echo === Log dos ultimos 3 commits ===
-git log --oneline -3
+echo === Log dos ultimos 5 commits ===
+git log --oneline -5
 
 echo.
-echo Commit concluido com sucesso.
+echo Commit v2.6.0 concluido com sucesso.
 echo Para enviar ao remoto: git push origin main
 pause

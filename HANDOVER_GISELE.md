@@ -1,7 +1,7 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.5.0 — Build marker `20260529-3600-removetiflocal`
+**Versão atual:** v2.6.0 — Build marker `20260529-5600-vectormask`
 **Arquivos críticos (sempre em lockstep):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
@@ -10,6 +10,8 @@
 > **Importante:** todo patch no HTML deve ser aplicado nos DOIS arquivos. Validar com `node --check` e `md5sum` antes de seguir. O Edit tool tem tendência a truncar o tail; SEMPRE checar `</html>` final e reconstruir a partir do `gt-misc-data-corais_br` se faltar.
 
 > **Mudanças de UI v2.4 → v2.5:** o painel direito foi reorganizado em árvore ERMA-style (Background / Miscelânea / Camadas / Ferramentas) com sub-menu **Configuração da Camada** por nó (paleta/min-max/clip/contornos/calc per-layer) movido fisicamente por `appendChild`. Nova **Calculadora dupla**: expressão livre entre camadas em Ferramentas + operador-escalar per-layer na Configuração da Camada. Item **"Abrir TIF local (inspeção)"** foi removido do menu Ferramentas (use **+ Adicionar GeoTIFF/GeoJSON** ou a aba dedicada do header).
+
+> **Mudanças v2.5 → v2.6:** (1) Nova **Calculadora Temporal** em Configuração da Camada com sintaxe `tN`/`hN`, ranges `t1..t24`, funções `sum/mean/max/min/count`. (2) **Exportar GeoJSON** (raster→nuvem de pontos): campo cheio, polígono/retângulo desenhado, ou recorte por camada vetorial carregada. Também **série temporal de ponto → GeoJSON**. (3) **Importar Shapefile** (.shp standalone ou .zip) como camada vetorial — parser puro JS embarcado + ZIP reader via `DecompressionStream`. (4) Fix HUD lat/lon/valor (default ON + toggle na árvore ERMA). (5) Botão `👁/⊘` explícito em cada camada com dim de row ao ocultar. (6) Renderer respeita `style.noVertices` (linha pura sem bolinhas em cada vértice — essencial para shapes com centenas de vértices).
 
 ---
 
@@ -195,6 +197,25 @@
 | **Bump v2.4.0 (dist file lock)** | "Travou na geração da dist" + screenshot do `output file is locked for writing` | Edit (`electron-app/package.json` 2.0.0 → 2.4.0 para forçar nome de artifact novo; `rebuild-electron.bat` com `taskkill /F /IM GISELE-*.exe`) |
 | **--strict-cors flag (Electron)** | "Avaliar webSecurity:false caso CORS bloqueie" | Edit (`electron-app/main.js`: default `webSecurity:false`, `--strict-cors` reativa `true`; log `CORS mode:` em `launch.log`) |
 | **Preset FTP CPTEC na configuração** | "Configurar modelo .tif via FTP" | Edit (botão "Preset FTP CPTEC" marca PNG+TIF, deriva `/fig/` → `/geotiff/`, nome `{prefixo}-{F%4}.tif`) |
+
+### 2.14. Importar / Exportar dados (v2.6+)
+
+| Feature | Prompts originais | Ferramentas |
+|---|---|---|
+| **Calculadora Temporal (per-layer)** | "Na calculadora da camada, incluir a possibilidade de manipulação de camadas de tempos distintos de uma mesma rodada... t1+t2+t3 ou t1..t3" | Edit (parser estende gtParseExpr com function calls + ranges; `gtCreateLayerFromTimeExpression` + `gtEvalTimeAst` + `_gtExpandRangeIdx`; modal de progresso `gtOpenTimeCalcProgress`) |
+| **Fix HUD lat/lon/valor — default ON + toggle ERMA** | "A informação lat, lon e valor do ponto do cursor do mouse não está mais disponível" | Edit (`gtNavHudEnabled = true` default; checkbox `#gtTreeShowNavHud` na toolbar da árvore espelhando o legacy) |
+| **Exportar GeoJSON (raster→point cloud)** | "inserir na ferramenta a opção de salvar o dado em formato geojson de uma área selecionada ou todo o campo" | Edit (`gtExportLayerToGeoJsonPointCloud`, `gtDownloadGeoJson`, sub-nó na árvore Ferramentas, 5 modos de recorte) |
+| **Exportar série temporal de ponto → GeoJSON** | "incluir uma ferramenta para salvar um geojson da evolução temporal de um ponto" | Edit (`gtSampleTimeSeriesToGeoJson` reusa `gtSampleTimeSeries`; tool `export-timeseries`) |
+| **Fix visual draft de polígono/retângulo export** | "problema para mapear a área para exportar o dado" + "Ainda com problema" | Edit (gtMakeAnnotProvider reconhece `export-polygon`/`export-rect`; isDragTool flag; rótulo `📤`) |
+| **FIX bbox object: minX/maxY (não array)** | (causa do "object is not iterable") | Edit (`decoded.bbox` é `{minX,minY,maxX,maxY}` — destructuring de array falhava; agora usa campos + valida + iteração top-down) |
+| **Parser shapefile .shp puro JS** | "upload shapefile para extração da informação" | Edit (`_gtParseShpBuffer` ~110 linhas: Polygon, PolygonZ, PolygonM; outer/hole por orientação; multi-part); smoke test Node passou |
+| **ZIP reader via DecompressionStream** | (idem) | Edit (`_gtExtractFromZip`: EOCD + central dir + LFH + DecompressionStream `deflate-raw`; suporta stored e deflate) |
+| **Preview + dialog de confirmação no upload** | "Quando o usuário fizer um upload do shape, geojson.... plotar sobre o mapa e pedir para confirmar a extração" | Edit (`_gtShowPolygonPreview` + `gtOpenConfirmExtractDialog`; fit ao bbox; cleanup de previews; Enter/Esc) |
+| **Dialog fora da área do mapa** | "Colocar o box da informação fora da área de visualização do gráfico" | Edit (overlay sem backdrop fullscreen; card `position:fixed; top:14px; right:14px; pointer-events:auto`) |
+| **Renderer `style.noVertices`** | "as linhas estão bem grossas" + "deixar na mesma espessura para todas as linhas" | Edit (renderer polígono pula loop de circles em cada vértice quando `style.noVertices === true`; lineWidth uniforme 0.7) |
+| **Importar shapefile como camada extra** | "importar shapefile na ferramenta" | Edit (`gtAddExtraLayerFromFile` estendida com `.shp` e `.zip`; `_gtPolygonsToGeoJsonFC` converte para FeatureCollection; label do botão atualizado) |
+| **Toggle 👁/⊘ explícito + dim row** | "Opção de ligar e desligar a camada (shape, geojson, etc)" | Edit (no `gtRenderTree` substitui checkbox por button 24×22px com ícone 👁/⊘ colorido; row inteira ganha `opacity:0.5` quando oculta) |
+| **Máscara via camada vetorial carregada** | "remover o upload da máscara de extração do geojson e no local disponibilizar a camada que foi carregada" | Edit (remove botão Upload + handler 50 linhas; "🐠 Por shape de Miscelânea" → "🗂️ Por camada carregada" filtra `type==='geojson'`; dialog mostra origem + bolinha de cor) |
 
 ---
 

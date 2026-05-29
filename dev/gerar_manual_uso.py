@@ -134,16 +134,16 @@ sumario = [
     '3. Visão geral da interface',
     '4. Aba PNG/GIF — uso básico',
     '5. Aba GeoTIFF — visualização científica',
-    '6. Painel direito — controles do painel ativo',
+    '6. Painel direito — árvore ERMA-style',
     '7. Configurando modelos e variáveis',
     '8. Templates de URL e placeholders',
-    '9. Camadas extras e calculadora',
+    '9. Camadas e calculadora tripla (algébrica + per-layer + temporal)',
     '10. Ferramentas de medição e perfil',
     '11. Camadas Miscelâneas (referência geográfica)',
-    '12. Servidor HTTP local de dados',
-    '13. Atalhos de teclado',
-    '14. Solução de problemas',
-    '15. Apêndice — referência de placeholders',
+    '12. Exportar dados como GeoJSON (v2.6+)',
+    '13. Servidor HTTP local de dados',
+    '14. Atalhos de teclado',
+    '15. Solução de problemas',
 ]
 story.append(bullets(sumario))
 story.append(PageBreak())
@@ -581,16 +581,27 @@ story.append(PageBreak())
 story.append(h1('9. Camadas e calculadora dupla'))
 story.append(h2('Adicionando camadas via árvore'))
 story.append(p(
-    'No grupo <b>🛠️ Ferramentas</b> da árvore, sub-nó <b>+ Adicionar GeoTIFF/GeoJSON</b>, escolha um '
-    'arquivo do disco. A camada aparece como nó dentro de <b>🗺️ Camadas</b>, sobreposta à camada base.'
+    'No grupo <b>🛠️ Ferramentas</b> da árvore, sub-nó '
+    '<b>+ Adicionar GeoTIFF / GeoJSON / Shapefile…</b>, escolha um ou mais arquivos do disco. Cada arquivo vira uma '
+    'camada nova dentro de <b>🗺️ Camadas</b>, sobreposta à camada base.'
 ))
+story.append(p('Formatos aceitos (v2.6+):'))
+story.append(bullets([
+    '<b>.tif / .tiff</b> — GeoTIFF como camada raster (paleta + min/max + contornos).',
+    '<b>.geojson / .json</b> — GeoJSON inteiro como camada vetorial.',
+    '<b>.shp</b> — Shapefile standalone (só geometria, sem .dbf/.shx). Parser puro JS embarcado: Polygon, '
+    'PolygonZ, PolygonM, detecção automática de outer/hole pela orientação dos anéis.',
+    '<b>.zip</b> — ZIP contendo .shp (e opcionalmente .dbf/.shx/.prj ignorados). O .shp é extraído '
+    'automaticamente via <code>DecompressionStream(\'deflate-raw\')</code> nativo do browser.',
+]))
 story.append(p('Cada nó de camada oferece:'))
 story.append(bullets([
-    '<b>👁</b> oculta/mostra a camada.',
-    '<b>×</b> remove a camada.',
+    '<b>👁 / ⊘</b> botão grande para <b>ligar/desligar</b> a camada. Cor cyan quando ligada, cinza quando desligada. '
+    'A linha inteira fica com opacidade 50&#37; quando off.',
+    '<b>×</b> remove a camada do slot.',
     '<b>▸ Configuração da Camada</b> (apenas para rasters) expande o sub-menu inline com paleta, '
-    'min/max, contornos e calculadora per-layer.',
-    'Para GeoJSONs, um seletor de <b>cor</b> inline troca o estilo de stroke/fill em tempo real.',
+    'min/max, contornos e calculadoras (algébrica + temporal).',
+    'Para GeoJSONs/Shapefiles, um seletor de <b>cor</b> inline troca o estilo de stroke/fill em tempo real.',
 ]))
 story.append(h2('Calculadora — duas modalidades'))
 story.append(p(
@@ -642,6 +653,44 @@ story.append(tip(
     'Internamente esta variante reusa o mesmo engine <code>gtCreateLayerFromExpression</code> da '
     'modalidade A, montando a expressão equivalente (ex.: <code>Camada2 * 1000</code>). Os pixels '
     'mascarados (NoData) são propagados normalmente.'
+))
+
+story.append(h2('C) Configuração da Camada → Calculadora Temporal (v2.6+)'))
+story.append(p(
+    'Na linha <b>⏱ Tempos</b> dentro de Configuração da Camada, expressões algébricas combinam '
+    '<b>passos diferentes da mesma rodada</b> da camada-fonte (mesmo modelo + variável + data, varia apenas '
+    'o passo). Útil para acumulados, médias, diferenças temporais, etc.'
+))
+story.append(p('<b>Sintaxe aceita:</b>'))
+story.append(bullets([
+    '<b>tN</b> — índice do passo (<code>t1</code>, <code>t2</code>, <code>t24</code>…). O índice multiplicado pela frequência da variável dá o horizonte em horas.',
+    '<b>hN</b> — horas de previsão (<code>h6</code>, <code>h12</code>, <code>h72</code>…) — convertido para o índice mais próximo via <code>round(N/freq)</code>.',
+    '<b>..</b> — range, <b>apenas dentro de funções</b> (<code>t1..t24</code>, <code>h6..h72</code>).',
+    'Funções de redução: <b>sum, mean</b> (ou <code>avg</code>/<code>media</code>), <b>max, min, count</b>.',
+    'Operadores <code>+ − × ÷</code>, parênteses, e escalares para conversão de unidade.',
+]))
+story.append(p('<b>Exemplos:</b>'))
+story.append(code(
+    'sum(t1..t24)              # precipitação acumulada nas primeiras 24 previsões<br/>'
+    't24 - t1                  # diferença entre dois passos<br/>'
+    'mean(h6..h72)             # média dos passos de 6h a 72h<br/>'
+    'sum(t1..t10) * 1000       # acumulado × conversão de unidade<br/>'
+    'max(t1..t72) - min(t1..t72)  # range térmico ao longo do horizonte'
+))
+story.append(p('<b>Comportamento da execução:</b>'))
+story.append(numbered([
+    'Parser coleta todos os <code>tN</code>/<code>hN</code> únicos requisitados (expandindo ranges).',
+    'Valida que cada índice está dentro de <code>horizonte/frequência</code> da variável.',
+    'Modal de progresso "Processando tN (passo +Xh)… i/N" + botão <b>Cancelar</b>.',
+    'Fetch + decode sequencial via o mesmo pipeline da Série Temporal (cache de TIFs reutilizado).',
+    'Avaliação per-pixel propagando máscara NoData: qualquer valor mascarado em qualquer operando '
+    'resulta em pixel mascarado no resultado.',
+    'Camada resultante é adicionada com paleta padrão e min/max automático.',
+]))
+story.append(tip(
+    'Casos comuns: precipitação acumulada 24h <code>sum(t1..t24)</code>; média de 5 dias <code>mean(t1..t120)</code> '
+    'em dado horário <code>h120/freq=24 → t5</code>; diferença pré/pós-evento <code>t72 - t24</code>. '
+    'Para variáveis sem grade temporal (análise/observação freq=0), a calculadora alerta e não plota.'
 ))
 story.append(PageBreak())
 
@@ -813,8 +862,91 @@ story.append(warn(
 ))
 story.append(PageBreak())
 
-# ===== 12. SERVIDOR LOCAL =====
-story.append(h1('12. Servidor HTTP local de dados'))
+# ===== 12. EXPORTAR GEOJSON =====
+story.append(h1('12. Exportar dados como GeoJSON (v2.6+)'))
+story.append(p(
+    'No grupo <b>🛠️ Ferramentas</b> da árvore, o sub-nó <b>📤 Exportar GeoJSON</b> permite salvar a '
+    '<b>camada ativa</b> como nuvem de pontos GeoJSON (uma <code>Feature</code> de tipo <code>Point</code> por pixel '
+    'com <code>properties.value</code>). É possível recortar o raster por área desenhada ou por uma camada '
+    'vetorial já carregada.'
+))
+story.append(h2('Opções de recorte'))
+story.append(tbl([
+    ['Botão', 'Comportamento'],
+    ['🌐 Campo cheio (sem recorte)', 'Exporta todos os pixels do bbox da camada ativa.'],
+    ['▦ Polígono (desenhar)',
+     'Ativa modo de desenho — clique para vértices, duplo-clique finaliza e exporta. '
+     'O polígono em construção aparece em amarelo translúcido.'],
+    ['▭ Retângulo (clicar e arrastar)',
+     'Clique e arraste para definir a caixa lat/lon. Soltar finaliza e exporta.'],
+    ['🗂️ Por camada carregada (vetorial)',
+     'Abre diálogo listando todas as camadas <i>geojson</i> no slot — Miscelâneas, Shapefiles importados '
+     'e GeoJSONs adicionados. Cada item mostra a cor da camada, o nome, e <code>[Origem, N features]</code>. '
+     'Selecione as máscaras com checkbox e clique Exportar.'],
+    ['⏱ Clique no mapa para exportar evolução temporal',
+     'Ativa modo de clique único. Após você clicar num ponto, a ferramenta varre todos os passos do slot '
+     '(igual à série temporal), e salva o resultado como FeatureCollection com N Features Point (mesmas '
+     'coords, 1 por passo) com <code>properties = { idx, passo_h, time_utc, value }</code>.'],
+], col_widths=[5.2*cm, 11*cm]))
+story.append(h2('Preview + confirmação (upload/camada vetorial)'))
+story.append(p(
+    'Quando a máscara vem de upload ou de uma camada vetorial já carregada, o GISELE primeiro '
+    '<b>plota o(s) polígono(s) em ciano</b> sobre o mapa (linha 0,7 px, sem bolinhas) e abre um <b>card de '
+    'confirmação</b> ancorado no canto superior direito, fora da área do mapa. Você vê o bbox, contagem '
+    'de polígonos, e a área plotada para conferência antes da extração. <i>Enter</i> confirma, <i>Esc</i> '
+    'cancela. Polígonos desenhados manualmente (▦/▭) não passam por essa confirmação — o desenho é o '
+    'próprio feedback.'
+))
+story.append(h2('Formato de saída'))
+story.append(p('Nuvem de pontos no padrão GeoJSON (RFC 7946):'))
+story.append(code(
+    '{<br/>'
+    '  "type": "FeatureCollection",<br/>'
+    '  "bbox": [west, south, east, north],<br/>'
+    '  "metadata": {<br/>'
+    '    "generator": "GISELE",<br/>'
+    '    "layer": "Eta · prec",<br/>'
+    '    "bbox": { "minX": ..., "minY": ..., "maxX": ..., "maxY": ... },<br/>'
+    '    "gridSize": [W, H],<br/>'
+    '    "exported": 12345,<br/>'
+    '    "skippedNoData": 678,<br/>'
+    '    "skippedOutsideMask": 9012,<br/>'
+    '    "exportedAt": "2026-05-29T..."<br/>'
+    '  },<br/>'
+    '  "features": [<br/>'
+    '    { "type": "Feature",<br/>'
+    '      "geometry": { "type": "Point", "coordinates": [lon, lat] },<br/>'
+    '      "properties": { "value": 12.345 } }<br/>'
+    '  ]<br/>'
+    '}'
+))
+story.append(p('Para a evolução temporal em um ponto, cada feature representa um passo:'))
+story.append(code(
+    '{ "type": "Feature",<br/>'
+    '  "geometry": { "type": "Point", "coordinates": [lon, lat] },<br/>'
+    '  "properties": { "idx": 1, "passo_h": 6, "time_utc": "...", "value": 12.345 } }'
+))
+story.append(h2('Detalhes técnicos'))
+story.append(bullets([
+    'Point-in-polygon por <b>ray casting</b> com suporte a furos (multi-polygon com holes respeitados).',
+    'Bbox da máscara restringe a iteração — rápido em grids globais com máscara local.',
+    'NoData filtrado automaticamente (<code>decoded.nodata</code> + <code>nodataExtras</code> + <code>isFinite</code>).',
+    'Cap de segurança em <b>500.000 features</b> (avisa no console se atingido — útil pra evitar arquivos gigantes '
+    'em campo global).',
+    'Convenção top-down: row j=0 corresponde a <code>latMax</code>; centro do pixel: '
+    '<code>lat = latMax − (j+0.5) × dLat</code>.',
+    'Nome do arquivo automático: <code>gisele_&lt;camada&gt;_&lt;modo&gt;.geojson</code>.',
+]))
+story.append(tip(
+    'Para usar um shapefile como máscara, primeiro carregue-o via <b>+ Adicionar GeoTIFF / GeoJSON / '
+    'Shapefile…</b> — ele vira uma camada vetorial visível no mapa. Depois selecione-o em '
+    '<b>🗂️ Por camada carregada</b>. O mesmo shape pode ser usado simultaneamente como referência visual '
+    'e como máscara de extração.'
+))
+story.append(PageBreak())
+
+# ===== 13. SERVIDOR LOCAL =====
+story.append(h1('13. Servidor HTTP local de dados'))
 story.append(p(
     'Os dados podem estar no servidor do CPTEC (URLs <code>https://ftp1.cptec.inpe.br/...</code>) ou na sua máquina local. '
     'Para usar dados locais — especialmente em <b>Safari/Firefox</b> que não permitem acesso direto a disco via <code>file://</code> — '
@@ -874,20 +1006,20 @@ story.append(code(
     'Depois: http://localhost:8765/Eta3km/{yyyy}/{mm}/{dd}{hh}/'
 ))
 story.append(p(
-    'O servidor vem com CORS aberto, MIME corretos (incluindo <code>image/tiff</code>) e proteção contra path-traversal. '
-    'Compatível com qualquer browser, inclusive Safari.'
+    'O servidor vem com CORS aberto, MIME corretos (incluindo <code>image/tiff</code>) e protecao contra path-traversal. '
+    'Compativel com qualquer browser, inclusive Safari.'
 ))
 
 story.append(h2('Auto-start no boot — Linux (systemd user service)'))
-story.append(p('Para o servidor subir automaticamente no login do usuário:'))
+story.append(p('Para o servidor subir automaticamente no login do usuario:'))
 story.append(numbered([
-    'Crie o arquivo <code>~/.config/systemd/user/gisele-server.service</code> com o conteúdo abaixo (ajuste os caminhos).',
+    'Crie o arquivo <code>~/.config/systemd/user/gisele-server.service</code> com o conteudo abaixo (ajuste os caminhos).',
     'Recarregue o systemd: <code>systemctl --user daemon-reload</code>',
     'Habilite e inicie: <code>systemctl --user enable --now gisele-server</code>',
     'Verifique status: <code>systemctl --user status gisele-server</code>',
     'Para parar: <code>systemctl --user stop gisele-server</code>',
 ]))
-story.append(p('<b>Conteúdo do arquivo</b> <code>gisele-server.service</code>:'))
+story.append(p('<b>Conteudo do arquivo</b> <code>gisele-server.service</code>:'))
 story.append(code(
     '[Unit]<br/>'
     'Description=GISELE local data server<br/>'
@@ -903,112 +1035,96 @@ story.append(code(
     'WantedBy=default.target'
 ))
 story.append(tip(
-    'Para o serviço continuar rodando mesmo com usuário deslogado, ative <code>linger</code>: '
+    'Para o servico continuar rodando mesmo com usuario deslogado, ative <code>linger</code>: '
     '<code>sudo loginctl enable-linger $USER</code>.'
-))
-
-story.append(h2('Auto-start no boot — Linux (cron alternativo)'))
-story.append(p('Mais simples mas sem reinício automático em caso de falha:'))
-story.append(code(
-    'crontab -e<br/>'
-    '# adicione a linha:<br/>'
-    '@reboot /caminho/tools/servir_dados/servir_dados.sh /caminho/dados &gt; /tmp/gisele-server.log 2&gt;&amp;1 &amp;'
 ))
 
 story.append(h2('Auto-start no boot — Windows'))
 story.append(numbered([
     'Crie um atalho do <code>servir_dados.bat</code> com a pasta de dados como argumento.',
-    'Pressione <code>Win+R</code> e digite <code>shell:startup</code> — a pasta Startup do usuário abre.',
-    'Cole o atalho lá. O servidor inicia automaticamente em todo login.',
+    'Pressione <code>Win+R</code> e digite <code>shell:startup</code> — a pasta Startup do usuario abre.',
+    'Cole o atalho la. O servidor inicia automaticamente em todo login.',
 ]))
-story.append(tip(
-    'Alternativa: use o Agendador de Tarefas (Task Scheduler) com gatilho "Ao fazer logon do usuário" '
-    'para mais controle (reinício em falha, prioridade, etc.).'
-))
 story.append(PageBreak())
 
-# ===== 13. ATALHOS =====
-story.append(h1('13. Atalhos de teclado'))
+# ===== 14. ATALHOS =====
+story.append(h1('14. Atalhos de teclado'))
 story.append(tbl([
-    ['Atalho', 'Ação'],
-    ['Espaço',                'Play/Pause da animação no painel ativo.'],
-    ['→ / ←',                 'Próximo / passo anterior na animação.'],
-    ['Shift+→ / Shift+←',     'Pular 5 passos.'],
-    ['Home / End',            'Primeiro / último passo.'],
+    ['Atalho', 'Acao'],
+    ['Espaco',                'Play/Pause da animacao no painel ativo.'],
+    ['Direita / Esquerda',    'Proximo / passo anterior na animacao.'],
+    ['Shift+seta',            'Pular 5 passos.'],
+    ['Home / End',            'Primeiro / ultimo passo.'],
     ['Scroll do mouse',       'Zoom in/out centrado no cursor.'],
     ['Clique e arrastar',     'Pan do mapa.'],
-    ['Esc',                   'Cancela a ferramenta ativa e volta para Pan.'],
-    ['Enter / Duplo-clique',  'Finaliza polilinha/polígono em desenho.'],
-    ['Ctrl+F5',               'Recarrega o app forçando bypass de cache.'],
-    ['F12',                   'Abre o DevTools (Electron) — útil pra ver console e build marker.'],
+    ['Esc',                   'Cancela a ferramenta ativa e volta para Pan. Tambem cancela dialogos.'],
+    ['Enter',                 'Confirma dialogos de exportacao GeoJSON.'],
+    ['Duplo-clique',          'Finaliza polilinha/poligono em desenho.'],
+    ['Ctrl+F5',               'Recarrega o app forcando bypass de cache.'],
+    ['F12',                   'Abre o DevTools (Electron) — util pra ver console e build marker.'],
 ], col_widths=[3.5*cm, 12.4*cm]))
 story.append(PageBreak())
 
-# ===== 14. SOLUÇÃO DE PROBLEMAS =====
-story.append(h1('14. Solução de problemas'))
+# ===== 15. SOLUCAO DE PROBLEMAS =====
+story.append(h1('15. Solucao de problemas'))
 story.append(h2('"Falha ao carregar camada: Failed to fetch"'))
 story.append(p(
-    'Ocorre quando o app tenta buscar um arquivo (GeoJSON da Miscelânea, GeoTIFF do modelo, etc.) e o '
-    'protocolo <code>file://</code> bloqueia. Soluções:'
+    'Ocorre quando o app tenta buscar um arquivo (GeoJSON da Miscelanea, GeoTIFF do modelo, etc.) e o '
+    'protocolo <code>file://</code> bloqueia. Solucoes:'
 ))
 story.append(bullets([
     'Use o GISELE empacotado (Electron) em vez de abrir o HTML direto — ele tem acesso ao disco.',
-    'Suba o servidor HTTP local (seção 12) e ajuste a URL do modelo para <code>http://localhost:8765/...</code>.',
-    'Para Miscelâneas, verifique se o manifest e o GeoJSON estão embutidos como <code>&lt;script type="application/json"&gt;</code> no final do HTML.',
+    'Suba o servidor HTTP local (secao 13) e ajuste a URL do modelo para <code>http://localhost:8765/...</code>.',
 ]))
-story.append(h2('GeoTIFF aparece deslocado em latitude'))
+
+story.append(h2('Erro: object is not iterable na exportacao'))
 story.append(p(
-    'Modelos com dados armazenados <i>bottom-up</i> (tiepoint J indica linha de baixo) são detectados '
-    'automaticamente e invertidos. Se a detecção falhar, use o botão <b>Inverter Y</b> na sidebar (bloco '
-    'Diagnóstico) para forçar a inversão.'
+    'Esse erro ocorria em versoes anteriores ao v2.6 — o engine de exportacao fazia destructuring de array '
+    '(<code>const [...] = decoded.bbox</code>) sobre um objeto <code>{minX, minY, maxX, maxY}</code>. Corrigido '
+    'na build <code>20260529-4700-bboxfix</code>. Se ainda aparece, force reload (Ctrl+F5).'
 ))
-story.append(h2('Cores estranhas / sem dados visíveis'))
+
+story.append(h2('Shape importado aparece com bolas grossas no contorno'))
+story.append(p(
+    'Em versoes <= 2.5 o renderer desenhava circulos de 3px em cada vertice. A partir do v2.6 '
+    '(<code>style.noVertices=true</code>) shapes importados sao desenhados como linha fina pura. Se ainda '
+    'aparecem bolinhas: force reload e cheque o build marker.'
+))
+
+story.append(h2('Cores estranhas / sem dados visiveis'))
 story.append(bullets([
-    'Verifique a paleta atual e min/max no painel direito.',
+    'Verifique a paleta atual e min/max em Configuracao da Camada.',
     'Clique em <b>Auto min/max</b> para recalcular pelos percentis (5–95%).',
-    'Adicione valores NoData explícitos em <b>Mascarar</b> se o modelo usa sentinels não-padrão (ex: 1e20, -9999).',
+    'Adicione valores NoData explicitos em <b>UNDEF</b> se o modelo usa sentinels nao-padrao (ex: 1e20, -9999).',
 ]))
-story.append(h2('Animação travada ou flickering'))
-story.append(bullets([
-    'O cache de blob URL e ImageBitmap reduz drasticamente o custo de redesenho — recarregue o app se o cache parecer corrompido (Ctrl+F5).',
-    'Confira no console o build marker: <code>[GISELE] build = ...</code>. Se for antigo, o navegador está servindo cache.',
-]))
-story.append(h2('Popup das miscelâneas não abre ao clicar'))
-story.append(bullets([
-    'Verifique se a ferramenta ativa é <b>Pan</b> (mãozinha) — clicar com uma ferramenta de medição ativa cria vértice, não consulta info.',
-    'Confirme que a camada miscelânea está visível (olho aberto no chip).',
-    'Para polígonos a detecção é point-in-polygon exato; para pontos a tolerância é ~10 px.',
-]))
-story.append(h2('Vídeo MP4 sai escuro ou só com poucos frames'))
-story.append(bullets([
-    'Verifique se está usando o GISELE empacotado (Electron). A versão standalone via <code>file://</code> tem CORS restritivo no fetch.',
-    'Para a aba PNG/GIF a gravação faz uma pré-busca de todos os passos antes de iniciar — espere a mensagem "Pré-buscando: X/Y" terminar antes de avaliar.',
-    'A duração mínima de cada passo no vídeo é 400 ms (≈ 24 frames a 30 fps). Velocidades de animação muito rápidas (0.2 s) são <i>ignoradas</i> na gravação para garantir playback fluido.',
-    'Se o vídeo abre mas o codec não é reconhecido pelo player, é WebM em vez de MP4 — qualquer browser moderno reproduz (VLC, Chrome, Edge).',
-]))
-story.append(h2('Build marker e diagnóstico'))
+
+story.append(h2('GeoJSON exportado tem 500.000 features e foi cortado'))
 story.append(p(
-    'Em qualquer dúvida sobre versão, abra o DevTools (F12 no Electron) e veja a primeira linha do console: '
-    '<code>[GISELE] build = YYYYMMDD-NNNN-nome</code>. Reporte esse marker ao suporte para acelerar o diagnóstico.'
+    'O exportador tem um cap de seguranca em 500.000 features para evitar arquivos gigantes em campos '
+    'globais. Reduza o bbox via recorte (poligono/retangulo/camada vetorial), ou ajuste o cap editando '
+    '<code>opts.maxFeatures</code> em <code>gtExportLayerToGeoJsonPointCloud</code>.'
 ))
+
+story.append(h2('Calculadora Temporal: "tempo fora do horizonte"'))
+story.append(p(
+    'A expressao tem um <code>tN</code> alem do horizonte da variavel. Maximo permitido: '
+    '<code>floor(horizonte / frequencia)</code>. Para verificar, abra Configurar > Editar e veja "Maximo de '
+    'passos" do modelo + frequencia da variavel. Exemplo: BESM Global PREC freq=24h e horizonte=720h → '
+    'maximo <code>t30</code>.'
+))
+
+story.append(h2('Build marker e diagnostico'))
+story.append(p(
+    'Em qualquer duvida sobre versao, abra o DevTools (F12 no Electron) e veja a primeira linha do console: '
+    '<code>[GISELE] build = YYYYMMDD-NNNN-nome</code>. Reporte esse marker ao suporte para acelerar o diagnostico.'
+))
+
 story.append(h2('CORS e a flag --strict-cors'))
 story.append(p(
-    'O GISELE empacotado (Electron) roda com <code>webSecurity: false</code> e <code>allowRunningInsecureContent: true</code> por padrão. '
-    'Esse modo é necessário porque o FTP do CPTEC não envia headers CORS: sem ele, imagens PNG/GIF cross-origin '
-    '"taintam" o canvas e o recurso "Salvar vídeo MP4 da evolução temporal" produz frames pretos.'
+    'O GISELE empacotado (Electron) roda com <code>webSecurity: false</code> por padrao para permitir vidеo MP4 '
+    'sobre o FTP do CPTEC (que nao envia headers CORS). Para forcar isolamento estrito, passe a flag '
+    '<code>--strict-cors</code> ao executavel. O log <code>%APPDATA%/GISELE/launch.log</code> mostra o modo ativo.'
 ))
-story.append(p('Verifique o modo atual no log: ao iniciar, <code>%APPDATA%/GISELE/launch.log</code> mostra a linha:'))
-story.append(code('CORS mode: permissive (default, webSecurity=false)'))
-story.append(p(
-    'Se você prefere isolamento estrito (ex.: ao carregar conteúdo de origens não confiáveis), passe a flag '
-    '<code>--strict-cors</code> ao executável. Nesse modo:'
-))
-story.append(bullets([
-    'CORS é enforced normalmente (mesma origem-policy ativa).',
-    'Imagens PNG/GIF cross-origin não tintam o canvas se vierem com header <code>Access-Control-Allow-Origin</code>; sem o header, a gravação de vídeo MP4 produz frames pretos.',
-    'A linha no <code>launch.log</code> muda para: <code>CORS mode: strict (--strict-cors, webSecurity=true)</code>.',
-]))
-story.append(PageBreak())
 
 # ===== Build do PDF =====
 doc.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
