@@ -1,0 +1,3020 @@
+{
+  "type": "FeatureCollection",
+  "name": "plataformas_offshore_brasil",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "metadata": {
+    "descricao": "Plataformas de produção offshore na costa brasileira (ativas, inativas, em comissionamento)",
+    "fontes": [
+      "ANP - Dados Abertos (Plataformas em Operação)",
+      "Petrobras (Comunica Bacia de Santos, sites institucionais)",
+      "Wikipedia PT (P-36, Enchova, FPSO São Mateus)",
+      "Operadoras: PRIO, Karoon, Equinor, Shell, TotalEnergies, Brava, Trident, Perenco, BW",
+      "ITOPF, IBAMA, jornais (G1, Folha, Estadão)"
+    ],
+    "data_geracao": "2026-05-29",
+    "observacoes": "Coordenadas marcadas com 'coordenada_aproximada_por_centroide_de_campo=true' usam o centro do campo de produção. Volumes de derramamento são estimativas; relatórios oficiais ANP/IBAMA frequentemente divergem dos noticiados na imprensa."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.2,
+          -22.3
+        ]
+      },
+      "properties": {
+        "nome": "P-07",
+        "operadora": "Petrobras",
+        "campo": "Bicudo",
+        "bacia": "Campos",
+        "status": "Desativada",
+        "ano_inicio": 1988,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "24-28",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Parafínico leve",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "1991-01-01: ~700 bbl (~110 m³) (Ruptura em linha de produção)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.547,
+          -22.673
+        ]
+      },
+      "properties": {
+        "nome": "P-08",
+        "operadora": "Trident Energy (ex-Petrobras)",
+        "campo": "Marimbá",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 1993,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "1988-01-01: ~15 m³ (Falha operacional / vazamento de linha)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.4,
+          -22.45
+        ]
+      },
+      "properties": {
+        "nome": "P-12",
+        "operadora": "Petrobras",
+        "campo": "Linguado",
+        "bacia": "Campos",
+        "status": "Desativada",
+        "ano_inicio": 1984,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "26-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,5",
+        "oleo_observacao": "Maduro",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-18",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Em descomissionamento",
+        "ano_inicio": 1994,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-19",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Em descomissionamento",
+        "ano_inicio": 1997,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2000-01-01: ~18 m³ (Vazamento em mangote durante offloading)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-20",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Em descomissionamento",
+        "ano_inicio": 1992,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.4
+        ]
+      },
+      "properties": {
+        "nome": "P-25",
+        "operadora": "Petrobras",
+        "campo": "Albacora",
+        "bacia": "Campos",
+        "status": "Hibernada",
+        "ano_inicio": 1996,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-29",
+        "oleo_classificacao": "Pesado/médio",
+        "oleo_enxofre_pct": "0,6-0,8",
+        "oleo_observacao": "Naftênico, viscoso",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-26",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Em descomissionamento",
+        "ano_inicio": 2000,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.4
+        ]
+      },
+      "properties": {
+        "nome": "P-31",
+        "operadora": "Petrobras",
+        "campo": "Albacora",
+        "bacia": "Campos",
+        "status": "Hibernada",
+        "ano_inicio": 1997,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 110000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-29",
+        "oleo_classificacao": "Pesado/médio",
+        "oleo_enxofre_pct": "0,6-0,8",
+        "oleo_observacao": "Naftênico, viscoso",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-32",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Em descomissionamento",
+        "ano_inicio": 1997,
+        "tipo": "FSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "1997-01-01: ~500 bbl (~80 m³) (Vazamento em equipamento de processo)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-33",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Descomissionada",
+        "ano_inicio": 1997,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 130000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -21.27
+        ]
+      },
+      "properties": {
+        "nome": "P-34",
+        "operadora": "Petrobras",
+        "campo": "Jubarte",
+        "bacia": "Campos",
+        "status": "Descomissionada",
+        "ano_inicio": 2006,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 60000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "17-19",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Viscoso, asfaltênico",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2002-10-13: Sem derrame; adernamento 30° (Falha sistema de lastro)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-35",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Descomissionada",
+        "ano_inicio": 1997,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 120000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.4
+        ]
+      },
+      "properties": {
+        "nome": "P-36",
+        "operadora": "Petrobras",
+        "campo": "Roncador",
+        "bacia": "Campos",
+        "status": "Afundada (2001)",
+        "ano_inicio": 2000,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "17-31",
+        "oleo_classificacao": "Pesado a leve",
+        "oleo_enxofre_pct": "0,4-0,6",
+        "oleo_observacao": "Reservatórios distintos",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2001-03-15: ~1.500 t (~10.000 bbl) (Explosão e afundamento; 11 mortos)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-37",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Descomissionada",
+        "ano_inicio": 2000,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 130000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2000-09-01: ~30 m³ (Falha em válvula)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-38",
+        "operadora": "Petrobras",
+        "campo": "Marlim Sul",
+        "bacia": "Campos",
+        "status": "Desativada",
+        "ano_inicio": 2000,
+        "tipo": "FSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.067,
+          -22.547
+        ]
+      },
+      "properties": {
+        "nome": "P-40",
+        "operadora": "Petrobras",
+        "campo": "Marlim Sul",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2001,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 202846,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2001-01-01: ~10 m³ (Vazamento operacional)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.259,
+          -22.55
+        ]
+      },
+      "properties": {
+        "nome": "P-43",
+        "operadora": "Petrobras",
+        "campo": "Barracuda",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2004,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 174000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "22-26",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Naftênico",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2004-01-01: ~10 m³ (Vazamento operacional)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "P-47",
+        "operadora": "Petrobras",
+        "campo": "Marlim",
+        "bacia": "Campos",
+        "status": "Desativada",
+        "ano_inicio": 1999,
+        "tipo": "FSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2007-01-01: ~6 m³ (Falha em válvula de tanque)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.24,
+          -22.664
+        ]
+      },
+      "properties": {
+        "nome": "P-48",
+        "operadora": "Petrobras",
+        "campo": "Caratinga",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2005,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "22-26",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,5-0,6",
+        "oleo_observacao": "Similar Barracuda",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.4
+        ]
+      },
+      "properties": {
+        "nome": "P-50",
+        "operadora": "Petrobras",
+        "campo": "Albacora Leste",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2006,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-29",
+        "oleo_classificacao": "Pesado/médio",
+        "oleo_enxofre_pct": "0,6-0,8",
+        "oleo_observacao": "Naftênico, viscoso",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.094,
+          -22.634
+        ]
+      },
+      "properties": {
+        "nome": "P-51",
+        "operadora": "Petrobras",
+        "campo": "Marlim Sul",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2009,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.78,
+          -21.97
+        ]
+      },
+      "properties": {
+        "nome": "P-52",
+        "operadora": "Petrobras",
+        "campo": "Roncador",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2007,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "17-31",
+        "oleo_classificacao": "Pesado a leve",
+        "oleo_enxofre_pct": "0,4-0,6",
+        "oleo_observacao": "Reservatórios distintos",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.958,
+          -22.424
+        ]
+      },
+      "properties": {
+        "nome": "P-53",
+        "operadora": "Petrobras",
+        "campo": "Marlim Leste",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2008,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2009-01-01: ~2 m³ (Vazamento em flange)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.825,
+          -21.969
+        ]
+      },
+      "properties": {
+        "nome": "P-54",
+        "operadora": "Petrobras",
+        "campo": "Roncador",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2007,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 190000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "17-31",
+        "oleo_classificacao": "Pesado a leve",
+        "oleo_enxofre_pct": "0,4-0,6",
+        "oleo_observacao": "Reservatórios distintos",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.74,
+          -21.993
+        ]
+      },
+      "properties": {
+        "nome": "P-55",
+        "operadora": "Petrobras",
+        "campo": "Roncador",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2014,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "17-31",
+        "oleo_classificacao": "Pesado a leve",
+        "oleo_enxofre_pct": "0,4-0,6",
+        "oleo_observacao": "Reservatórios distintos",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.989,
+          -22.624
+        ]
+      },
+      "properties": {
+        "nome": "P-56",
+        "operadora": "Petrobras",
+        "campo": "Marlim Sul",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2011,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 141000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.048,
+          -21.24
+        ]
+      },
+      "properties": {
+        "nome": "P-57",
+        "operadora": "Petrobras",
+        "campo": "Jubarte",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2010,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "17-19",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Viscoso, asfaltênico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.997,
+          -21.215
+        ]
+      },
+      "properties": {
+        "nome": "P-58",
+        "operadora": "Petrobras",
+        "campo": "Jubarte/Baleia Anã",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2014,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "17-19",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Viscoso, asfaltênico",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2014-01-01: ~7 m³ (Falha operacional)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -41.061,
+          -23.516
+        ]
+      },
+      "properties": {
+        "nome": "P-61",
+        "operadora": "Brava Energia (ex-Petrobras)",
+        "campo": "Papa-Terra",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2015,
+        "tipo": "TLWP",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "14-17",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,9",
+        "oleo_observacao": "Muito pesado, viscoso",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.786,
+          -21.941
+        ]
+      },
+      "properties": {
+        "nome": "P-62",
+        "operadora": "Petrobras",
+        "campo": "Roncador",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2014,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "17-31",
+        "oleo_classificacao": "Pesado a leve",
+        "oleo_enxofre_pct": "0,4-0,6",
+        "oleo_observacao": "Reservatórios distintos",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -41.065,
+          -23.514
+        ]
+      },
+      "properties": {
+        "nome": "P-63",
+        "operadora": "Brava Energia (ex-Petrobras)",
+        "campo": "Papa-Terra",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2013,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 140000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "14-17",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,9",
+        "oleo_observacao": "Muito pesado, viscoso",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.677,
+          -22.702
+        ]
+      },
+      "properties": {
+        "nome": "P-65",
+        "operadora": "Trident Energy (ex-Petrobras)",
+        "campo": "Bonito/Enchova",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 1966,
+        "tipo": "Semissubmersível",
+        "capacidade_oleo_bbl_d": 33320,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "23-28",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,5",
+        "oleo_observacao": "Campo maduro",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2020-01-01: ~5 m³ (Vazamento em linha submarina)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.821,
+          -25.603
+        ]
+      },
+      "properties": {
+        "nome": "P-66",
+        "operadora": "Petrobras",
+        "campo": "Tupi (Lula)",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2017,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150955,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal, alto CO2 (8-15%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.693,
+          -25.33
+        ]
+      },
+      "properties": {
+        "nome": "P-67",
+        "operadora": "Petrobras",
+        "campo": "Tupi (Lula Norte)",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2018,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150950,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal, alto CO2 (8-15%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.668,
+          -25.023
+        ]
+      },
+      "properties": {
+        "nome": "P-68",
+        "operadora": "Petrobras",
+        "campo": "Berbigão/Sururu",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2018,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 163000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3-0,4",
+        "oleo_observacao": "Norte de Lula",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.859,
+          -25.658
+        ]
+      },
+      "properties": {
+        "nome": "P-69",
+        "operadora": "Petrobras",
+        "campo": "Tupi (Lula Ext. Sul)",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2018,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 173000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal, alto CO2 (8-15%)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2018-01-01: ~5 m³ (Vazamento operacional)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.468,
+          -24.952
+        ]
+      },
+      "properties": {
+        "nome": "P-70",
+        "operadora": "Petrobras",
+        "campo": "Atapu",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2020,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 161000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3-0,4",
+        "oleo_observacao": "Pré-sal",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.721,
+          -24.777
+        ]
+      },
+      "properties": {
+        "nome": "P-71",
+        "operadora": "Petrobras",
+        "campo": "Itapu",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2023,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150955,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.518,
+          -24.648
+        ]
+      },
+      "properties": {
+        "nome": "P-74",
+        "operadora": "Petrobras",
+        "campo": "Búzios 1",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2018,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 154000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.51,
+          -24.789
+        ]
+      },
+      "properties": {
+        "nome": "P-75",
+        "operadora": "Petrobras",
+        "campo": "Búzios 2",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2018,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 169000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.506,
+          -24.689
+        ]
+      },
+      "properties": {
+        "nome": "P-76",
+        "operadora": "Petrobras",
+        "campo": "Búzios 3",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2018,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 169000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.412,
+          -24.636
+        ]
+      },
+      "properties": {
+        "nome": "P-77",
+        "operadora": "Petrobras",
+        "campo": "Búzios 4",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2019,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 169000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.383,
+          -24.68
+        ]
+      },
+      "properties": {
+        "nome": "P-78",
+        "operadora": "Petrobras",
+        "campo": "Búzios 7",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2025,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.47,
+          -24.95
+        ]
+      },
+      "properties": {
+        "nome": "P-84",
+        "operadora": "Petrobras",
+        "campo": "Atapu 2",
+        "bacia": "Santos",
+        "status": "Em construção",
+        "ano_inicio": 2028,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 225000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3-0,4",
+        "oleo_observacao": "Pré-sal",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.84,
+          -25.545
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Angra dos Reis",
+        "operadora": "Petrobras",
+        "campo": "Tupi",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2010,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 100637,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal, alto CO2",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2011-11-01: ~1 bbl (~0,16 m³) (Vazamento em linha durante teste — 1º pré-sal)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.263,
+          -25.799
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de São Paulo",
+        "operadora": "Petrobras",
+        "campo": "Sapinhoá",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2013,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 120000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.762,
+          -25.394
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Paraty",
+        "operadora": "Petrobras",
+        "campo": "Tupi NE",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2012,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 120139,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal, alto CO2",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.879,
+          -25.204
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Mangaratiba",
+        "operadora": "Petrobras",
+        "campo": "Iracema Sul",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2014,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150955,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3-0,4",
+        "oleo_observacao": "Complexo Lula",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2018-03-01: ~62 m³ (~390 bbl) (Vazamento em linha de óleo)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.945,
+          -25.142
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Itaguaí",
+        "operadora": "Petrobras",
+        "campo": "Iracema Norte",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2015,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150955,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3-0,4",
+        "oleo_observacao": "Complexo Lula",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.206,
+          -25.673
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Ilhabela",
+        "operadora": "Petrobras",
+        "campo": "Sapinhoá Norte",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2014,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.753,
+          -25.449
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Maricá",
+        "operadora": "Petrobras",
+        "campo": "Lula Alto",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2016,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal, alto CO2 (8-15%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.781,
+          -25.491
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Saquarema",
+        "operadora": "Petrobras",
+        "campo": "Lula Central",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2016,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal, alto CO2 (8-15%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.057,
+          -21.338
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Anchieta",
+        "operadora": "Petrobras",
+        "campo": "Jubarte/Argonauta",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2012,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "17-19",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Viscoso, asfaltênico",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2019-01-01: ~6 m³ (Vazamento em flange)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.526,
+          -20.043
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Vitória",
+        "operadora": "BW Offshore (ex-Petrobras)",
+        "campo": "Golfinho",
+        "bacia": "Espírito Santo",
+        "status": "Vendida",
+        "ano_inicio": 2007,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 100637,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3",
+        "oleo_observacao": "ES",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2008-01-01: ~13,5 m³ (Vazamento em linha de óleo)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.5,
+          -25.0
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Santos",
+        "operadora": "Petrobras",
+        "campo": "Uruguá-Tambaú",
+        "bacia": "Santos",
+        "status": "Desativada",
+        "ano_inicio": 2010,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 35000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "30-35",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,2",
+        "oleo_observacao": "Gás/cond.",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Niterói",
+        "operadora": "Petrobras",
+        "campo": "Marlim Leste",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2009,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2021-01-01: ~2 m³ (Vazamento operacional)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.4,
+          -22.0
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade do Rio de Janeiro",
+        "operadora": "Petrobras",
+        "campo": "Espadarte",
+        "bacia": "Campos",
+        "status": "Descomissionada",
+        "ano_inicio": 2007,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "25-28",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,5",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.4,
+          -22.0
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Rio das Ostras",
+        "operadora": "Petrobras",
+        "campo": "Tartaruga Verde/Espadarte",
+        "bacia": "Campos",
+        "status": "Descomissionada",
+        "ano_inicio": 2007,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 25000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Parafínico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.726,
+          -22.953
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Campos dos Goytacazes",
+        "operadora": "Petrobras",
+        "campo": "Tartaruga Verde",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2018,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 150000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Parafínico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8,
+          -25.5
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de São Vicente",
+        "operadora": "Petrobras",
+        "campo": "Tupi (TLD)",
+        "bacia": "Santos",
+        "status": "Desativada",
+        "ano_inicio": 2009,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 30000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Pré-sal, alto CO2",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2015-01-01: ~1 m³ (Vazamento operacional)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.8,
+          -19.8
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de São Mateus",
+        "operadora": "BW Offshore (afretada Petrobras)",
+        "campo": "Camarupim",
+        "bacia": "Espírito Santo",
+        "status": "Desativada (2015)",
+        "ano_inicio": 2009,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "45-50",
+        "oleo_classificacao": "Gás/cond.",
+        "oleo_enxofre_pct": "<0,1",
+        "oleo_observacao": "Gás natural",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2015-02-11: Sem derrame (vazamento de gás) (Explosão na casa de bombas; 9 mortos)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -21.27
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Capixaba",
+        "operadora": "Petrobras",
+        "campo": "Cachalote/Jubarte",
+        "bacia": "Campos",
+        "status": "Em descomissionamento",
+        "ano_inicio": 2010,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 110000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "17-19",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Viscoso, asfaltênico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.57,
+          -25.227
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Carioca",
+        "operadora": "Petrobras",
+        "campo": "Sépia",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2021,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2022-01-01: ~3 m³ (Vazamento em equipamento de processo)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.264,
+          -24.631
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Sepetiba",
+        "operadora": "Petrobras (consórcio)",
+        "campo": "Mero 2",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2023,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 190000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Alto CO2 (~40%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.256,
+          -24.584
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Guanabara (MV31)",
+        "operadora": "Petrobras (consórcio)",
+        "campo": "Mero 1",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2022,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 190000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Alto CO2 (~40%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.132,
+          -24.54
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Pioneiro de Libra",
+        "operadora": "Petrobras (consórcio)",
+        "campo": "Mero (TLD)",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2017,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 50318,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Alto CO2 (~40%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.188,
+          -24.56
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Alexandre de Gusmão",
+        "operadora": "Petrobras (consórcio)",
+        "campo": "Mero 4",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2025,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 180000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Alto CO2 (~40%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.293,
+          -24.686
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Marechal Duque de Caxias",
+        "operadora": "Petrobras (consórcio)",
+        "campo": "Mero 3",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2024,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 200000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Alto CO2 (~40%)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.567,
+          -24.593
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Almirante Barroso",
+        "operadora": "Petrobras (consórcio)",
+        "campo": "Búzios 5",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2023,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 173640,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.513,
+          -24.744
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Almirante Tamandaré",
+        "operadora": "Petrobras (consórcio)",
+        "campo": "Búzios 6",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2025,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 225000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.108,
+          -22.396
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Anita Garibaldi",
+        "operadora": "Petrobras",
+        "campo": "Marlim/Voador",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2023,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 80000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.057,
+          -22.464
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Anna Nery",
+        "operadora": "Petrobras",
+        "campo": "Marlim/Marlim Sul",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2023,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 70000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.998,
+          -21.27
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Maria Quitéria",
+        "operadora": "Petrobras",
+        "campo": "Jubarte",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2024,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "17-19",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Viscoso, asfaltênico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.0,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Marlim Sul",
+        "operadora": "Petrobras",
+        "campo": "Marlim Sul",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2004,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "19-20",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,7-0,8",
+        "oleo_observacao": "Naftênico, ácido (TAN elevado)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.4,
+          -22.3
+        ]
+      },
+      "properties": {
+        "nome": "PNA-1 (Namorado 1)",
+        "operadora": "Petrobras",
+        "campo": "Namorado",
+        "bacia": "Campos",
+        "status": "Em descomissionamento",
+        "ano_inicio": 1979,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Reservatório-escola",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.4,
+          -22.3
+        ]
+      },
+      "properties": {
+        "nome": "PNA-2 (Namorado 2)",
+        "operadora": "Petrobras",
+        "campo": "Namorado",
+        "bacia": "Campos",
+        "status": "Em descomissionamento",
+        "ano_inicio": 1980,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Reservatório-escola",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.417,
+          -22.375
+        ]
+      },
+      "properties": {
+        "nome": "PGP-1 Garoupa",
+        "operadora": "Petrobras",
+        "campo": "Garoupa",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 1984,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": 57080,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Primeiro gigante de Campos (1974)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -44.383,
+          -24.353
+        ]
+      },
+      "properties": {
+        "nome": "Plataforma de Mexilhão (PMXL-1)",
+        "operadora": "Petrobras",
+        "campo": "Mexilhão",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2011,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": 19554,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -38.812,
+          -13.49
+        ]
+      },
+      "properties": {
+        "nome": "Plataforma de Manati (PMNT)",
+        "operadora": "Gas Bridge (ex-Petrobras)",
+        "campo": "Manati",
+        "bacia": "Camamu",
+        "status": "Ativa",
+        "ano_inicio": 2007,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "Gás",
+        "oleo_enxofre_pct": "<0,1",
+        "oleo_observacao": "Maior gás offshore não-assoc.",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -36.725,
+          -4.695
+        ]
+      },
+      "properties": {
+        "nome": "Plat. Arabaiana 1 (PARB1)",
+        "operadora": "Petrobras",
+        "campo": "Arabaiana",
+        "bacia": "Potiguar",
+        "status": "Ativa",
+        "ano_inicio": 2001,
+        "tipo": "Fixa Caisson",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "Gás",
+        "oleo_enxofre_pct": "<0,1",
+        "oleo_observacao": "Gás natural",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -36.826,
+          -4.705
+        ]
+      },
+      "properties": {
+        "nome": "Plat. Pescada 1B (PPE1B)",
+        "operadora": "Petrobras",
+        "campo": "Pescada",
+        "bacia": "Potiguar",
+        "status": "Ativa",
+        "ano_inicio": 1998,
+        "tipo": "Fixa Caisson",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "Gás",
+        "oleo_enxofre_pct": "<0,1",
+        "oleo_observacao": "Gás/cond.",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -36.836,
+          -4.718
+        ]
+      },
+      "properties": {
+        "nome": "Plat. Pescada 2 (PPE02)",
+        "operadora": "Petrobras",
+        "campo": "Pescada",
+        "bacia": "Potiguar",
+        "status": "Ativa",
+        "ano_inicio": 1999,
+        "tipo": "Fixa Caisson",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "Gás",
+        "oleo_enxofre_pct": "<0,1",
+        "oleo_observacao": "Gás/cond.",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -36.5,
+          -5.0
+        ]
+      },
+      "properties": {
+        "nome": "Plataforma de Ubarana (PUB-2/3)",
+        "operadora": "Brava Energia (ex-Petrobras)",
+        "campo": "Ubarana",
+        "bacia": "Potiguar",
+        "status": "Ativa",
+        "ano_inicio": 1976,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "28-32",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,1-0,2",
+        "oleo_observacao": "Potiguar mar",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -36.55,
+          -5.05
+        ]
+      },
+      "properties": {
+        "nome": "Plataforma de Agulha (PAG-1/2)",
+        "operadora": "Brava Energia (ex-Petrobras)",
+        "campo": "Agulha",
+        "bacia": "Potiguar",
+        "status": "Ativa",
+        "ano_inicio": 1981,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "28-32",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,1-0,2",
+        "oleo_observacao": "Potiguar mar",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -36.8,
+          -11.0
+        ]
+      },
+      "properties": {
+        "nome": "Plataforma de Piranema",
+        "operadora": "Petrobras",
+        "campo": "Piranema",
+        "bacia": "Sergipe-Alagoas",
+        "status": "Descomissionada",
+        "ano_inicio": 2007,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 30000,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "38-42",
+        "oleo_classificacao": "Leve",
+        "oleo_enxofre_pct": "0,1-0,2",
+        "oleo_observacao": "Parafínico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -37.0,
+          -11.2
+        ]
+      },
+      "properties": {
+        "nome": "PCA-1 (Camorim)",
+        "operadora": "Brava Energia (ex-Petrobras)",
+        "campo": "Camorim",
+        "bacia": "Sergipe-Alagoas",
+        "status": "Ativa",
+        "ano_inicio": 1980,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "30-35",
+        "oleo_classificacao": "Leve",
+        "oleo_enxofre_pct": "0,2-0,3",
+        "oleo_observacao": "Parafínico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -37.0,
+          -11.2
+        ]
+      },
+      "properties": {
+        "nome": "PRB-1 (Robalo)",
+        "operadora": "Petrobras",
+        "campo": "Robalo",
+        "bacia": "Sergipe-Alagoas",
+        "status": "Desativada",
+        "ano_inicio": 1979,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "30-35",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,2-0,3",
+        "oleo_observacao": "—",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -37.0,
+          -11.2
+        ]
+      },
+      "properties": {
+        "nome": "PCA Caioba",
+        "operadora": "Brava Energia (ex-Petrobras)",
+        "campo": "Caioba",
+        "bacia": "Sergipe-Alagoas",
+        "status": "Ativa",
+        "ano_inicio": 1985,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": true,
+        "oleo_API": "28-32",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,2-0,3",
+        "oleo_observacao": "Parafínico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.2,
+          -22.3
+        ]
+      },
+      "properties": {
+        "nome": "Plataforma de Enchova (PCE-1)",
+        "operadora": "Trident Energy (ex-Petrobras)",
+        "campo": "Enchova",
+        "bacia": "Campos",
+        "status": "Ativa (reformada após acidentes)",
+        "ano_inicio": 1977,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "26-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,5",
+        "oleo_observacao": "Primeiro óleo offshore BR (1977)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 2,
+        "historico_derramamentos": "1984-08-16: Blowout, sem óleo significativo (42 mortos; incêndio); 1988-04-24: Blowout de gás (Destruição de módulo de produção)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.1,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Polvo",
+        "operadora": "BW Energy (futuro FPSO Maromba)",
+        "campo": "Polvo",
+        "bacia": "Campos",
+        "status": "Desativada (2020)",
+        "ano_inicio": 2007,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-22",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,6",
+        "oleo_observacao": "Naftênico",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2012-01-01: ~5 m³ (Vazamento em linha de produção)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.1,
+          -22.5
+        ]
+      },
+      "properties": {
+        "nome": "Polvo-A (jaqueta)",
+        "operadora": "PRIO",
+        "campo": "Polvo",
+        "bacia": "Campos",
+        "status": "Ativa (tieback FPSO Bravo)",
+        "ano_inicio": 2007,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-22",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,6",
+        "oleo_observacao": "Naftênico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.05,
+          -22.43
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Bravo (ex-OSX-3)",
+        "operadora": "PRIO",
+        "campo": "Tubarão Martelo + Polvo",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2013,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "19-22",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,6",
+        "oleo_observacao": "Naftênico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.86,
+          -22.07
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Frade",
+        "operadora": "PRIO (ex-Chevron)",
+        "campo": "Frade",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2009,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 100000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "18-22",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Naftênico",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 2,
+        "historico_derramamentos": "2011-11-07: ~2.400-3.700 bbl (~370-580 m³) (Kick + migração por fraturas); 2012-03-01: ~10 bbl (Ressurgência pela mesma falha)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -41.2,
+          -23.4
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Peregrino + Plat. Peregrino A/B",
+        "operadora": "PRIO (ex-Equinor)",
+        "campo": "Peregrino",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2011,
+        "tipo": "FPSO + Fixa",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "13-14",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,9-1,0",
+        "oleo_observacao": "Muito pesado, viscoso",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -41.18,
+          -23.45
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Peregrino C",
+        "operadora": "PRIO (ex-Equinor)",
+        "campo": "Peregrino fase 2",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2022,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "13-14",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,9-1,0",
+        "oleo_observacao": "Muito pesado, viscoso",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.7,
+          -25.4
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Itajaí",
+        "operadora": "Karoon Energy",
+        "campo": "Baúna + Patola",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2013,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 80000,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "—",
+        "oleo_classificacao": "—",
+        "oleo_enxofre_pct": "—",
+        "oleo_observacao": "—",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2016-01-01: ~3,5 m³ (Falha em linha de descarga)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.6,
+          -25.3
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Atlanta (Yinson)",
+        "operadora": "Brava Energia",
+        "campo": "Atlanta",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2024,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "14-16",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Muito viscoso (Brava)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.6,
+          -25.3
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Petrojarl I",
+        "operadora": "Enauta (histórico)",
+        "campo": "Atlanta (SES)",
+        "bacia": "Santos",
+        "status": "Desativada (2023)",
+        "ano_inicio": 2018,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "14-16",
+        "oleo_classificacao": "Pesado",
+        "oleo_enxofre_pct": "0,5-0,7",
+        "oleo_observacao": "Muito viscoso (Brava)",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -39.3,
+          -20.6
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Espírito Santo",
+        "operadora": "Shell",
+        "campo": "BC-10 Parque das Conchas",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 2009,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "16-42",
+        "oleo_classificacao": "Pesado e leve",
+        "oleo_enxofre_pct": "0,3-0,7",
+        "oleo_observacao": "Vários reservatórios (Shell)",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2013-01-01: <5 m³ (Vazamento em equipamento submarino)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.3,
+          -21.95
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Fluminense",
+        "operadora": "Shell (histórico)",
+        "campo": "Bijupirá-Salema",
+        "bacia": "Campos",
+        "status": "Desativada (2022)",
+        "ano_inicio": 2003,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-32",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,3-0,4",
+        "oleo_observacao": "Leve para a região",
+        "houve_derramamento": true,
+        "qtd_eventos_derramamento": 1,
+        "historico_derramamentos": "2003-11-24: ~350 m³ (~2.200-4.000 bbl) (Falha em mangote de offloading)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -43.467,
+          -25.519
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Cidade de Caraguatatuba",
+        "operadora": "TotalEnergies/Shell/Repsol",
+        "campo": "Lapa",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2016,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": 120764,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3-0,5",
+        "oleo_observacao": "Op. TotalEnergies",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.5,
+          -25.4
+        ]
+      },
+      "properties": {
+        "nome": "FPSO Bacalhau",
+        "operadora": "Equinor",
+        "campo": "Bacalhau",
+        "bacia": "Santos",
+        "status": "Ativa",
+        "ano_inicio": 2025,
+        "tipo": "FPSO",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "28-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,3-0,4",
+        "oleo_observacao": "Equinor",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.05,
+          -22.1
+        ]
+      },
+      "properties": {
+        "nome": "Pólo Pampo (PPM-1 jaquetas)",
+        "operadora": "Trident Energy",
+        "campo": "Pampo/Badejo/Linguado/Trilha",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 1988,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "26-29",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4",
+        "oleo_observacao": "Maduro",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.5,
+          -22.0
+        ]
+      },
+      "properties": {
+        "nome": "Pólo Carapeba (PCP-1/2/3, PVM, PPG)",
+        "operadora": "Perenco",
+        "campo": "Pargo/Carapeba/Vermelho",
+        "bacia": "Campos",
+        "status": "Ativa",
+        "ano_inicio": 1986,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "27-30",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,4-0,5",
+        "oleo_observacao": "Parafínico",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -40.4,
+          -22.4
+        ]
+      },
+      "properties": {
+        "nome": "Pólo Cherne/Bagre (PCH-1/2)",
+        "operadora": "Perenco",
+        "campo": "Cherne/Bagre",
+        "bacia": "Campos",
+        "status": "Em retomada (2025)",
+        "ano_inicio": 1984,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "25-28",
+        "oleo_classificacao": "Médio",
+        "oleo_enxofre_pct": "0,5",
+        "oleo_observacao": "Maduro",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -37.1,
+          -11.2
+        ]
+      },
+      "properties": {
+        "nome": "Pólo Tartaruga",
+        "operadora": "Trident Energy (ex-Petrobras)",
+        "campo": "Tartaruga",
+        "bacia": "Sergipe-Alagoas",
+        "status": "Ativa",
+        "ano_inicio": 1981,
+        "tipo": "Fixa Jaqueta",
+        "capacidade_oleo_bbl_d": null,
+        "coordenada_aproximada_por_centroide_de_campo": false,
+        "oleo_API": "30-35",
+        "oleo_classificacao": "Médio/leve",
+        "oleo_enxofre_pct": "0,2-0,3",
+        "oleo_observacao": "Sergipe-AL",
+        "houve_derramamento": false,
+        "qtd_eventos_derramamento": 0,
+        "historico_derramamentos": "Nenhum registrado"
+      }
+    }
+  ]
+}

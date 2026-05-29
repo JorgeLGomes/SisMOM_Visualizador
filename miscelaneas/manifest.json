@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "description": "Camadas de miscelâneas — pontos, linhas e polígonos auxiliares",
+  "items": [
+    {
+      "id": "plataformas_br",
+      "nome": "Plataformas offshore (Brasil)",
+      "arquivo": "plataformas_offshore_brasil.geojson",
+      "tipo": "geojson",
+      "labelProp": "nome",
+      "infoProps": [
+        "nome",
+        "operadora",
+        "campo",
+        "bacia",
+        "status",
+        "ano_inicio",
+        "tipo",
+        "oleo_API",
+        "oleo_classificacao",
+        "houve_derramamento",
+        "qtd_eventos_derramamento",
+        "historico_derramamentos"
+      ],
+      "style": {
+        "stroke": "#ff7a00",
+        "fillColor": "#ff7a00",
+        "pointRadius": 5
+      }
+    },
+    {
+      "id": "corais_br",
+      "nome": "Corais (costa brasileira)",
+      "arquivo": "corais_brasil.geojson",
+      "tipo": "geojson",
+      "labelProp": "nome",
+      "infoProps": [
+        "nome",
+        "regiao",
+        "area_km2",
+        "GENUS",
+        "SPECIES",
+        "FAMILY",
+        "DATA_TYPE",
+        "VERIF"
+      ],
+      "style": {
+        "stroke": "#0aa37a",
+        "fill": "rgba(34,200,154,0.18)",
+        "lineWidth": 1.2,
+        "fillColor": "#22c89a",
+        "pointRadius": 4,
+        "hatch": true,
+        "hatchColor": "#0aa37a",
+        "hatchSpacing": 7,
+        "hatchLineWidth": 1
+      },
+      "fonte": "UNEP-WCMC, WorldFish Centre, WRI, TNC (2018) Global distribution of warm-water coral reefs"
+    }
+  ]
+}

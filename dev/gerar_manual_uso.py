@@ -121,10 +121,12 @@ sumario = [
     '7. Configurando modelos e variáveis',
     '8. Templates de URL e placeholders',
     '9. Camadas extras e calculadora',
-    '10. Servidor HTTP local de dados',
-    '11. Atalhos de teclado',
-    '12. Solução de problemas',
-    '13. Apêndice — referência de placeholders',
+    '10. Ferramentas de medição e perfil',
+    '11. Camadas Miscelâneas (referência geográfica)',
+    '12. Servidor HTTP local de dados',
+    '13. Atalhos de teclado',
+    '14. Solução de problemas',
+    '15. Apêndice — referência de placeholders',
 ]
 story.append(bullets(sumario))
 story.append(PageBreak())
@@ -478,8 +480,150 @@ story.append(tip(
 ))
 story.append(PageBreak())
 
-# ===== 10. SERVIDOR LOCAL =====
-story.append(h1('10. Servidor HTTP local de dados'))
+# ===== 10. FERRAMENTAS =====
+story.append(h1('10. Ferramentas de medição e perfil'))
+story.append(p(
+    'Cada painel Mi (na aba GeoTIFF) tem uma barra de ferramentas no topo do mapa. As ferramentas operam '
+    'em coordenadas geográficas reais (latitude/longitude) — os valores reportados são corrigidos para a '
+    'curvatura da Terra usando a fórmula de Haversine.'
+))
+story.append(h2('Como ativar uma ferramenta'))
+story.append(numbered([
+    'Clique no ícone da ferramenta na barra do mapa (ela fica destacada).',
+    'Clique no mapa para inserir vértices. Mover o mouse mostra o desenho em pré-visualização.',
+    'Duplo-clique (ou Enter) finaliza a medição/desenho. Esc cancela.',
+    'Pra voltar ao modo de navegação (pan), clique no ícone da mãozinha.',
+]))
+story.append(h2('Ferramentas disponíveis'))
+story.append(tbl([
+    ['Ícone', 'Ferramenta', 'O que mede / faz'],
+    ['📏', 'Distância',  'Soma do comprimento dos segmentos da linha (Haversine, em km).'],
+    ['▦',  'Área',       'Área do polígono fechado pelos cliques (km², esférica).'],
+    ['▭',  'Retângulo',  'Caixa lat/lon definida por dois cliques diagonais; reporta a área.'],
+    ['◯',  'Círculo',    'Raio definido a partir do centro; reporta raio em km e área em km².'],
+    ['╱',  'Linha',      'Polilinha simples (anotação visual).'],
+    ['T',  'Texto',      'Rótulo no mapa numa posição clicada.'],
+    ['∿',  'Perfil',     'Amostra a camada ativa ao longo da polilinha e abre um gráfico.'],
+], col_widths=[1.2*cm, 3.2*cm, 11.5*cm]))
+story.append(h2('Ferramenta de perfil'))
+story.append(p(
+    'O perfil amostra valores do raster ativo (a camada destacada no painel direito) ao longo de uma '
+    'polilinha. Após finalizar, abre uma janela com:'
+))
+story.append(bullets([
+    'Gráfico de fundo branco, responsivo à largura da janela.',
+    'Eixo X: distância acumulada em km desde o primeiro ponto. Eixo Y: valor do raster.',
+    'Tooltip ao passar o mouse — mostra lat/lon, distância e valor exato do ponto.',
+    'Botão <b>Salvar PNG</b> — exporta o gráfico em imagem para colar em relatórios.',
+]))
+story.append(tip(
+    'O perfil sempre usa a <b>camada ativa</b>. Se quiser perfil de outra camada, clique no chip dela primeiro '
+    'pra torná-la ativa, depois ative a ferramenta de perfil.'
+))
+story.append(h2('Zoom com a roda do mouse durante uso de ferramentas'))
+story.append(p(
+    'O zoom via scroll fica habilitado mesmo com uma ferramenta ativa — você pode ajustar a região antes '
+    'do próximo clique. Pan (arrastar) também funciona; só os cliques são consumidos pela ferramenta.'
+))
+story.append(PageBreak())
+
+# ===== 11. MISCELÂNEAS =====
+story.append(h1('11. Camadas Miscelâneas (referência geográfica)'))
+story.append(p(
+    'O bloco <b>Miscelâneas</b> no painel direito permite adicionar camadas vetoriais de referência geográfica '
+    'sobre os mapas — pontos (ex: plataformas de petróleo) ou polígonos (ex: áreas de coral). São camadas '
+    'pré-empacotadas que vêm dentro da pasta <code>miscelaneas/</code> ao lado do HTML do GISELE.'
+))
+story.append(h2('Camadas inclusas no pacote'))
+story.append(tbl([
+    ['Camada', 'Tipo', 'Conteúdo'],
+    ['Plataformas offshore (Brasil)', 'Pontos rotulados',
+     'Plataformas de prospecção/produção de petróleo em águas brasileiras, com sigla visível no mapa e '
+     'informações de operadora, bacia, campo, status, classificação do óleo e histórico de derramamentos.'],
+    ['Corais (costa brasileira)', 'Polígonos',
+     'Recifes coralinos ao longo da costa brasileira (Maranhão, Pernambuco/Alagoas, Sergipe/Bahia, '
+     'Banco dos Abrolhos, Banco de Vitória/Trindade). Fonte: UNEP-WCMC Global distribution of warm-water '
+     'coral reefs (2018), recortado para o bbox brasileiro.'],
+], col_widths=[5*cm, 3*cm, 8*cm]))
+story.append(h2('Adicionando uma camada'))
+story.append(numbered([
+    'No painel direito, no bloco <b>Miscelâneas</b>, escolha o item no dropdown.',
+    'Clique em <b>+ Adicionar</b>. A camada aparece como um chip na lista de Camadas, com seu próprio ícone de cor.',
+    'Use o olho (👁) para ocultar/mostrar, e o × para remover.',
+]))
+story.append(h2('Estilização — hachura nos polígonos'))
+story.append(p(
+    'Polígonos da camada de corais são preenchidos com um padrão de hachura diagonal (linhas finas em '
+    '~45°) sobre um fundo translúcido. Isso permite ver o campo do GeoTIFF por trás sem perder a indicação '
+    'visual da região coralina. A hachura usa <code>CanvasPattern</code> com cache local — não impacta '
+    'performance de pan/zoom.'
+))
+story.append(h2('Trocar a cor da camada'))
+story.append(p(
+    'Cada chip de camada Miscelânea tem um pequeno seletor de cor (input nativo do sistema). '
+    'Clique nele para escolher uma nova cor:'
+))
+story.append(bullets([
+    'O <b>stroke</b> (contorno) muda para a cor escolhida.',
+    'O <b>fill</b> translúcido é recolor’d preservando o alpha original (ex: 18% de opacidade nos corais).',
+    'A <b>hachura</b> e a cor dos <b>pontos</b> também adotam a nova cor.',
+    'A mudança é instantânea — o mapa redesenha sem recarregar o arquivo.',
+]))
+story.append(h2('Clique no shape — janela de informação'))
+story.append(p(
+    'Em modo de navegação (mão aberta), clique em qualquer ponto ou polígono de uma camada Miscelânea. '
+    'Uma janela branca abre no canto superior direito mostrando uma tabela com os atributos relevantes do shape '
+    '(definidos em <code>infoProps</code> no manifest):'
+))
+story.append(bullets([
+    'Plataformas: nome, operadora, bacia, campo, status, ano de início, classificação do óleo, histórico de derramamentos.',
+    'Corais: nome regional (ex: "Banco dos Abrolhos / Sul da Bahia"), região, área em km², gênero/espécie/família taxonômica quando disponíveis.',
+]))
+story.append(tip(
+    'Para polígonos a detecção é por <i>point-in-polygon</i> exato (incluindo respeito a buracos). Para pontos '
+    'a tolerância é de ~10 pixels, então não precisa clicar com precisão milimétrica.'
+))
+story.append(h2('Adicionando suas próprias miscelâneas'))
+story.append(p(
+    'A pasta <code>miscelaneas/</code> contém um <code>manifest.json</code> que lista todas as camadas. '
+    'Você pode adicionar suas próprias camadas GeoJSON editando esse manifest:'
+))
+story.append(code(
+    '{\n'
+    '  "version": 1,\n'
+    '  "items": [\n'
+    '    {\n'
+    '      "id": "minha_camada",\n'
+    '      "nome": "Minha camada (descrição)",\n'
+    '      "arquivo": "meu_geojson.geojson",\n'
+    '      "tipo": "geojson",\n'
+    '      "labelProp": "nome",          // propriedade pro rótulo dos pontos\n'
+    '      "infoProps": ["nome","x","y"],// propriedades mostradas no popup de info\n'
+    '      "style": {\n'
+    '        "stroke": "#ff7a00",        // cor do contorno\n'
+    '        "fill": "rgba(255,122,0,0.20)", // fill translúcido (polígonos)\n'
+    '        "fillColor": "#ff7a00",     // cor sólida dos pontos\n'
+    '        "pointRadius": 5,            // raio do círculo dos pontos\n'
+    '        "lineWidth": 1.2,            // espessura do stroke\n'
+    '        "hatch": true,               // ativa hachura diagonal\n'
+    '        "hatchColor": "#0aa37a",\n'
+    '        "hatchSpacing": 7,\n'
+    '        "hatchLineWidth": 1\n'
+    '      }\n'
+    '    }\n'
+    '  ]\n'
+    '}'
+))
+story.append(warn(
+    'Para que funcione abrindo o HTML diretamente do disco (<code>file://</code>), o manifest e os GeoJSONs '
+    'precisam estar embutidos no HTML como <code>&lt;script type="application/json" id="gt-misc-..."&gt;</code>. '
+    'No GISELE empacotado isso já está feito; se você modificar o manifest manualmente, sirva pelo servidor '
+    'HTTP local (seção 12) para que o <i>fetch</i> funcione.'
+))
+story.append(PageBreak())
+
+# ===== 12. SERVIDOR LOCAL =====
+story.append(h1('12. Servidor HTTP local de dados'))
 story.append(p(
     'Os dados podem estar no servidor do CPTEC (URLs <code>https://ftp1.cptec.inpe.br/...</code>) ou na sua máquina local. '
     'Para usar dados locais — especialmente em <b>Safari/Firefox</b> que não permitem acesso direto a disco via <code>file://</code> — '
@@ -582,137 +726,123 @@ story.append(code(
 
 story.append(h2('Auto-start no boot — Windows'))
 story.append(numbered([
-    'Crie atalho do <code>servir_dados.bat</code> com a pasta como argumento.',
-    'Aperte <code>Win+R</code>, digite <code>shell:startup</code>, Enter.',
-    'Cole o atalho nessa pasta.',
-    'Pronto — no próximo login o servidor sobe sozinho.',
+    'Crie um atalho do <code>servir_dados.bat</code> com a pasta de dados como argumento.',
+    'Pressione <code>Win+R</code> e digite <code>shell:startup</code> — a pasta Startup do usuário abre.',
+    'Cole o atalho lá. O servidor inicia automaticamente em todo login.',
 ]))
-
-story.append(h2('Auto-start no boot — macOS (launchd)'))
-story.append(p('Crie um plist em <code>~/Library/LaunchAgents/br.inpe.gisele.server.plist</code> e carregue com:'))
-story.append(code(
-    'launchctl load ~/Library/LaunchAgents/br.inpe.gisele.server.plist<br/>'
-    'launchctl start br.inpe.gisele.server'
+story.append(tip(
+    'Alternativa: use o Agendador de Tarefas (Task Scheduler) com gatilho "Ao fazer logon do usuário" '
+    'para mais controle (reinício em falha, prioridade, etc.).'
 ))
-story.append(p('Detalhes do plist em <code>tools/servir_dados/README.md</code>.'))
-
-story.append(h2('Diagnóstico'))
-story.append(bullets([
-    '<b>Servidor está rodando?</b> Abra <code>http://localhost:8765/</code> no browser. Deve mostrar listing da pasta.',
-    '<b>Porta ocupada?</b> Linux: <code>lsof -i :8765</code> mostra quem está usando. Windows: <code>netstat -ano | findstr 8765</code>. Use outra porta: <code>--port 9000</code>.',
-    '<b>App não acha o arquivo?</b> Navegue no browser até a URL exata para confirmar caminho e nome. Ajuste os placeholders no template.',
-    '<b>Logs no terminal:</b> cada requisição é registrada com IP, método, caminho e status (200/404).',
-]))
 story.append(PageBreak())
 
-# ===== 11. ATALHOS =====
-story.append(h1('11. Atalhos de teclado'))
+# ===== 13. ATALHOS =====
+story.append(h1('13. Atalhos de teclado'))
 story.append(tbl([
-    ['Tecla', 'Ação'],
-    ['← →', 'Recuar/avançar um passo de tempo (snap para a frequência da variável).'],
-    ['Espaço', 'Animar / pausar.'],
-    ['Esc', 'Fechar modal de configuração.'],
-    ['Ctrl + Scroll', 'Zoom no painel sob o cursor.'],
-    ['Arrasto com botão direito', 'Pan no painel.'],
-    ['Duplo-clique', 'Reset de zoom no painel.'],
-], col_widths=[5*cm, 11*cm]))
-story.append(h2('Atalhos exclusivos do modo GeoTIFF'))
-story.append(tbl([
-    ['Ação', 'Como acionar'],
-    ['Selecionar painel ativo', 'Clique no botão "Painel M_n_" no canto do mapa.'],
-    ['Mostrar/ocultar mapa-base', 'Checkbox "Mostrar mapa" no painel direito.'],
-    ['Recentrar mapa no raster', 'Botão ⟲ na barra inferior do painel.'],
-    ['Editar escala manual', 'Botão "Editar escala" → digite Min/Max → Enter.'],
-], col_widths=[6*cm, 10*cm]))
+    ['Atalho', 'Ação'],
+    ['Espaço',                'Play/Pause da animação no painel ativo.'],
+    ['→ / ←',                 'Próximo / passo anterior na animação.'],
+    ['Shift+→ / Shift+←',     'Pular 5 passos.'],
+    ['Home / End',            'Primeiro / último passo.'],
+    ['Scroll do mouse',       'Zoom in/out centrado no cursor.'],
+    ['Clique e arrastar',     'Pan do mapa.'],
+    ['Esc',                   'Cancela a ferramenta ativa e volta para Pan.'],
+    ['Enter / Duplo-clique',  'Finaliza polilinha/polígono em desenho.'],
+    ['Ctrl+F5',               'Recarrega o app forçando bypass de cache.'],
+    ['F12',                   'Abre o DevTools (Electron) — útil pra ver console e build marker.'],
+], col_widths=[3.5*cm, 12.4*cm]))
 story.append(PageBreak())
 
-# ===== 12. TROUBLESHOOTING =====
-story.append(h1('12. Solução de problemas'))
-story.append(h3('Imagem não carrega ("Imagem não disponível no servidor")'))
-story.append(bullets([
-    'Verifique conexão com o FTP do CPTEC (<code>https://ftp1.cptec.inpe.br</code>).',
-    'Verifique se a rodada existe para a data escolhida. Algumas rodadas só rodam em horários específicos (00Z, 12Z).',
-    'Confirme o template do modelo: clique direito → Inspecionar → Network para ver a URL gerada e o status HTTP.',
-]))
-story.append(h3('GeoTIFF mostra "Failed to fetch" ou erro CORS'))
-story.append(bullets([
-    '<b>No app Electron:</b> webSecurity está desabilitado por padrão; não deveria ter CORS. Verifique se o FTP responde (rede, firewall).',
-    '<b>No navegador via file://:</b> CORS bloqueia. Use o app Electron, OU rode o servidor HTTP local (seção 10) e use <code>http://localhost:8765/...</code>.',
-]))
-story.append(h3('Animação fica congelada / não avança'))
-story.append(bullets([
-    'A primeira passagem em modelos pesados (Eta) pode levar alguns segundos por passo. Espere completar uma volta — a segunda fica instantânea.',
-    'No console (F12), procure por erros de fetch ou decode.',
-]))
-story.append(h3('App não abre / SmartScreen bloqueia'))
-story.append(bullets([
-    'No Windows, o SmartScreen pode bloquear executáveis não assinados. Clique em <b>Mais informações &rarr; Executar mesmo assim</b>.',
-    'No macOS, o Gatekeeper pode bloquear apps não notarizados. Clique direito no .app &rarr; <b>Abrir</b> &rarr; confirme. Ou em Preferências &rarr; Segurança &rarr; "Abrir mesmo assim".',
-    'Verifique antivírus: alguns sinalizam Electron como suspeito (falso-positivo). Adicione exceção para a pasta de instalação.',
-]))
-story.append(h3('Configuração foi perdida'))
-story.append(bullets([
-    'A config fica em <code>localStorage</code> do navegador/Electron. Limpar cache do navegador apaga.',
-    '<b>Sempre exporte</b> sua configuração para .json (botão <b>Exportar</b> no modal de configuração) — facilita backup e migração entre máquinas.',
-]))
-story.append(h3('Saber a versão exata do app'))
+# ===== 14. SOLUÇÃO DE PROBLEMAS =====
+story.append(h1('14. Solução de problemas'))
+story.append(h2('"Falha ao carregar camada: Failed to fetch"'))
 story.append(p(
-    'Abra o DevTools (F12) e procure no console pelo log <code>[GISELE] build = YYYYMMDD-HHMM-tag</code>. '
-    'Esse marcador identifica a versão carregada e ajuda no suporte.'
+    'Ocorre quando o app tenta buscar um arquivo (GeoJSON da Miscelânea, GeoTIFF do modelo, etc.) e o '
+    'protocolo <code>file://</code> bloqueia. Soluções:'
+))
+story.append(bullets([
+    'Use o GISELE empacotado (Electron) em vez de abrir o HTML direto — ele tem acesso ao disco.',
+    'Suba o servidor HTTP local (seção 12) e ajuste a URL do modelo para <code>http://localhost:8765/...</code>.',
+    'Para Miscelâneas, verifique se o manifest e o GeoJSON estão embutidos como <code>&lt;script type="application/json"&gt;</code> no final do HTML.',
+]))
+story.append(h2('GeoTIFF aparece deslocado em latitude'))
+story.append(p(
+    'Modelos com dados armazenados <i>bottom-up</i> (tiepoint J indica linha de baixo) são detectados '
+    'automaticamente e invertidos. Se a detecção falhar, use o botão <b>Inverter Y</b> na sidebar (bloco '
+    'Diagnóstico) para forçar a inversão.'
+))
+story.append(h2('Cores estranhas / sem dados visíveis'))
+story.append(bullets([
+    'Verifique a paleta atual e min/max no painel direito.',
+    'Clique em <b>Auto min/max</b> para recalcular pelos percentis (5–95%).',
+    'Adicione valores NoData explícitos em <b>Mascarar</b> se o modelo usa sentinels não-padrão (ex: 1e20, -9999).',
+]))
+story.append(h2('Animação travada ou flickering'))
+story.append(bullets([
+    'O cache de blob URL e ImageBitmap reduz drasticamente o custo de redesenho — recarregue o app se o cache parecer corrompido (Ctrl+F5).',
+    'Confira no console o build marker: <code>[GISELE] build = ...</code>. Se for antigo, o navegador está servindo cache.',
+]))
+story.append(h2('Popup das miscelâneas não abre ao clicar'))
+story.append(bullets([
+    'Verifique se a ferramenta ativa é <b>Pan</b> (mãozinha) — clicar com uma ferramenta de medição ativa cria vértice, não consulta info.',
+    'Confirme que a camada miscelânea está visível (olho aberto no chip).',
+    'Para polígonos a detecção é point-in-polygon exato; para pontos a tolerância é ~10 px.',
+]))
+story.append(h2('Build marker e diagnóstico'))
+story.append(p(
+    'Em qualquer dúvida sobre versão, abra o DevTools (F12 no Electron) e veja a primeira linha do console: '
+    '<code>[GISELE] build = YYYYMMDD-NNNN-nome</code>. Reporte esse marker ao suporte para acelerar o diagnóstico.'
 ))
 story.append(PageBreak())
 
-# ===== 13. APÊNDICE =====
-story.append(h1('13. Apêndice — referência de placeholders'))
-story.append(p('Lista completa para uso em templates de URL e nome de arquivo.'))
+# ===== 15. APÊNDICE =====
+story.append(h1('15. Apêndice — referência de placeholders'))
+story.append(p(
+    'Os templates de URL aceitam os placeholders abaixo. Eles são substituídos no momento da requisição '
+    'com base na data/modelo/passo selecionado no painel.'
+))
 story.append(tbl([
-    ['Placeholder', 'Onde se aplica', 'Significado'],
-    ['{yyyy}',         'endereço (rodada) / nome (validade)', 'Ano 4 dígitos'],
-    ['{mm}',           'idem',                                'Mês 2 dígitos'],
-    ['{dd}',           'idem',                                'Dia 2 dígitos'],
-    ['{hh}',           'idem',                                'Hora UTC 2 dígitos'],
-    ['{yyyymmddhh}',   'idem',                                'Concatenação completa'],
-    ['{yyyymmdd}',     'idem',                                'Sem hora'],
-    ['{yyyymm}',       'idem',                                'Ano+mês'],
-    ['{data}',         'qualquer',                            'String de data como digitada (8 ou 10 dígitos)'],
-    ['{escopo1}',      'qualquer',                            'Escopo 1 do modelo ou variável (override por variável)'],
-    ['{escopo2}',      'qualquer',                            'Escopo 2 do modelo ou variável'],
-    ['{prefixo}',      'nome',                                'Prefixo de arquivo (da variável)'],
-    ['{ext}',          'nome',                                'Extensão (.png, .gif, .tif...)'],
-    ['{N} ou {N%n}',   'nome',                                'Índice da figura na sequência, padded a n dígitos'],
-    ['{F} ou {F%n}',   'nome',                                'Horas de previsão = índice × freq'],
-    ['{fct} ou {f%n}', 'nome',                                'Idem F, prefixado com "f"'],
-    ['{passo}',        'nome (legacy)',                       'Equivalente a {F}'],
-    ['{passo4}',       'nome (legacy)',                       'Equivalente a {N%4}'],
-], col_widths=[3.8*cm, 4.5*cm, 7.5*cm]))
-story.append(h2('Notas'))
-story.append(bullets([
-    'O modificador <code>%n</code> faz padding com zeros à esquerda. <code>{F%3}</code> = 024 (não 24).',
-    'No CAMINHO (endereço), os placeholders de data sempre referem à <b>rodada</b>. No NOME do arquivo, referem à <b>validade</b> (rodada + F horas).',
-    'Para análise/observação (Freq=0), não há previsão; N=0 e F=0; a validade coincide com a rodada.',
-]))
-story.append(Spacer(1, 1*cm))
-story.append(hr())
-story.append(p('GISELE — Gestão Integrada de Soluções Estratégicas e Inteligência © CPTEC/INPE — Versão 2.0.0', 'FooterStyle'))
-story.append(p(f'Manual de Uso gerado automaticamente em {date.today().strftime("%d/%m/%Y")}', 'FooterStyle'))
+    ['Placeholder', 'Substituído por'],
+    ['{yyyy}',     'Ano da rodada (ex: 2026).'],
+    ['{mm}',       'Mês da rodada com zero à esquerda (ex: 05).'],
+    ['{dd}',       'Dia da rodada com zero à esquerda (ex: 28).'],
+    ['{hh}',       'Hora da rodada (00, 06, 12, 18 etc.).'],
+    ['{var}',      'Sigla da variável escolhida (ex: prec, t2m, u10).'],
+    ['{step}',     'Passo de previsão (ex: 000, 003, 006 ... ou f00, f03 conforme modelo).'],
+    ['{ext}',      'Extensão do arquivo (png, gif, tif).'],
+    ['{base}',     'Base do template (raiz do modelo, prefixo antes do path).'],
+], col_widths=[3.5*cm, 12.4*cm]))
+story.append(tip(
+    'Os placeholders são case-sensitive. Use <code>{yyyy}</code>, não <code>{YYYY}</code>.'
+))
+story.append(h2('Exemplos de templates funcionais'))
+story.append(code(
+    'CPTEC Eta 3 km (PNG):<br/>'
+    'https://ftp1.cptec.inpe.br/modelos/tempo/Eta3km/{yyyy}/{mm}/{dd}/{hh}/fig/{var}/Eta3km_{yyyy}{mm}{dd}{hh}_f{step}.png<br/>'
+    '<br/>'
+    'CPTEC Eta 3 km (GeoTIFF — derivado automaticamente):<br/>'
+    'https://ftp1.cptec.inpe.br/modelos/tempo/Eta3km/{yyyy}/{mm}/{dd}/{hh}/geotiff/{var}/Eta3km_{yyyy}{mm}{dd}{hh}_f{step}.tif<br/>'
+    '<br/>'
+    'Servidor local:<br/>'
+    'http://localhost:8765/Eta3km/{yyyy}{mm}{dd}{hh}/{var}_f{step}.tif'
+))
 
-def on_page(canvas, doc):
+# ─── Build do documento ──────────────────────────────────────────────
+doc = SimpleDocTemplate(
+    str(OUT), pagesize=A4,
+    leftMargin=2.4*cm, rightMargin=2.4*cm,
+    topMargin=2.2*cm,  bottomMargin=2.2*cm,
+    title='GISELE - Manual de Uso',
+    author='CPTEC/INPE'
+)
+
+def _on_page(canvas, doc):
     canvas.saveState()
+    canvas.setFont('Helvetica', 8)
     canvas.setFillColor(GRAY_M)
-    canvas.setFont('Helvetica', 8.5)
-    canvas.drawCentredString(A4[0] / 2, 1*cm, f'— {doc.page} —')
-    canvas.drawString(2*cm, 1*cm, 'GISELE · Manual de Uso')
-    canvas.drawRightString(A4[0] - 2*cm, 1*cm, 'v2.0.0')
+    canvas.drawString(2.4*cm, 1.3*cm, 'GISELE - Manual de Uso')
+    canvas.drawRightString(A4[0] - 2.4*cm, 1.3*cm, 'Pagina %d' % doc.page)
     canvas.restoreState()
 
-doc = SimpleDocTemplate(
-    str(OUT),
-    pagesize=A4,
-    leftMargin=2.2*cm, rightMargin=2.2*cm,
-    topMargin=1.8*cm, bottomMargin=1.8*cm,
-    title='GISELE — Manual de Uso',
-    author='CPTEC / INPE',
-    subject='Manual de Uso',
-)
-doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
-print(f'OK: {OUT}  ({OUT.stat().st_size} bytes)')
+doc.build(story, onFirstPage=_on_page, onLaterPages=_on_page)
+print('PDF gerado:', OUT)
