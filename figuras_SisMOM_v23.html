@@ -393,6 +393,75 @@
         .gt-layer-item .gl-rm { color: #f88; font-size: 14px; font-weight: 700; }
         /* Container dos chips: full width vertical (cada chip ocupa uma linha) */
         #gtLayerChips { display: flex !important; flex-direction: column; width: 100%; min-width: 0; gap: 4px; }
+        /* ===== Árvore ERMA-style do painel direito ===== */
+        .gt-tree { background: var(--bg-elev-1, #0e1622); border: 1px solid var(--border-subtle, #2d3748); border-radius: 8px; padding: 6px 8px 8px; margin-bottom: 10px; font-size: 13px; }
+        .gt-tree-toolbar { display: flex; gap: 6px; justify-content: flex-end; padding: 0 0 4px; border-bottom: 1px dashed var(--border-subtle, #2d3748); margin-bottom: 4px; }
+        .gt-tree-toolbar-btn { background: transparent; border: 1px solid var(--border-soft, #475569); color: var(--text-muted, #8aa); padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all .15s; }
+        .gt-tree-toolbar-btn:hover { border-color: var(--accent-cyan, #4dd0e1); color: var(--accent-cyan, #4dd0e1); }
+        .gt-tree-toolbar-btn:active { transform: scale(0.97); }
+        .gt-tree details { border-bottom: 1px dashed var(--border-subtle, #2d3748); padding: 4px 0; }
+        .gt-tree details:last-child { border-bottom: 0; }
+        .gt-tree summary { cursor: pointer; padding: 4px 2px; font-weight: 600; color: var(--text, #cbd6e6); list-style: none; user-select: none; display: flex; align-items: center; gap: 6px; }
+        .gt-tree summary::-webkit-details-marker { display: none; }
+        .gt-tree summary::before { content: '▸'; display: inline-block; transition: transform .15s; color: var(--text-muted, #8aa); font-size: 10px; }
+        .gt-tree details[open] > summary::before { transform: rotate(90deg); }
+        .gt-tree-icon { font-size: 14px; }
+        .gt-tree-list { list-style: none; padding: 2px 0 4px 22px; margin: 0; }
+        .gt-tree-list li { padding: 2px 0; display: flex; align-items: center; gap: 6px; min-width: 0; }
+        .gt-tree-list li.gt-tree-empty { color: var(--text-muted, #8aa); font-style: italic; font-size: 12px; }
+        .gt-tree-list label { display: flex; align-items: center; gap: 6px; cursor: pointer; flex: 1; min-width: 0; }
+        .gt-tree-list input[type="radio"], .gt-tree-list input[type="checkbox"] { margin: 0; flex: 0 0 auto; }
+        .gt-tree-list .gt-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+        .gt-tree-list .gt-tree-color { width: 18px; height: 16px; border: 1px solid var(--border-soft, #475569); border-radius: 3px; padding: 0; background: transparent; cursor: pointer; flex: 0 0 auto; }
+        .gt-tree-list .gt-tree-rm { background: transparent; border: 0; color: var(--text-muted, #8aa); cursor: pointer; padding: 0 4px; font-size: 13px; flex: 0 0 auto; }
+        .gt-tree-list .gt-tree-rm:hover { color: #ff7a90; }
+        .gt-tree-action { background: transparent; border: 1px dashed var(--border-soft, #475569); color: var(--text, #cbd6e6); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%; text-align: left; }
+        .gt-tree-action:hover { border-color: var(--accent-cyan, #4dd0e1); color: var(--accent-cyan, #4dd0e1); }
+        .gt-old-controls { background: var(--bg-elev-1, #0e1622); border: 1px dashed var(--border-subtle, #2d3748); border-radius: 6px; padding: 6px 8px; }
+        .gt-old-controls > summary { color: var(--text-muted, #8aa); font-size: 11px; cursor: pointer; padding: 2px 0; }
+        .gt-old-controls[open] { padding-bottom: 10px; }
+        /* Painel de configuração da camada — movido entre home e nó da árvore.
+           Quando está dentro do host de uma camada da árvore, fica em layout
+           vertical (uma linha por grupo de controles) para evitar sobreposição
+           dentro do espaço estreito da sidebar. */
+        #gtLayerConfigPanel { background: var(--bg-elev, #0a0f17); border: 1px solid var(--border-subtle, #2d3748); border-radius: 6px; padding: 8px; margin-top: 4px; }
+        #gtLayerConfigPanel > .gt-cfg-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+        /* Cada label dentro do painel ocupa linha cheia (column) ou fica inline
+           se houver espaço — layout adapta com flex-wrap. */
+        #gtLayerConfigPanel label { display: flex !important; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+        #gtLayerConfigPanel label > input[type="number"],
+        #gtLayerConfigPanel label > input[type="text"],
+        #gtLayerConfigPanel label > select { flex: 1 1 80px; min-width: 60px; max-width: 100%; box-sizing: border-box; }
+        /* Quando o painel mora dentro da árvore (sub-menu de camada), reduz
+           padding e quebra cada controle em sua própria linha pra evitar overlap. */
+        .gt-tree-config-host #gtLayerConfigPanel { padding: 8px 6px; }
+        .gt-tree-config-host #gtLayerConfigPanel > .gt-cfg-row { flex-direction: column; align-items: stretch; gap: 4px; }
+        .gt-tree-config-host #gtLayerConfigPanel > #gtContourBlock { flex-direction: column; align-items: stretch; gap: 4px; margin-bottom: 6px; }
+        .gt-tree-config-host #gtLayerConfigPanel > #gtContourBlock > label { flex: 1 1 auto; width: 100%; }
+        .gt-tree-config-host #gtLayerConfigPanel #gtColorbar { width: 100%; }
+        .gt-tree-config-host #gtLayerConfigPanel #gtInfo { font-size: 11px; white-space: normal; height: auto; line-height: 1.3; padding: 4px 0; }
+        /* Calculadora dentro da árvore (Ferramentas e Configuração da Camada) */
+        .gt-tree-calc summary { color: var(--accent-cyan, #4dd0e1); }
+        .gt-tree-calc-body { padding: 6px 4px; }
+        .gt-calc-token { background: var(--bg-elev, #0a0f17); border: 1px solid var(--border-soft, #475569); color: var(--text, #cbd6e6); font-size: 11px; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-family: ui-monospace, monospace; }
+        .gt-calc-token:hover { border-color: var(--accent-cyan, #4dd0e1); color: var(--accent-cyan, #4dd0e1); }
+        .gt-cfg-calc-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 6px 4px; border-top: 1px dashed var(--border-subtle, #2d3748); margin-top: 4px; }
+        .gt-cfg-calc-row select, .gt-cfg-calc-row input { font-size: 11px; padding: 2px 4px; }
+        /* Morada padrão do #gtLayerConfigPanel quando nenhuma camada está expandida.
+           Permanece no DOM (para preservar listeners e estado) mas INVISÍVEL — os
+           controles ficam acessíveis exclusivamente via "⚙ Configuração da Camada"
+           dentro do nó de árvore. */
+        #gtLayerConfigHome { display: none; }
+        /* Sub-config dentro de um nó de camada — host ocupa largura cheia */
+        .gt-tree-config { margin: 4px 0 6px 0; padding: 0; }
+        .gt-tree-config > summary { padding: 3px 4px; font-size: 11px; color: var(--accent-cyan, #4dd0e1); cursor: pointer; user-select: none; }
+        .gt-tree-config[open] > summary { font-weight: 600; }
+        .gt-tree-config-host { padding: 4px 0; width: 100%; }
+        /* Se o painel da árvore for muito estreito (<=320px), encolhe mais */
+        @media (max-width: 380px) {
+            .gt-tree-config-host #gtLayerConfigPanel label > input,
+            .gt-tree-config-host #gtLayerConfigPanel label > select { font-size: 11px; }
+        }
         /* Painel lateral: trava overflow horizontal para não criar scroll lateral */
         #gtSidePanel, .gt-side { overflow-x: hidden; }
         .icon-btn {
@@ -2018,6 +2087,55 @@
             <button class="icon-btn" id="btnGtClose" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </header>
         <div class="modal-body">
+            <!-- ===== ÁRVORE DE CAMADAS (estilo ERMA) ===== -->
+            <!-- Container colapsável agrupando Background / Miscelânea / Camadas /
+                 Ferramentas. Os controles "antigos" continuam disponíveis abaixo;
+                 a árvore é uma camada de UI alternativa que delega aos mesmos handlers. -->
+            <nav id="gtTree" class="gt-tree" aria-label="Camadas e ferramentas">
+                <div class="gt-tree-toolbar">
+                    <button type="button" id="gtTreeCollapseAll" class="gt-tree-toolbar-btn" title="Recolher todos os grupos (Background, Miscelânea, Camadas, Ferramentas)">Collapse folders</button>
+                </div>
+                <details open><summary><span class="gt-tree-icon">🌍</span> Background</summary>
+                    <ul id="gtTreeBackground" class="gt-tree-list"></ul>
+                </details>
+                <details open><summary><span class="gt-tree-icon">📌</span> Miscelânea</summary>
+                    <ul id="gtTreeMisc" class="gt-tree-list"></ul>
+                </details>
+                <details open><summary><span class="gt-tree-icon">🗂️</span> Camadas</summary>
+                    <ul id="gtTreeLayers" class="gt-tree-list">
+                        <li class="gt-tree-empty">— nenhuma camada carregada —</li>
+                    </ul>
+                </details>
+                <details open><summary><span class="gt-tree-icon">🔧</span> Ferramentas</summary>
+                    <ul class="gt-tree-list">
+                        <li><button type="button" class="gt-tree-action" id="gtTreeAddTif">＋ Adicionar GeoTIFF/GeoJSON…</button></li>
+                        <li><button type="button" class="gt-tree-action" id="gtTreeAddModel">＋ Adicionar Modelo</button></li>
+                        <li id="gtTreeAddModelFormHost" style="display:block;padding:0"></li>
+                        <li><button type="button" class="gt-tree-action" id="gtTreeOpenLocal" title="Abre um TIF local apenas para inspeção (não vira camada)">＋ Abrir TIF local (inspeção)</button></li>
+                        <li style="padding:0;flex-direction:column;align-items:stretch">
+                            <details class="gt-tree-calc">
+                                <summary style="cursor:pointer;font-size:12px;padding:4px 0">🧮 Calculadora (expressão entre camadas)</summary>
+                                <div class="gt-tree-calc-body">
+                                    <div style="font-size:11px;color:var(--text-muted,#8aa);margin-bottom:4px">Clique numa camada abaixo para inserir o token. Use <code>+ − × ÷</code> e parênteses.</div>
+                                    <div id="gtTreeCalcTokens" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
+                                    <textarea id="gtTreeCalcExpr" rows="2" placeholder="ex: Camada1 * 1000 + Camada2" style="width:100%;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:12px;background:var(--bg-elev,#0a0f17);color:var(--text,#cbd6e6);border:1px solid var(--border-soft,#475569);border-radius:4px;padding:4px;resize:vertical"></textarea>
+                                    <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+                                        <button type="button" id="btnGtTreeCalcRun" class="gt-tree-action" style="flex:1">Calcular</button>
+                                        <button type="button" id="btnGtTreeCalcClear" class="gt-tree-action" style="flex:0 0 auto;border-style:solid" title="Limpar expressão">×</button>
+                                    </div>
+                                    <div id="gtTreeCalcStatus" style="font-size:11px;color:var(--text-muted,#8aa);margin-top:4px;min-height:1em"></div>
+                                </div>
+                            </details>
+                        </li>
+                    </ul>
+                </details>
+            </nav>
+            <!-- gtLayerConfigHome: morada padrão do painel de configuração da camada
+                 (paleta/min/max/clip/contornos/colorbar/info/flipY). Quando o
+                 usuário expande "Configuração da Camada" no nó de árvore, o panel
+                 inteiro é movido pra dentro daquele nó. Aqui ele vive até alguém abrir. -->
+            <div id="gtLayerConfigHome"></div>
+            <details class="gt-old-controls" style="margin:6px 0 10px"><summary style="cursor:pointer;color:var(--text-muted,#aab);font-size:11px">Outros controles clássicos</summary>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
                 <input type="file" id="gtFile" accept=".tif,.tiff" style="display:none">
                 <button class="btn btn-primary" id="btnGtPick">Abrir arquivo…</button>
@@ -2144,6 +2262,7 @@
                 <canvas id="gtMapCanvas" style="display:none;width:100%;height:60vh;cursor:grab"></canvas>
                 <span id="gtAttrib" style="position:absolute;right:10px;bottom:10px;font-size:10px;color:#cbd6e6;background:rgba(0,0,0,0.55);padding:2px 6px;border-radius:3px;pointer-events:none"></span>
             </div>
+            </details><!-- /.gt-old-controls -->
         </div>
     </div>
 </div>
@@ -5754,7 +5873,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260529-2000-cptecpreset'); document.documentElement.setAttribute('data-build', '20260529-2000-cptecpreset'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260529-3000-calc'); document.documentElement.setAttribute('data-build', '20260529-3000-calc'); } catch (_) {}
         loadModelos();
         buildSlots();
         const restored = loadUIPrefs();
@@ -10519,6 +10638,649 @@
         gtRenderLayerChips();
     }
 
+    // ─── Árvore ERMA-style (Background / Miscelânea / Camadas / Ferramentas) ───
+    // Re-render dispara junto com gtRenderLayerChips, então qualquer alteração
+    // nas listas de camadas/miscelâneas se reflete imediatamente.
+    function gtRenderTree() {
+        gtRenderTreeBackground();
+        gtRenderTreeMisc();
+        gtRenderTreeLayers();
+    }
+    function gtRenderTreeBackground() {
+        const ul = document.getElementById('gtTreeBackground');
+        if (!ul) return;
+        const gt = (typeof getGtSlotState === 'function' && typeof gtActivePanel !== 'undefined')
+            ? getGtSlotState(gtActivePanel) : {};
+        const current = (gt && gt.mapProvider) || 'esri';
+        const items = [
+            { id: 'esri', label: 'Satélite (Esri)' },
+            { id: 'osm',  label: 'Ruas (OSM)' },
+            { id: 'topo', label: 'Topo (OpenTopoMap)' },
+            { id: 'none', label: 'Sem mapa-base' }
+        ];
+        ul.innerHTML = '';
+        for (const it of items) {
+            const li = document.createElement('li');
+            const lbl = document.createElement('label');
+            const radio = document.createElement('input');
+            radio.type = 'radio'; radio.name = 'gt-tree-bg'; radio.value = it.id;
+            radio.checked = (it.id === current);
+            radio.addEventListener('change', () => {
+                if (!radio.checked) return;
+                try {
+                    const idx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+                    const g = getGtSlotState(idx);
+                    g._mapProviderUserSet = true;
+                    g.mapProvider = it.id;
+                    g.mapEnabled  = (it.id !== 'none');
+                    const sel = document.getElementById('gtTileProvider');
+                    if (sel) sel.value = it.id;
+                    const cb  = document.getElementById('gtShowMap');
+                    if (cb) cb.checked = g.mapEnabled;
+                    if (typeof gtApplySlotControlsFromActive === 'function') gtApplySlotControlsFromActive();
+                } catch (e) { console.error('tree bg', e); }
+            });
+            const name = document.createElement('span'); name.className = 'gt-tree-name'; name.textContent = it.label;
+            lbl.appendChild(radio); lbl.appendChild(name);
+            li.appendChild(lbl);
+            ul.appendChild(li);
+        }
+    }
+    function gtRenderTreeMisc() {
+        const ul = document.getElementById('gtTreeMisc');
+        if (!ul) return;
+        const man = _gtMiscManifest;  // pode estar null se manifest ainda nao carregou
+        ul.innerHTML = '';
+        const items = (man && man.items) || [];
+        if (!items.length) {
+            const li = document.createElement('li'); li.className = 'gt-tree-empty';
+            li.textContent = '— manifest não carregado —';
+            ul.appendChild(li); return;
+        }
+        for (const it of items) {
+            const li = document.createElement('li');
+            const lbl = document.createElement('label');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            // marca se já existe camada com mesmo configId
+            const existing = (typeof gtFindMiscLayerByConfigId === 'function') ? gtFindMiscLayerByConfigId(it.id) : null;
+            cb.checked = !!(existing && existing.visible !== false);
+            cb.addEventListener('change', () => {
+                if (cb.checked) {
+                    const e2 = gtFindMiscLayerByConfigId && gtFindMiscLayerByConfigId(it.id);
+                    if (e2) { if (e2.visible === false) gtToggleExtraLayer(e2.id); }
+                    else { gtAddMiscLayer(it.id); }
+                } else {
+                    const all = gtExtraLayers.filter(l => l && l.isMisc && l.miscConfig && l.miscConfig.id === it.id);
+                    for (const l of all) gtRemoveExtraLayer(l.id);
+                }
+            });
+            const name = document.createElement('span'); name.className = 'gt-tree-name'; name.textContent = it.nome || it.id;
+            lbl.appendChild(cb); lbl.appendChild(name);
+            li.appendChild(lbl);
+            ul.appendChild(li);
+        }
+    }
+    function gtRenderTreeLayers() {
+        const ul = document.getElementById('gtTreeLayers');
+        if (!ul) return;
+        const all = (typeof gtAllLayers === 'function') ? gtAllLayers() : [];
+        ul.innerHTML = '';
+        if (!all.length) {
+            const li = document.createElement('li'); li.className = 'gt-tree-empty';
+            li.textContent = '— nenhuma camada carregada —';
+            ul.appendChild(li); return;
+        }
+        all.forEach(l => {
+            const li = document.createElement('li');
+            li.setAttribute('data-tree-layer-id', l.id);
+            li.style.flexDirection = 'column';
+            li.style.alignItems = 'stretch';
+            // Linha principal (visibilidade + nome + cor + remover + ▾)
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0';
+            const lbl = document.createElement('label');
+            lbl.title = (l.name || l.id) + ' (clique pra ativar)';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = (l.visible !== false);
+            cb.addEventListener('click', (e) => e.stopPropagation());
+            cb.addEventListener('change', (e) => {
+                const isContour = (l.type === 'contour');
+                if (isContour) {
+                    if (typeof gtToggleContourVisibility === 'function') gtToggleContourVisibility(l.source);
+                } else if (l.id === 'primary') {
+                    if (typeof gtTogglePrimaryVisible === 'function') gtTogglePrimaryVisible();
+                } else {
+                    if (typeof gtToggleExtraLayer === 'function') gtToggleExtraLayer(l.id);
+                }
+            });
+            const name = document.createElement('span'); name.className = 'gt-tree-name';
+            name.textContent = l.name || l.id;
+            if (l.id === gtActiveLayerId) name.style.color = 'var(--accent-cyan,#4dd0e1)';
+            lbl.appendChild(cb); lbl.appendChild(name);
+            lbl.addEventListener('click', (e) => {
+                if (e.target === cb) return;
+                if (l.type === 'contour') { if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.source.id); }
+                else { if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.id); }
+            });
+            row.appendChild(lbl);
+            // Color picker para miscelaneas
+            if (l.type === 'geojson') {
+                const cIn = document.createElement('input'); cIn.type = 'color'; cIn.className = 'gt-tree-color';
+                cIn.value = (l.color && /^#[0-9a-f]{6}$/i.test(l.color)) ? l.color : '#0aa37a';
+                cIn.title = 'Mudar cor';
+                cIn.addEventListener('click', (e) => e.stopPropagation());
+                cIn.addEventListener('input', (e) => {
+                    if (typeof gtSetMiscLayerColor === 'function') gtSetMiscLayerColor(l.id, e.target.value);
+                });
+                row.appendChild(cIn);
+            }
+            // Remover (× pra não-primaries)
+            if (l.id !== 'primary') {
+                const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'gt-tree-rm';
+                rm.textContent = '×'; rm.title = 'Remover';
+                rm.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (l.type === 'contour') { if (typeof gtDisableContour === 'function') gtDisableContour(l.source); }
+                    else { if (typeof gtRemoveExtraLayer === 'function') gtRemoveExtraLayer(l.id); }
+                });
+                row.appendChild(rm);
+            }
+            li.appendChild(row);
+            // Sub-menu "Configuração da Camada" — só pra GeoTIFF (primary/extra) e contour.
+            // GeoJSON tem só cor (já no chip), então não tem subconfig.
+            if (l.type === 'geotiff' || l.type === 'contour' || (l.id === 'primary')) {
+                const sub = document.createElement('details');
+                sub.className = 'gt-tree-config';
+                if (_gtCfgExpandedLayerId === l.id) sub.open = true;
+                const smr = document.createElement('summary');
+                smr.textContent = '⚙ Configuração da Camada';
+                sub.appendChild(smr);
+                const host = document.createElement('div');
+                host.className = 'gt-tree-config-host';
+                sub.appendChild(host);
+                // IMPORTANTE: NÃO usar `toggle` event. O `gtSetActiveLayer` lá
+                // dentro re-renderiza a árvore → cria novo <details> com open=true →
+                // dispara novo toggle → loop infinito. Em vez disso, interceptamos
+                // o click no summary, calculamos o novo estado manualmente, e
+                // aplicamos. `preventDefault` impede o toggle nativo.
+                smr.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const wasOpen = sub.open;
+                    if (wasOpen) {
+                        // Fechar este
+                        sub.open = false;
+                        _gtCfgExpandedLayerId = null;
+                        gtMoveCfgPanelHome();
+                        return;
+                    }
+                    // Abrir este — fecha qualquer outro aberto antes
+                    if (_gtCfgExpandedLayerId && _gtCfgExpandedLayerId !== l.id) {
+                        const other = document.querySelector('[data-tree-layer-id="' + CSS.escape(_gtCfgExpandedLayerId) + '"] details.gt-tree-config');
+                        if (other) other.open = false;
+                        gtMoveCfgPanelHome();
+                    }
+                    sub.open = true;
+                    _gtCfgExpandedLayerId = l.id;
+                    // Ativa a camada (vai re-renderizar a árvore via gtRenderLayerChips
+                    // → gtRenderTree). DEPOIS do re-render, gtRenderTreeLayers
+                    // procura `_gtCfgExpandedLayerId` e move o painel para o novo host.
+                    try {
+                        if (l.type === 'contour' && l.source) {
+                            if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.source.id);
+                        } else if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.id);
+                    } catch (_) {}
+                    // Caso o gtSetActiveLayer não tenha disparado re-render (camada já ativa),
+                    // move o painel síncrono pro host atual.
+                    gtMoveCfgPanelToLayer(l.id);
+                });
+                li.appendChild(sub);
+            }
+            ul.appendChild(li);
+        });
+        // Após reconstruir os <li>: se há camada com config expandida, garante
+        // que o painel está dentro do NOVO host (o antigo foi descartado pelo render).
+        if (_gtCfgExpandedLayerId) {
+            try { gtMoveCfgPanelToLayer(_gtCfgExpandedLayerId); } catch (_) {}
+        }
+    }
+    // ─── Calculadora: parser de expressão aritmética segura ───
+    // Suporta: números, identificadores [A-Za-z_][A-Za-z0-9_]*, +, -, *, /, parênteses.
+    // Recusa qualquer outro símbolo (sem function calls, sem code injection).
+    function gtParseExpr(src) {
+        const s = String(src || '').trim();
+        if (!s) throw new Error('expressão vazia');
+        let pos = 0;
+        const peek = () => s[pos];
+        const isSpace = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r';
+        const skip = () => { while (pos < s.length && isSpace(s[pos])) pos++; };
+        function parseNum() {
+            let str = '';
+            while (pos < s.length && /[0-9.]/.test(s[pos])) str += s[pos++];
+            if (s[pos] === 'e' || s[pos] === 'E') {
+                str += s[pos++];
+                if (s[pos] === '+' || s[pos] === '-') str += s[pos++];
+                while (pos < s.length && /[0-9]/.test(s[pos])) str += s[pos++];
+            }
+            const n = parseFloat(str);
+            if (!isFinite(n)) throw new Error('número inválido: ' + str);
+            return { type: 'num', value: n };
+        }
+        function parseIdent() {
+            let str = '';
+            while (pos < s.length && /[A-Za-z0-9_]/.test(s[pos])) str += s[pos++];
+            return { type: 'ident', name: str };
+        }
+        function parsePrimary() {
+            skip();
+            if (pos >= s.length) throw new Error('expressão incompleta');
+            const c = s[pos];
+            if (c === '(') {
+                pos++;
+                const e = parseExpr();
+                skip();
+                if (s[pos] !== ')') throw new Error('faltou fechar parêntese');
+                pos++;
+                return e;
+            }
+            if (c === '-') { pos++; return { type: 'neg', child: parsePrimary() }; }
+            if (c === '+') { pos++; return parsePrimary(); }
+            if (/[0-9.]/.test(c)) return parseNum();
+            if (/[A-Za-z_]/.test(c)) return parseIdent();
+            throw new Error('caractere inválido em pos ' + pos + ': ' + JSON.stringify(c));
+        }
+        function parseMul() {
+            let left = parsePrimary();
+            for (;;) {
+                skip();
+                const op = peek();
+                if (op === '*' || op === '/' || op === '×' || op === '÷') {
+                    pos++;
+                    const normalized = (op === '×') ? '*' : (op === '÷') ? '/' : op;
+                    left = { type: 'bin', op: normalized, left, right: parsePrimary() };
+                } else break;
+            }
+            return left;
+        }
+        function parseExpr() {
+            let left = parseMul();
+            for (;;) {
+                skip();
+                const op = peek();
+                if (op === '+' || op === '-' || op === '−') {
+                    pos++;
+                    const normalized = (op === '−') ? '-' : op;
+                    left = { type: 'bin', op: normalized, left, right: parseMul() };
+                } else break;
+            }
+            return left;
+        }
+        const ast = parseExpr();
+        skip();
+        if (pos < s.length) throw new Error('resto não consumido na pos ' + pos + ': ' + JSON.stringify(s.slice(pos)));
+        return ast;
+    }
+    function gtCollectIdents(ast, set) {
+        set = set || new Set();
+        if (!ast) return set;
+        if (ast.type === 'ident') set.add(ast.name);
+        else if (ast.type === 'bin') { gtCollectIdents(ast.left, set); gtCollectIdents(ast.right, set); }
+        else if (ast.type === 'neg') gtCollectIdents(ast.child, set);
+        return set;
+    }
+    // Avalia em um pixel específico, dado um mapa name → value
+    function gtEvalAst(ast, vars) {
+        switch (ast.type) {
+            case 'num': return ast.value;
+            case 'ident': return vars[ast.name];
+            case 'neg': return -gtEvalAst(ast.child, vars);
+            case 'bin': {
+                const a = gtEvalAst(ast.left, vars);
+                const b = gtEvalAst(ast.right, vars);
+                if (!isFinite(a) || !isFinite(b)) return NaN;
+                switch (ast.op) {
+                    case '+': return a + b;
+                    case '-': return a - b;
+                    case '*': return a * b;
+                    case '/': return b === 0 ? NaN : a / b;
+                }
+            }
+        }
+        return NaN;
+    }
+    // Cria nova camada a partir de expressão sobre N camadas. names é {token: layerObj}.
+    async function gtCreateLayerFromExpression(expr, nameToLayer, displayName) {
+        const ast = gtParseExpr(expr);
+        const used = Array.from(gtCollectIdents(ast));
+        // Verifica que todos os tokens estão mapeados e têm decoded
+        const layers = used.map(n => nameToLayer[n]);
+        for (let i = 0; i < used.length; i++) {
+            if (!layers[i] || !layers[i].decoded) throw new Error('camada não disponível: ' + used[i]);
+        }
+        // Verifica que todas têm a mesma dimensão
+        if (layers.length === 0) throw new Error('expressão precisa referenciar pelo menos uma camada');
+        const ref = layers[0].decoded;
+        for (const l of layers) {
+            if (l.decoded.width !== ref.width || l.decoded.height !== ref.height) {
+                throw new Error('camadas precisam ter mesma dimensão (' + ref.width + '×' + ref.height + ' vs ' + l.decoded.width + '×' + l.decoded.height + ')');
+            }
+        }
+        // Funções de máscara por camada
+        const maskFns = layers.map(l => {
+            const d = l.decoded;
+            const nd = d.nodata;
+            const extras = d.nodataExtras || null;
+            return (v) => {
+                if (!isFinite(v)) return true;
+                if (nd != null && v === nd) return true;
+                if (extras) for (let k = 0; k < extras.length; k++) if (v === extras[k]) return true;
+                return false;
+            };
+        });
+        const N = ref.width * ref.height;
+        const result = new Float32Array(N);
+        const RESULT_ND = -9999;
+        const vars = {};
+        for (let i = 0; i < N; i++) {
+            let masked = false;
+            for (let j = 0; j < used.length; j++) {
+                const v = layers[j].decoded.data[i];
+                if (maskFns[j](v)) { masked = true; break; }
+                vars[used[j]] = v;
+            }
+            if (masked) { result[i] = RESULT_ND; continue; }
+            const r = gtEvalAst(ast, vars);
+            result[i] = isFinite(r) ? r : RESULT_ND;
+        }
+        let mn = Infinity, mx = -Infinity;
+        for (let i = 0; i < N; i++) {
+            const v = result[i];
+            if (v === RESULT_ND || !isFinite(v)) continue;
+            if (v < mn) mn = v; if (v > mx) mx = v;
+        }
+        if (!isFinite(mn)) { mn = 0; mx = 1; }
+        const id = 'calc_' + (++gtLayerSeq) + '_' + Date.now();
+        const decoded = {
+            width: ref.width, height: ref.height, data: result,
+            nodata: RESULT_ND, nodataExtras: null,
+            bbox: ref.bbox, scale: ref.scale,
+            min: mn, max: mx
+        };
+        const paleta = (document.getElementById('gtPaleta') || {}).value || 'viridis';
+        const newName = displayName || ('expr: ' + expr);
+        const layer = { id, type: 'geotiff', name: newName, visible: true, opacity: 0.85,
+            decoded, paleta,
+            props: { paleta, autoMinMax: true, customMin: null, customMax: null,
+                      undefRaw: '', clipBelow: null, clipAbove: null }
+        };
+        gtExtraLayers.push(layer);
+        gtLayerEnsureMap();
+        await gtLayerPushToMap(layer);
+        gtRenderLayerChips();
+        gtRenderOverlayColorbars();
+        try { gtRenderCalcSelects(); } catch (_) {}
+        return layer;
+    }
+    // Refresh dos tokens (botões clicáveis) da calculadora em Ferramentas
+    function gtRenderTreeCalcTokens() {
+        const ul = document.getElementById('gtTreeCalcTokens');
+        const exprEl = document.getElementById('gtTreeCalcExpr');
+        if (!ul) return;
+        ul.innerHTML = '';
+        const list = (typeof gtAllLayers === 'function') ? gtAllLayers().filter(l => l.type === 'geotiff' || l.id === 'primary') : [];
+        if (!list.length) {
+            const empty = document.createElement('span');
+            empty.textContent = '— sem camadas raster —';
+            empty.style.cssText = 'color:var(--text-muted,#8aa);font-size:11px';
+            ul.appendChild(empty);
+            return;
+        }
+        list.forEach((l, idx) => {
+            const tok = document.createElement('button');
+            tok.type = 'button';
+            tok.className = 'gt-calc-token';
+            const tag = 'Camada' + (idx + 1);
+            tok.textContent = tag + ': ' + (l.name || l.id);
+            tok.title = 'Inserir ' + tag + ' na expressão';
+            tok.addEventListener('click', () => {
+                if (!exprEl) return;
+                const s = exprEl.value;
+                const pos = exprEl.selectionStart || s.length;
+                exprEl.value = s.slice(0, pos) + tag + s.slice(pos);
+                exprEl.focus();
+                exprEl.selectionStart = exprEl.selectionEnd = pos + tag.length;
+            });
+            ul.appendChild(tok);
+        });
+    }
+
+    // ─── Painel de "Configuração da Camada" — movido entre nós da árvore ───
+    let _gtCfgPanel = null;            // referência ao <div id="gtLayerConfigPanel">
+    let _gtCfgExpandedLayerId = null;  // layer cujo sub-menu está expandido
+    function gtBuildLayerConfigPanel() {
+        if (_gtCfgPanel) return _gtCfgPanel;
+        const p = document.createElement('div');
+        p.id = 'gtLayerConfigPanel';
+        // ─ Grupo 1: Paleta + Min + Max + Editar/Auto ─
+        const g1 = document.createElement('div'); g1.className = 'gt-cfg-row';
+        const moveTo = (el, dest) => { if (el) dest.appendChild(el); };
+        const labelOf = (id) => { const el = document.getElementById(id); return el && el.closest('label'); };
+        moveTo(labelOf('gtPaleta'), g1);
+        moveTo(labelOf('gtMin'),    g1);
+        moveTo(labelOf('gtMax'),    g1);
+        moveTo(document.getElementById('btnGtEdit'), g1);
+        moveTo(document.getElementById('btnGtAuto'), g1);
+        p.appendChild(g1);
+        // ─ Grupo 2: NoData/Clip ─
+        const g2 = document.createElement('div'); g2.className = 'gt-cfg-row';
+        moveTo(labelOf('gtUndef'),    g2);
+        moveTo(labelOf('gtClipMin'),  g2);
+        moveTo(labelOf('gtClipMax'),  g2);
+        moveTo(document.getElementById('btnGtUndefClear'), g2);
+        p.appendChild(g2);
+        // ─ Grupo 3: Contornos (bloco inteiro) ─
+        const ctr = document.getElementById('gtContourBlock');
+        if (ctr) p.appendChild(ctr);
+        // ─ Grupo 4: Colorbar + Info ─
+        const cb = document.getElementById('gtColorbar'); if (cb) p.appendChild(cb);
+        const inf = document.getElementById('gtInfo');    if (inf) p.appendChild(inf);
+        // ─ Grupo 5: Inverter Y ─
+        const g5 = document.createElement('div'); g5.className = 'gt-cfg-row';
+        const flipBtn = document.getElementById('btnGtFlipY');
+        if (flipBtn) g5.appendChild(flipBtn);
+        p.appendChild(g5);
+        // ─ Grupo 6: Calculadora algébrica (op + escalar) — aplica na camada ATIVA ─
+        const gC = document.createElement('div');
+        gC.className = 'gt-cfg-calc-row';
+        gC.innerHTML = ''
+            + '<span style="color:var(--text-muted,#8aa);font-size:11px;font-weight:600">🧮 Calc:</span>'
+            + '<span style="font-size:11px;color:var(--text-muted,#8aa)">camada</span>'
+            + '<select id="gtCfgCalcOp" style="font-size:11px;width:42px"><option value="+">+</option><option value="-">−</option><option value="*" selected>×</option><option value="/">÷</option></select>'
+            + '<input type="number" id="gtCfgCalcScalar" step="any" placeholder="ex: 1000" style="width:90px">'
+            + '<button type="button" id="btnGtCfgCalcApply" class="gt-tree-action" style="flex:0 0 auto;padding:2px 8px">Aplicar</button>'
+            + '<div id="gtCfgCalcStatus" style="flex:1 0 100%;font-size:11px;color:var(--text-muted,#8aa);min-height:1em"></div>';
+        p.appendChild(gC);
+        // Wire o Aplicar (uma única vez por painel — chamado uma vez no boot)
+        const btCfgCalc = gC.querySelector('#btnGtCfgCalcApply');
+        if (btCfgCalc) btCfgCalc.addEventListener('click', async () => {
+            const opEl = gC.querySelector('#gtCfgCalcOp');
+            const scEl = gC.querySelector('#gtCfgCalcScalar');
+            const stEl = gC.querySelector('#gtCfgCalcStatus');
+            if (!opEl || !scEl || !stEl) return;
+            const op = opEl.value;
+            const sc = parseFloat(scEl.value);
+            if (!isFinite(sc)) { stEl.textContent = 'Erro: valor escalar inválido'; stEl.style.color = '#ff7a90'; return; }
+            // Camada ATIVA — a do nó cuja Configuração está aberta
+            const activeLayer = (typeof gtGetLayerObj === 'function') ? gtGetLayerObj(gtActiveLayerId) : null;
+            if (!activeLayer || !activeLayer.decoded) {
+                stEl.textContent = 'Erro: camada ativa sem dados decodificados';
+                stEl.style.color = '#ff7a90'; return;
+            }
+            stEl.textContent = 'Calculando…'; stEl.style.color = 'var(--text-muted,#8aa)';
+            try {
+                // Constrói expressão "A OP scalar" com a camada ativa
+                const opSym = (op === '*') ? '×' : (op === '/') ? '÷' : (op === '-') ? '−' : op;
+                const exprStr = 'L * ' + sc;  // só pra montar nome amigável
+                const dispName = '(' + (activeLayer.name || activeLayer.id) + ' ' + opSym + ' ' + sc + ')';
+                // Reutiliza a engine de expressão: variável L = camada ativa
+                const newLayer = await gtCreateLayerFromExpression(
+                    'L ' + op + ' ' + sc,
+                    { L: activeLayer },
+                    dispName
+                );
+                stEl.textContent = 'OK: criada "' + newLayer.name + '"';
+                stEl.style.color = 'var(--accent-emerald,#10b981)';
+                scEl.value = '';
+            } catch (e) {
+                stEl.textContent = 'Erro: ' + (e && e.message);
+                stEl.style.color = '#ff7a90';
+            }
+        });
+        // Estaciona em casa
+        const home = document.getElementById('gtLayerConfigHome');
+        if (home) home.appendChild(p);
+        _gtCfgPanel = p;
+        return p;
+    }
+    function gtMoveCfgPanelHome() {
+        const p = gtBuildLayerConfigPanel();
+        const home = document.getElementById('gtLayerConfigHome');
+        if (home && p.parentNode !== home) home.appendChild(p);
+    }
+    function gtMoveCfgPanelToLayer(layerId) {
+        const p = gtBuildLayerConfigPanel();
+        const host = document.querySelector('[data-tree-layer-id="' + CSS.escape(layerId) + '"] .gt-tree-config-host');
+        if (!host) { gtMoveCfgPanelHome(); return; }
+        host.appendChild(p);
+    }
+    function gtToggleLayerConfig(layerId) {
+        if (_gtCfgExpandedLayerId === layerId) {
+            // Recolhe
+            _gtCfgExpandedLayerId = null;
+            gtMoveCfgPanelHome();
+        } else {
+            // Expande este, recolhendo qualquer outro
+            _gtCfgExpandedLayerId = layerId;
+            // Ativa a camada pra que os controles operem nela
+            try {
+                const l = (typeof gtAllLayers === 'function') ? gtAllLayers().find(x => x.id === layerId) : null;
+                if (l) {
+                    if (l.type === 'contour') {
+                        if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.source.id);
+                    } else {
+                        if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(layerId);
+                    }
+                }
+            } catch (_) {}
+            // Após gtSetActiveLayer rerenderizar chips/tree, mover o painel
+            // (o panel reaparecerá num host com o data attribute correto)
+            setTimeout(() => gtMoveCfgPanelToLayer(layerId), 0);
+        }
+        // Atualiza estado visual dos <details> na árvore
+        try { gtRenderTree(); } catch (_) {}
+    }
+    function gtWireTreeOnce() {
+        // Roda uma vez: liga os botões da seção "Ferramentas".
+        if (gtWireTreeOnce._done) return;
+        gtWireTreeOnce._done = true;
+        // Constrói o painel agora (precisa esperar o DOM estar pronto com todos os IDs)
+        try { gtBuildLayerConfigPanel(); } catch (e) { console.error('build cfg panel', e); }
+        // Botão Collapse/Expand folders (toggle): se algum aberto → fecha todos;
+        // se todos fechados → abre todos. Atualiza label conforme estado.
+        const btnCol = document.getElementById('gtTreeCollapseAll');
+        if (btnCol) {
+            function updateBtnLabel() {
+                const groups = document.querySelectorAll('#gtTree > details');
+                const anyOpen = Array.from(groups).some(d => d.open);
+                btnCol.textContent = anyOpen ? 'Collapse folders' : 'Expand folders';
+                btnCol.title = anyOpen
+                    ? 'Recolher todos os grupos (Background, Miscelânea, Camadas, Ferramentas)'
+                    : 'Expandir todos os grupos';
+            }
+            btnCol.addEventListener('click', () => {
+                const groups = document.querySelectorAll('#gtTree > details');
+                const anyOpen = Array.from(groups).some(d => d.open);
+                groups.forEach(d => { d.open = !anyOpen; });
+                updateBtnLabel();
+            });
+            // Mantém o label atualizado quando o usuário abre/fecha grupos manualmente
+            document.querySelectorAll('#gtTree > details').forEach(d => {
+                d.addEventListener('toggle', updateBtnLabel);
+            });
+            updateBtnLabel();
+        }
+        const btTif = document.getElementById('gtTreeAddTif');
+        if (btTif) btTif.addEventListener('click', () => {
+            const ef = document.getElementById('gtExtraFile');
+            if (ef) ef.click();
+        });
+        // Move o form de "Adicionar Modelo" para dentro do nó Ferramentas da árvore.
+        // Listeners existentes (botão Adicionar, Cancelar, selects, etc.) são preservados.
+        try {
+            const formHost = document.getElementById('gtTreeAddModelFormHost');
+            const form = document.getElementById('gtAddFromModelForm');
+            if (formHost && form) {
+                form.style.width = '100%';
+                form.style.boxSizing = 'border-box';
+                formHost.appendChild(form);
+            }
+        } catch (e) { console.error('move addModel form', e); }
+        const btMod = document.getElementById('gtTreeAddModel');
+        if (btMod) btMod.addEventListener('click', () => {
+            const btnAddFromModel = document.getElementById('btnGtAddFromModel');
+            if (btnAddFromModel) btnAddFromModel.click();
+            // Após o click do botão clássico (que toggle o display), garante que
+            // o form fica visível e rola para ele.
+            const form = document.getElementById('gtAddFromModelForm');
+            if (form && form.style.display !== 'none') {
+                form.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        });
+        const btLocal = document.getElementById('gtTreeOpenLocal');
+        if (btLocal) btLocal.addEventListener('click', () => {
+            const btnPick = document.getElementById('btnGtPick');
+            if (btnPick) btnPick.click();
+        });
+        // Wire da Calculadora (Ferramentas) — calcular expressão entre camadas
+        const btCalcRun = document.getElementById('btnGtTreeCalcRun');
+        if (btCalcRun) btCalcRun.addEventListener('click', async () => {
+            const exprEl = document.getElementById('gtTreeCalcExpr');
+            const stEl   = document.getElementById('gtTreeCalcStatus');
+            if (!exprEl || !stEl) return;
+            const expr = exprEl.value;
+            stEl.textContent = 'Calculando…'; stEl.style.color = 'var(--text-muted,#8aa)';
+            try {
+                // Constrói o mapa nome → layer (mesma ordem da árvore)
+                const list = gtAllLayers().filter(l => l.type === 'geotiff' || l.id === 'primary');
+                const nameToLayer = {};
+                list.forEach((l, idx) => { nameToLayer['Camada' + (idx + 1)] = l; });
+                const newLayer = await gtCreateLayerFromExpression(expr, nameToLayer, expr);
+                stEl.textContent = 'OK: criada "' + newLayer.name + '"';
+                stEl.style.color = 'var(--accent-emerald,#10b981)';
+            } catch (e) {
+                stEl.textContent = 'Erro: ' + (e && e.message);
+                stEl.style.color = '#ff7a90';
+            }
+        });
+        const btCalcClear = document.getElementById('btnGtTreeCalcClear');
+        if (btCalcClear) btCalcClear.addEventListener('click', () => {
+            const exprEl = document.getElementById('gtTreeCalcExpr');
+            const stEl   = document.getElementById('gtTreeCalcStatus');
+            if (exprEl) exprEl.value = '';
+            if (stEl) stEl.textContent = '';
+        });
+        // Re-renderiza os tokens da calculadora quando o details abre
+        const treeCalc = document.querySelector('details.gt-tree-calc');
+        if (treeCalc) treeCalc.addEventListener('toggle', () => {
+            if (treeCalc.open) gtRenderTreeCalcTokens();
+        });
+        // Garantir que o manifest miscelaneas seja carregado pra populacao inicial
+        if (typeof gtLoadMiscManifest === 'function') {
+            gtLoadMiscManifest().then(() => gtRenderTreeMisc()).catch(() => {});
+        }
+    }
     function gtRenderLayerChips() {
         const container = document.getElementById('gtLayerChips');
         if (!container) return;
@@ -10592,6 +11354,10 @@
         });
         // Mantém selects da calculadora sincronizados com a lista
         try { gtRenderCalcSelects(); } catch (_) {}
+        // Sincroniza árvore ERMA-style (Background/Miscelânea/Camadas)
+        try { gtWireTreeOnce(); } catch (_) {}
+        try { gtRenderTree(); } catch (_) {}
+        try { gtRenderTreeCalcTokens(); } catch (_) {}
     }
     // Toggle visibility do overlay de contornos sem mudar o flag enabled
     function gtToggleContourVisibility(sourceLayer) {
