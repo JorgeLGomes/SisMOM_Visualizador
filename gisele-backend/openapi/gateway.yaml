@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: GISELE gateway
+  version: 0.1.0
+  description: |
+    Ponto unico de entrada do GISELE. Roteia para os 6 servicos downstream.
+    Aplica auth JWT, rate-limit, CORS uniforme, OpenTelemetry traces.
+servers:
+  - url: http://localhost:8080
+  - url: https://gisele.cptec.inpe.br
+
+paths:
+  /health:
+    get: { summary: Health do gateway, responses: { '200': { description: OK } } }
+
+  /v1/health/all:
+    get:
+      summary: Health agregado de todos os servicos downstream
+      responses:
+        '200':
+          description: Status agregado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gateway: { type: string, enum: [healthy, degraded, down] }
+                  downstreams:
+                    type: object
+                    additionalProperties: { type: string, enum: [healthy, degraded, down] }
+
+  /v1/tiles/{path}:
+    get:
+      summary: Proxy para tile-cache
+      parameters:
+        - { name: path, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: Proxied } }
+
+  /v1/decoder/{path}:
+    post:
+      summary: Proxy para raster-decoder (auth obrigatoria em prod)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: path, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: Proxied } }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }

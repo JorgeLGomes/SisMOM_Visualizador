@@ -1,0 +1,100 @@
+openapi: 3.1.0
+info:
+  title: GISELE user-state
+  version: 0.1.0
+  description: |
+    Persistencia de estado do usuario. Substitui localStorage do frontend.
+    Auth via JWT (header Authorization: Bearer <token>).
+servers:
+  - url: http://localhost:8086
+
+paths:
+  /health:
+    get: { summary: Health, responses: { '200': { description: OK } } }
+
+  /v1/state/models:
+    get:
+      summary: Lista configuracoes de modelo do usuario
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ModelConfig' }
+    post:
+      summary: Cria ou atualiza configuracao de modelo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModelConfig' }
+      responses:
+        '201': { description: Criado }
+
+  /v1/state/annotations:
+    get:
+      summary: Lista anotacoes do usuario (filtrar por slot)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: slot, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Annotation' }
+
+  /v1/state/share:
+    post:
+      summary: Compartilha um item (modelo/anotacao/calc) com o time ou publico
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [itemId, itemType, scope]
+              properties:
+                itemId: { type: string }
+                itemType: { type: string, enum: [model, annotation, calc] }
+                scope: { type: string, enum: [team, public] }
+      responses:
+        '200':
+          description: URL publica gerada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shareUrl: { type: string, format: uri }
+                  token: { type: string }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ModelConfig:
+      type: object
+      required: [id, name, config]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        config: { type: object, additionalProperties: true }
+        sharedWithTeam: { type: boolean }
+    Annotation:
+      type: object
+      properties:
+        id: { type: string }
+        slotIdx: { type: integer }
+        payload: { type: object }
+        createdAt: { type: string, format: date-time }

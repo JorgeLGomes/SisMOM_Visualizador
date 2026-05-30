@@ -1,6 +1,6 @@
 {
   "name": "gisele",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "GISELE - Gestao Integrada de Solucoes Estrategicas e Inteligencia (CPTEC/INPE)",
   "main": "main.js",
   "homepage": "https://",
@@ -35,6 +35,8 @@
     "productName": "GISELE",
     "files": [
       "main.js",
+      "preload.js",
+      "python-spawner.js",
       "figuras_SisMOM_v23.html",
       "manifest.webmanifest",
       "icon.ico",
@@ -42,8 +44,20 @@
       "sismom-icon-192.png",
       "sismom-icon-512.png"
     ],
+    "extraResources": [
+      {
+        "from": "python-helper/dist",
+        "to": "python-helper",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "icon.ico"
     },
     "nsis": {
@@ -56,7 +70,10 @@
       "artifactName": "GISELE-${version}-portable.exe"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "icon.png",
       "category": "Science",
       "synopsis": "GISELE - visualizador de modelos meteorologicos (CPTEC/INPE)",
@@ -70,8 +87,20 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] },
-        { "target": "zip", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "icon": "icon.png",
       "category": "public.app-category.education",

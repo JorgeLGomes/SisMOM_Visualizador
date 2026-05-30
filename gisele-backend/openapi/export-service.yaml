@@ -1,0 +1,99 @@
+openapi: 3.1.0
+info:
+  title: GISELE export-service
+  version: 0.1.0
+  description: Exporta raster ou serie temporal em multiplos formatos.
+servers:
+  - url: http://localhost:8084
+
+paths:
+  /health:
+    get: { summary: Health, responses: { '200': { description: OK } } }
+
+  /v1/export/raster:
+    post:
+      summary: Exporta um raster decodificado em formato escolhido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decodedId, format]
+              properties:
+                decodedId: { type: string }
+                format:
+                  type: string
+                  enum: [geojson, geoparquet, csv, netcdf, shapefile]
+                mask:
+                  oneOf:
+                    - { type: 'null' }
+                    - type: object
+                      required: [type, coords]
+                      properties:
+                        type: { type: string, enum: [polygon, rect, layer_id] }
+                        coords: { type: array }
+                        id: { type: string }
+      responses:
+        '202':
+          description: Job criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId: { type: string }
+                  statusUrl: { type: string }
+
+  /v1/export/timeseries:
+    post:
+      summary: Serie temporal em um ponto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modelId, variavelId, dataRodada, lat, lon, format]
+              properties:
+                modelId: { type: string }
+                variavelId: { type: string }
+                dataRodada: { type: string }
+                lat: { type: number }
+                lon: { type: number }
+                format: { type: string, enum: [geojson, csv, json] }
+      responses:
+        '202': { description: Job criado }
+
+  /v1/export/{jobId}:
+    get:
+      summary: Status do job
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [running, done, error] }
+                  progress: { type: number, minimum: 0, maximum: 1 }
+                  resultUrl: { type: string, nullable: true }
+                  error: { type: string, nullable: true }
+
+  /v1/export/{jobId}/download:
+    get:
+      summary: Download do arquivo final (streaming)
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Arquivo final
+          content:
+            application/geo+json: { schema: { type: string, format: binary } }
+            application/x-parquet: { schema: { type: string, format: binary } }
+            application/x-netcdf: { schema: { type: string, format: binary } }
+            text/csv: { schema: { type: string, format: binary } }
+            application/zip: { schema: { type: string, format: binary } }

@@ -1,0 +1,21 @@
+{
+  "name": "@gisele/gateway",
+  "version": "0.1.0",
+  "description": "GISELE API Gateway — routing, auth, rate-limit, observabilidade",
+  "private": true,
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "@fastify/http-proxy": "^10.0.0",
+    "@fastify/jwt": "^9.0.1",
+    "@fastify/rate-limit": "^10.1.1",
+    "@fastify/cors": "^10.0.1",
+    "pino-pretty": "^11.2.2"
+  }
+}

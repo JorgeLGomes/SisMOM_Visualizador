@@ -1,0 +1,73 @@
+openapi: 3.1.0
+info:
+  title: GISELE tile-cache
+  version: 0.1.0
+  description: |
+    Proxy + cache do FTP do CPTEC. Servico mais simples e de maior impacto imediato
+    da Fase 1 do roadmap backend.
+  contact: { name: CPTEC/INPE GISELE Team }
+
+servers:
+  - url: http://localhost:8081
+    description: Local dev
+  - url: https://gisele.cptec.inpe.br/v1/tiles
+    description: Production
+
+paths:
+  /v1/tiles/health:
+    get:
+      summary: Status do servico
+      operationId: getHealth
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  /v1/tiles/cptec/{model}/{yyyy}/{mm}/{dd}/{hh}/{kind}/{filename}:
+    get:
+      summary: Fetch + cache de um arquivo do FTP CPTEC
+      operationId: getTile
+      parameters:
+        - { name: model, in: path, required: true, schema: { type: string, example: Eta3km } }
+        - { name: yyyy,  in: path, required: true, schema: { type: string, example: '2026' } }
+        - { name: mm,    in: path, required: true, schema: { type: string, example: '05' } }
+        - { name: dd,    in: path, required: true, schema: { type: string, example: '28' } }
+        - { name: hh,    in: path, required: true, schema: { type: string, example: '00' } }
+        - { name: kind,  in: path, required: true, schema: { type: string, enum: [fig, geotiff], example: geotiff } }
+        - { name: filename, in: path, required: true, schema: { type: string, example: 'prec-024.tif' } }
+      responses:
+        '200':
+          description: Tile (do cache ou do FTP)
+          headers:
+            ETag: { schema: { type: string } }
+            Last-Modified: { schema: { type: string } }
+            Cache-Control: { schema: { type: string, example: 'public, max-age=86400' } }
+          content:
+            image/tiff: { schema: { type: string, format: binary } }
+            image/png:  { schema: { type: string, format: binary } }
+        '503':
+          description: FTP down e nao ha cache
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        service: { type: string }
+        version: { type: string }
+        uptime_seconds: { type: number }
+        requests_total: { type: integer }
+        cache_hits: { type: integer }
+        cache_misses: { type: integer }
+        cache_hit_rate: { type: number, minimum: 0, maximum: 1 }
+    Error:
+      type: object
+      required: [status, message]
+      properties:
+        status: { type: string }
+        message: { type: string }

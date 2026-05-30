@@ -1,0 +1,62 @@
+openapi: 3.1.0
+info:
+  title: GISELE format-converter
+  version: 0.1.0
+  description: Aceita formatos GIS diversos; normaliza para GeoJSON EPSG:4326.
+servers:
+  - url: http://localhost:8085
+
+paths:
+  /health:
+    get: { summary: Health, responses: { '200': { description: OK } } }
+
+  /v1/convert/upload:
+    post:
+      summary: Upload de arquivo GIS (auto-detect)
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Metadata do upload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadId: { type: string }
+                  detectedType: { type: string, enum: [shapefile_zip, geojson, kml, gpkg, geopackage, shapefile, csv] }
+                  features: { type: integer }
+                  bbox: { type: array, items: { type: number }, minItems: 4, maxItems: 4 }
+                  crs: { type: string, example: 'EPSG:4326' }
+
+  /v1/convert/reproject:
+    post:
+      summary: Reprojeta para outro CRS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uploadId, targetCRS]
+              properties:
+                uploadId: { type: string }
+                targetCRS: { type: string, example: 'EPSG:4326' }
+      responses:
+        '200': { description: OK }
+
+  /v1/convert/{id}/as/geojson:
+    get:
+      summary: Saida normalizada em GeoJSON EPSG:4326
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: GeoJSON normalizado
+          content:
+            application/geo+json: { schema: { type: string, format: binary } }

@@ -1,0 +1,9 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+# Fase 4:
+# geopandas==1.0.1
+# fiona==1.10.0
+# shapely==2.0.6
+# pyarrow==17.0.0
+# netCDF4==1.7.1.post2

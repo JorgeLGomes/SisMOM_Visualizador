@@ -1,0 +1,51 @@
+// GISELE user-state schema — Fase 2
+generator client { provider = "prisma-client-js" }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String?
+  role      String   @default("user")
+  createdAt DateTime @default(now()) @map("created_at")
+  models      ModelConfig[]
+  annotations Annotation[]
+  savedCalcs  SavedCalc[]
+  @@map("users")
+}
+
+model ModelConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  ownerId         String   @map("owner_id") @db.Uuid
+  owner           User     @relation(fields: [ownerId], references: [id])
+  name            String
+  config          Json
+  sharedWithTeam  Boolean  @default(false) @map("shared_with_team")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  @@map("model_configs")
+}
+
+model Annotation {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  owner     User     @relation(fields: [ownerId], references: [id])
+  slotIdx   Int      @map("slot_idx")
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("annotations")
+}
+
+model SavedCalc {
+  id              String   @id @default(uuid()) @db.Uuid
+  ownerId         String   @map("owner_id") @db.Uuid
+  owner           User     @relation(fields: [ownerId], references: [id])
+  expression      String
+  description     String?
+  resultDecodedId String?  @map("result_decoded_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  @@map("saved_calcs")
+}

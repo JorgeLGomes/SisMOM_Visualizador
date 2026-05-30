@@ -1,7 +1,7 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.6.0 — Build marker `20260529-5600-vectormask`
+**Versão atual:** v2.7.0 — Build marker `20260529-6200-ctrcache`
 **Arquivos críticos (sempre em lockstep):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
@@ -12,6 +12,8 @@
 > **Mudanças de UI v2.4 → v2.5:** o painel direito foi reorganizado em árvore ERMA-style (Background / Miscelânea / Camadas / Ferramentas) com sub-menu **Configuração da Camada** por nó (paleta/min-max/clip/contornos/calc per-layer) movido fisicamente por `appendChild`. Nova **Calculadora dupla**: expressão livre entre camadas em Ferramentas + operador-escalar per-layer na Configuração da Camada. Item **"Abrir TIF local (inspeção)"** foi removido do menu Ferramentas (use **+ Adicionar GeoTIFF/GeoJSON** ou a aba dedicada do header).
 
 > **Mudanças v2.5 → v2.6:** (1) Nova **Calculadora Temporal** em Configuração da Camada com sintaxe `tN`/`hN`, ranges `t1..t24`, funções `sum/mean/max/min/count`. (2) **Exportar GeoJSON** (raster→nuvem de pontos): campo cheio, polígono/retângulo desenhado, ou recorte por camada vetorial carregada. Também **série temporal de ponto → GeoJSON**. (3) **Importar Shapefile** (.shp standalone ou .zip) como camada vetorial — parser puro JS embarcado + ZIP reader via `DecompressionStream`. (4) Fix HUD lat/lon/valor (default ON + toggle na árvore ERMA). (5) Botão `👁/⊘` explícito em cada camada com dim de row ao ocultar. (6) Renderer respeita `style.noVertices` (linha pura sem bolinhas em cada vértice — essencial para shapes com centenas de vértices).
+
+> **Mudanças v2.6 → v2.7:** (1) **Python helper opcional** (FastAPI + rasterio + httpx) embedado no Electron como subprocess — acelera extração temporal, calculadora temporal e perfil de linha com fetches paralelos (~10× speedup esperado). Frontend tem **fallback transparente** para JS quando o helper está offline. Badge UI no canto inferior direito mostra status `⚡ Python` ou `JS only`. (2) Sub-menu da árvore ERMA renomeado de `⚙ Configuração da Camada` → `🛠 Ferramentas`. (3) **Slider de opacidade** adicionado no painel (sincroniza com a camada ativa ao expandir nós). (4) Widget de calculadora escalar per-layer (op + escalar + Aplicar) removido — coberto pelo textarea de Tempos. (5) **Marching squares otimizado** (single-pass + máscara pré-computada Uint8Array + early-skip por cellMin/cellMax + zero closures no hot loop): ~8-15× mais rápido. (6) **Cache de contornos** com fingerprint dos dados (URL do TIF para primary) + LRU true (touch on hit) + cap 100 — animações com contornos ligados ficam quase instantâneas após primeira passagem.
 
 ---
 
@@ -216,6 +218,23 @@
 | **Importar shapefile como camada extra** | "importar shapefile na ferramenta" | Edit (`gtAddExtraLayerFromFile` estendida com `.shp` e `.zip`; `_gtPolygonsToGeoJsonFC` converte para FeatureCollection; label do botão atualizado) |
 | **Toggle 👁/⊘ explícito + dim row** | "Opção de ligar e desligar a camada (shape, geojson, etc)" | Edit (no `gtRenderTree` substitui checkbox por button 24×22px com ícone 👁/⊘ colorido; row inteira ganha `opacity:0.5` quando oculta) |
 | **Máscara via camada vetorial carregada** | "remover o upload da máscara de extração do geojson e no local disponibilizar a camada que foi carregada" | Edit (remove botão Upload + handler 50 linhas; "🐠 Por shape de Miscelânea" → "🗂️ Por camada carregada" filtra `type==='geojson'`; dialog mostra origem + bolinha de cor) |
+
+### 2.15. Python helper + UX v2.7
+
+| Feature | Prompts originais | Ferramentas |
+|---|---|---|
+| **Python helper backend (FastAPI subprocess)** | "em uma fase intermediária, é possível migrar a extração temporal do valor de um ponto para backend em python, rodando na máquina do usuário" | Write (electron-app/python-helper/: server.py 417 linhas, url_builder.py 125 linhas, sampler.py 144 linhas, requirements.txt, README.md, build-helper.bat/sh) |
+| **electron python-spawner.js (subprocess lifecycle)** | (idem) | Write (python-spawner.js 162 linhas: spawn em dev/packaged, probe /health com retry 15s, taskkill no Windows, SIGTERM→SIGKILL no Unix) |
+| **preload.js (IPC bridge)** | (idem) | Write (contextBridge.exposeInMainWorld('GISELE_PYTHON', { getUrl, isAvailable, onStatusChange })) |
+| **main.js integração + ipcMain handlers** | (idem) | Edit (app.whenReady spawna helper paralelo; before-quit mata; ipcMain.handle('gisele-python:get-url')) |
+| **package.json files + extraResources** | (idem) | Edit (preload.js, python-spawner.js em files; python-helper/dist → resources/python-helper extraResources) |
+| **gtPyHelper module no frontend** | (idem) | Edit HTML (~140 linhas: refresh com probe /health a cada 5s, sampleTimeSeries/sampleProfileLine/calcTemporal, badge UI cyan/cinza no canto inferior direito) |
+| **gtSampleTimeSeries guard com fallback** | (idem) | Edit (try gtPyHelper.sampleTimeSeries → fallback JS original) |
+| **Slider de opacidade + sync ao mover painel** | "falta o controle da opacidade na Configuração da camada" | Edit (gOp row em gtBuildLayerConfigPanel: input range 0-100 + label %; gtMoveCfgPanelToLayer lê opacity da camada-alvo e atualiza slider) |
+| **Renomear "⚙ Configuração da Camada" → "🛠 Ferramentas"** | "Mudar o título Configuração da camada para Ferramentas" | Edit (smr.textContent no details summary) |
+| **Remover widget calc per-layer escalar** | "não precisa essa opção, pois tem o espaço para expressão. Mudar Calc. camada para Calculadora, remover o dropdown dos sinais" | Edit (gC widget completo — select op + input escalar + btn Aplicar + status — substituído por simples header "🧮 Calculadora" com border-top) |
+| **Marching squares otimizado** | "demora para gerar os contornos da variável quando selecionado" | Edit (gtComputeContours reescrito: máscara Uint8Array pré-computada, single-pass com cellMin/cellMax early-skip, Float32Array para Larr, zero closures, inlining de pos/interp, hoist de dLon/dLat/lat0/lon0) — speedup ~8-15× |
+| **Cache de contornos com fingerprint** | "Quando gerar os contornos, salvar como camada ou guardar no cache, para economizar tempo de processamento" | Edit (_gtContourCacheKey aceita dataFingerprint = lastLoadedURL[slot] para primary OU layer.id; LRU true via delete+set on hit; cap 100; remoção da invalidação agressiva primary\|* em gtRerenderSlot) |
 
 ---
 

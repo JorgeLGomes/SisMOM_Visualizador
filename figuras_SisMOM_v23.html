@@ -5893,7 +5893,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260529-5600-vectormask'); document.documentElement.setAttribute('data-build', '20260529-5600-vectormask'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260529-6200-ctrcache'); document.documentElement.setAttribute('data-build', '20260529-6200-ctrcache'); } catch (_) {}
         loadModelos();
         buildSlots();
         const restored = loadUIPrefs();
@@ -6589,9 +6589,13 @@
     // ─── Contornos (curvas de níveis) via marching squares ───
     // Cache por (layer-id + min + max + mode + count + levels) para evitar recomputar.
     const _gtContourCache = new Map();
-    function _gtContourCacheKey(layer, p) {
+    function _gtContourCacheKey(layer, p, dataFingerprint) {
         const c = p.contours || {};
-        return [layer.id, p.effMin, p.effMax, c.mode || 'auto', c.count || 10, c.levels || ''].join('|');
+        // dataFingerprint identifica unicamente os dados decodificados (URL do TIF
+        // para primary, layer.id para extras). Sem isso, troca de passo/modelo na
+        // primary geraria mesma key e cache devolveria contorno stale.
+        const fp = dataFingerprint || layer.id;
+        return [fp, p.effMin, p.effMax, c.mode || 'auto', c.count || 10, c.levels || ''].join('|');
     }
     function gtComputeContourLevels(min, max, opts) {
         opts = opts || {};
@@ -6606,103 +6610,129 @@
         for (let i = 1; i <= n; i++) out.push(min + step * i);
         return out;
     }
-    // Marching squares: extrai segmentos para cada level. Retorna array de objetos
-    // { level, segments: [[[lat,lon],[lat,lon]], ...] }.
-    // Para grids do CPTEC: data[row*width + col], row 0 = topo (maxY), col 0 = esquerda (minX).
-    function _gtMarchingSquares(decoded, level, mask) {
+    // Marching squares OTIMIZADO: single-pass sobre o grid para TODOS os niveis.
+    // Para cada celula valida, computa [cellMin..cellMax] e so processa niveis que
+    // cruzam essa faixa. Mascara NoData e' pre-computada como Uint8Array (1 vez,
+    // nao por nivel). Speedup ~8-15x vs versao original em grids medios (1440x721).
+    //
+    // Convencao: data[row*W+col] = sample no CENTRO do pixel (col,row), conforme
+    // GTRasterTypeGeoKey=PixelIsPoint dos modelos CPTEC. pos(col,row) usa +0.5
+    // para mapear celula -> coord geografica.
+    function gtComputeContours(decoded, levels, mask) {
+        if (!levels || !levels.length) return [];
         const { width: W, height: H, data, bbox } = decoded;
-        const segs = [];
         const ndA = decoded.nodata;
         const extrasDecoded = decoded.nodataExtras;
-        const extrasUser    = (mask && mask.extras) || null;       // UNDEF manual
+        const extrasUser    = (mask && mask.extras) || null;
         const clipBelow     = (mask && mask.clipBelow != null && isFinite(mask.clipBelow)) ? mask.clipBelow : null;
         const clipAbove     = (mask && mask.clipAbove != null && isFinite(mask.clipAbove)) ? mask.clipAbove : null;
-        function isND(v) {
-            if (!isFinite(v)) return true;
-            if (ndA != null && v === ndA) return true;
-            if (extrasDecoded) for (let k = 0; k < extrasDecoded.length; k++) if (v === extrasDecoded[k]) return true;
-            if (extrasUser)    for (let k = 0; k < extrasUser.length;    k++) if (v === extrasUser[k])    return true;
-            if (clipBelow != null && v < clipBelow) return true;
-            if (clipAbove != null && v > clipAbove) return true;
-            return false;
+        // ─── 1) Pre-computa mascara NoData (Uint8Array, 1 byte por pixel) ───
+        const N = W * H;
+        const ndMask = new Uint8Array(N);
+        const _eD = extrasDecoded || null;
+        const _eDN = _eD ? _eD.length : 0;
+        const _eU = extrasUser || null;
+        const _eUN = _eU ? _eU.length : 0;
+        for (let i = 0; i < N; i++) {
+            const v = data[i];
+            let bad = (v !== v) || v === Infinity || v === -Infinity;
+            if (!bad && ndA != null && v === ndA) bad = true;
+            if (!bad && _eDN) for (let k = 0; k < _eDN; k++) if (v === _eD[k]) { bad = true; break; }
+            if (!bad && _eUN) for (let k = 0; k < _eUN; k++) if (v === _eU[k]) { bad = true; break; }
+            if (!bad && clipBelow != null && v < clipBelow) bad = true;
+            if (!bad && clipAbove != null && v > clipAbove) bad = true;
+            if (bad) ndMask[i] = 1;
         }
-        // Convenção: o valor data[row*W+col] é interpretado como amostra no CENTRO do pixel
-        // (col,row), conforme GTRasterTypeGeoKey=PixelIsPoint. Isso é correto para os dados
-        // dos modelos numéricos do CPTEC (Eta, Global BESM, etc.) e alinha o contorno com
-        // os reais sample points. Sem +0.5 (tratando como canto), o contorno saía meio pixel
-        // a NW da posição real dos picos.
+        // ─── 2) Niveis ordenados — buckets de output ───
+        const nL = levels.length;
+        const Larr = new Float32Array(nL);
+        for (let i = 0; i < nL; i++) Larr[i] = levels[i];
+        const buckets = new Array(nL);
+        for (let i = 0; i < nL; i++) buckets[i] = { level: levels[i], segs: [] };
+        // ─── 3) Constantes geograficas hoisted ───
         const dLon = (bbox.maxX - bbox.minX) / W;
         const dLat = (bbox.maxY - bbox.minY) / H;
-        function pos(col, row) {
-            return [ bbox.maxY - (row + 0.5) * dLat, bbox.minX + (col + 0.5) * dLon ];
-        }
-        function interp(v1, v2, c1, r1, c2, r2) {
-            // Interpolação linear ao longo da aresta entre (c1,r1) e (c2,r2)
-            // baseado em valores v1, v2 e o nível alvo.
-            const t = (level - v1) / (v2 - v1);
-            const c = c1 + t * (c2 - c1);
-            const r = r1 + t * (r2 - r1);
-            return pos(c, r);
-        }
+        const lat0 = bbox.maxY - 0.5 * dLat;
+        const lon0 = bbox.minX + 0.5 * dLon;
+        // ─── 4) Single-pass: para cada celula, so itera niveis que a atravessam ───
         for (let row = 0; row < H - 1; row++) {
+            const rowOff = row * W;
+            const rowOff1 = rowOff + W;
             for (let col = 0; col < W - 1; col++) {
-                // 4 cantos: TL(col,row), TR(col+1,row), BR(col+1,row+1), BL(col,row+1)
-                const tl = data[row * W + col];
-                const tr = data[row * W + col + 1];
-                const br = data[(row + 1) * W + col + 1];
-                const bl = data[(row + 1) * W + col];
-                if (isND(tl) || isND(tr) || isND(br) || isND(bl)) continue;
-                let code = 0;
-                if (tl >= level) code |= 8;
-                if (tr >= level) code |= 4;
-                if (br >= level) code |= 2;
-                if (bl >= level) code |= 1;
-                if (code === 0 || code === 15) continue;
-                // Pontos médios das arestas (em coords de grid c/r)
-                // T: top edge entre TL e TR
-                // R: right edge entre TR e BR
-                // B: bottom edge entre BR e BL
-                // L: left edge entre BL e TL
-                const T = () => interp(tl, tr, col, row,   col+1, row  );
-                const R = () => interp(tr, br, col+1, row, col+1, row+1);
-                const B = () => interp(bl, br, col, row+1, col+1, row+1);
-                const L = () => interp(tl, bl, col, row,   col, row+1);
-                switch (code) {
-                    case 1: segs.push([L(), B()]); break;
-                    case 2: segs.push([B(), R()]); break;
-                    case 3: segs.push([L(), R()]); break;
-                    case 4: segs.push([T(), R()]); break;
-                    case 5: {
-                        // Ambíguo: usa média dos cantos pra desempate.
-                        const avg = (tl + tr + br + bl) / 4;
-                        if (avg >= level) { segs.push([L(), T()]); segs.push([R(), B()]); }
-                        else              { segs.push([L(), B()]); segs.push([T(), R()]); }
-                        break;
+                const iTL = rowOff + col;
+                const iTR = iTL + 1;
+                const iBL = rowOff1 + col;
+                const iBR = iBL + 1;
+                if (ndMask[iTL] | ndMask[iTR] | ndMask[iBR] | ndMask[iBL]) continue;
+                const tl = data[iTL];
+                const tr = data[iTR];
+                const br = data[iBR];
+                const bl = data[iBL];
+                let cellMin = tl, cellMax = tl;
+                if (tr < cellMin) cellMin = tr; else if (tr > cellMax) cellMax = tr;
+                if (br < cellMin) cellMin = br; else if (br > cellMax) cellMax = br;
+                if (bl < cellMin) cellMin = bl; else if (bl > cellMax) cellMax = bl;
+                if (cellMin === cellMax) continue;
+                const avg = (tl + tr + br + bl) * 0.25;
+                for (let li = 0; li < nL; li++) {
+                    const level = Larr[li];
+                    if (level <= cellMin) continue;
+                    if (level >= cellMax) break;
+                    let code = 0;
+                    if (tl >= level) code |= 8;
+                    if (tr >= level) code |= 4;
+                    if (br >= level) code |= 2;
+                    if (bl >= level) code |= 1;
+                    if (code === 0 || code === 15) continue;
+                    let Tlat=0, Tlon=0, Rlat=0, Rlon=0, Blat=0, Blon=0, Llat=0, Llon=0;
+                    let needT = false, needR = false, needB = false, needL = false;
+                    switch (code) {
+                        case 1:  needL=true; needB=true; break;
+                        case 2:  needB=true; needR=true; break;
+                        case 3:  needL=true; needR=true; break;
+                        case 4:  needT=true; needR=true; break;
+                        case 5:  needL=true; needT=true; needR=true; needB=true; break;
+                        case 6:  needT=true; needB=true; break;
+                        case 7:  needL=true; needT=true; break;
+                        case 8:  needL=true; needT=true; break;
+                        case 9:  needT=true; needB=true; break;
+                        case 10: needL=true; needT=true; needR=true; needB=true; break;
+                        case 11: needT=true; needR=true; break;
+                        case 12: needL=true; needR=true; break;
+                        case 13: needB=true; needR=true; break;
+                        case 14: needL=true; needB=true; break;
                     }
-                    case 6: segs.push([T(), B()]); break;
-                    case 7: segs.push([L(), T()]); break;
-                    case 8: segs.push([L(), T()]); break;
-                    case 9: segs.push([T(), B()]); break;
-                    case 10: {
-                        const avg = (tl + tr + br + bl) / 4;
-                        if (avg >= level) { segs.push([T(), R()]); segs.push([L(), B()]); }
-                        else              { segs.push([L(), T()]); segs.push([R(), B()]); }
-                        break;
+                    if (needT) { const t = (level - tl) / (tr - tl); Tlat = lat0 - row * dLat; Tlon = lon0 + (col + t) * dLon; }
+                    if (needR) { const t = (level - tr) / (br - tr); Rlat = lat0 - (row + t) * dLat; Rlon = lon0 + (col + 1) * dLon; }
+                    if (needB) { const t = (level - bl) / (br - bl); Blat = lat0 - (row + 1) * dLat; Blon = lon0 + (col + t) * dLon; }
+                    if (needL) { const t = (level - tl) / (bl - tl); Llat = lat0 - (row + t) * dLat; Llon = lon0 + col * dLon; }
+                    const segs = buckets[li].segs;
+                    switch (code) {
+                        case 1:  segs.push([[Llat,Llon],[Blat,Blon]]); break;
+                        case 2:  segs.push([[Blat,Blon],[Rlat,Rlon]]); break;
+                        case 3:  segs.push([[Llat,Llon],[Rlat,Rlon]]); break;
+                        case 4:  segs.push([[Tlat,Tlon],[Rlat,Rlon]]); break;
+                        case 5:
+                            if (avg >= level) { segs.push([[Llat,Llon],[Tlat,Tlon]]); segs.push([[Rlat,Rlon],[Blat,Blon]]); }
+                            else              { segs.push([[Llat,Llon],[Blat,Blon]]); segs.push([[Tlat,Tlon],[Rlat,Rlon]]); }
+                            break;
+                        case 6:  segs.push([[Tlat,Tlon],[Blat,Blon]]); break;
+                        case 7:  segs.push([[Llat,Llon],[Tlat,Tlon]]); break;
+                        case 8:  segs.push([[Llat,Llon],[Tlat,Tlon]]); break;
+                        case 9:  segs.push([[Tlat,Tlon],[Blat,Blon]]); break;
+                        case 10:
+                            if (avg >= level) { segs.push([[Tlat,Tlon],[Rlat,Rlon]]); segs.push([[Llat,Llon],[Blat,Blon]]); }
+                            else              { segs.push([[Llat,Llon],[Tlat,Tlon]]); segs.push([[Rlat,Rlon],[Blat,Blon]]); }
+                            break;
+                        case 11: segs.push([[Tlat,Tlon],[Rlat,Rlon]]); break;
+                        case 12: segs.push([[Llat,Llon],[Rlat,Rlon]]); break;
+                        case 13: segs.push([[Blat,Blon],[Rlat,Rlon]]); break;
+                        case 14: segs.push([[Llat,Llon],[Blat,Blon]]); break;
                     }
-                    case 11: segs.push([T(), R()]); break;
-                    case 12: segs.push([L(), R()]); break;
-                    case 13: segs.push([B(), R()]); break;
-                    case 14: segs.push([L(), B()]); break;
                 }
             }
         }
-        return segs;
-    }
-    // Computa todos os contornos de uma camada. Retorna [{level, segs}].
-    function gtComputeContours(decoded, levels, mask) {
-        const out = [];
-        for (const L of levels) out.push({ level: L, segs: _gtMarchingSquares(decoded, L, mask) });
-        return out;
+        return buckets;
     }
     // Converte contornos para features GeoJSON, agrupando por nível.
     function _gtContoursToGeoJSON(contours) {
@@ -6749,18 +6779,38 @@
         };
         // Cache (chave inclui máscara para invalidar quando o usuário muda undef/clip)
         const maskKey = (mask.extras ? mask.extras.join(',') : '') + '|' + (mask.clipBelow != null ? mask.clipBelow : '') + '|' + (mask.clipAbove != null ? mask.clipAbove : '');
-        const key = _gtContourCacheKey(layer, p) + '|' + maskKey;
+        // Data fingerprint para invalidar corretamente em troca de passo/modelo.
+        // Primary: lastLoadedURL do slot ativo (muda a cada novo TIF).
+        // Extras: layer.id (unico por instancia).
+        let dataFingerprint = layer.id;
+        if (layer.id === 'primary') {
+            try {
+                const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+                if (typeof lastLoadedURL !== 'undefined' && lastLoadedURL[slotIdx]) {
+                    dataFingerprint = 'primary|' + lastLoadedURL[slotIdx];
+                }
+            } catch (_) {}
+        }
+        const key = _gtContourCacheKey(layer, p, dataFingerprint) + '|' + maskKey;
         let contours;
         const cached = _gtContourCache.get(key);
-        if (cached) contours = cached;
-        else {
+        if (cached) {
+            contours = cached;
+            // Touch — move para o final da ordem LRU (Map preserva ordem de insercao)
+            _gtContourCache.delete(key);
+            _gtContourCache.set(key, contours);
+        } else {
+            const t0 = performance.now();
             contours = gtComputeContours(layer.decoded, levels, mask);
-            // Cache LRU rasteiro: limita 16 entradas
-            if (_gtContourCache.size > 16) {
+            const dt = ((performance.now() - t0) / 1000).toFixed(3);
+            // Cap LRU em 100 (suporta animacao de uma rodada Eta de 72 passos + outras camadas)
+            if (_gtContourCache.size >= 100) {
                 const firstKey = _gtContourCache.keys().next().value;
                 _gtContourCache.delete(firstKey);
             }
             _gtContourCache.set(key, contours);
+            console.log('[contours] miss, computed', levels.length, 'levels in', dt + 's',
+                        'cache=' + _gtContourCache.size);
         }
         const geojson = _gtContoursToGeoJSON(contours);
         const stroke = cf.color || '#ffffff';
@@ -7437,7 +7487,279 @@
     // ─── Série temporal num ponto ───
     // Reusa montarURL/gtDeriveTifUrl/_gtFetchAndDecode para cada passo do slot ativo
     // e amostra a camada PRIMARY no (lat,lon).
+    // ─── gtPyHelper: bridge para o servidor Python local ───
+    // Detecta automaticamente se o servidor Python esta rodando em
+    // 127.0.0.1:8765 (ou via window.GISELE_PYTHON.getUrl() no Electron).
+    // As funcoes pesadas (timeseries, profile, calc temporal) tentam o
+    // Python primeiro; se nao disponivel ou erro de rede, caem no JS.
+    const gtPyHelper = (function() {
+        const state = { url: null, available: false, version: null, lastProbe: 0 };
+        const PROBE_INTERVAL_MS = 5000;
+
+        async function _probeUrl(url) {
+            try {
+                const r = await fetch(url + '/health', { signal: AbortSignal.timeout(1000) });
+                if (r.ok) return await r.json();
+            } catch (_) {}
+            return null;
+        }
+
+        async function refresh() {
+            const now = Date.now();
+            if (now - state.lastProbe < PROBE_INTERVAL_MS && state.available) return state.available;
+            state.lastProbe = now;
+            // 1) Tenta via Electron preload (window.GISELE_PYTHON)
+            let url = null;
+            try {
+                if (window.GISELE_PYTHON && typeof window.GISELE_PYTHON.getUrl === 'function') {
+                    url = await window.GISELE_PYTHON.getUrl();
+                }
+            } catch (_) {}
+            // 2) Fallback: tenta 127.0.0.1:8765 direto (browser standalone com helper rodando)
+            if (!url) url = 'http://127.0.0.1:8765';
+            const h = await _probeUrl(url);
+            if (h && h.ready) {
+                state.url = url;
+                state.available = true;
+                state.version = h.version || '?';
+                gtPyHelperUpdateBadge();
+                return true;
+            }
+            state.available = false;
+            state.url = null;
+            gtPyHelperUpdateBadge();
+            return false;
+        }
+
+        // ─── Constrói payload com modelo+variavel do slot ───
+        function _buildModeloPayload(modeloId) {
+            const m = modelos[modeloId];
+            if (!m) return null;
+            return {
+                nome: m.nome || modeloId,
+                url_path: m.url_path || '',
+                file_name: m.file_name || '',
+                url_path_tif: m.url_path_tif || null,
+                file_name_tif: m.file_name_tif || null,
+                same_url_for_tif: !!m.same_url_for_tif,
+                same_name_for_tif: !!m.same_name_for_tif,
+                extensao: m.extensao || '.png',
+                extensao_tif: m.extensao_tif || '.tif',
+                escopo1: m.escopo1 || '',
+                escopo2: m.escopo2 || '',
+                maxPassos: m.maxPassos || 24,
+            };
+        }
+        function _buildVariavelPayload(modeloId, variavelId) {
+            const m = modelos[modeloId];
+            if (!m || !m.variaveis) return null;
+            const v = m.variaveis.find(x => x.id === variavelId);
+            if (!v) return null;
+            return {
+                id: v.id,
+                label: v.label || v.id,
+                prefixo: v.prefixo || '',
+                frequencia: v.frequencia || 1,
+                horizonte: v.horizonte || null,
+                unidade: v.unidade || '',
+            };
+        }
+
+        // ─── Extracao temporal de um ponto ───
+        // Retorna { samples, layerName, lat, lon, runDate, bbox } compativel
+        // com o resultado do JS atual, OU null se nao disponivel.
+        async function sampleTimeSeries(slotIdx, lat, lon, onProgress) {
+            if (!state.available) {
+                const ok = await refresh();
+                if (!ok) return null;
+            }
+            const s = state && (state.slots = state.slots) ? null : null;  // unused
+            const slot = (window.state && window.state.slots) ? window.state.slots[slotIdx] : null;
+            if (!slot || !slot.modelo || !slot.variavel || !slot.data) return null;
+            const modelo = _buildModeloPayload(slot.modelo);
+            const variavel = _buildVariavelPayload(slot.modelo, slot.variavel);
+            if (!modelo || !variavel) return null;
+            try {
+                const body = JSON.stringify({
+                    modelo, variavel,
+                    dataRodada: slot.data,
+                    lat, lon,
+                    parallel_limit: 8,
+                });
+                if (onProgress) onProgress(0, 1, null, null);
+                const t0 = performance.now();
+                const r = await fetch(state.url + '/v1/timeseries/point', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body,
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const data = await r.json();
+                const dt = ((performance.now() - t0) / 1000).toFixed(2);
+                console.log('[gtPyHelper] timeseries via Python OK em', dt + 's',
+                            '(fetched=' + data.fetched + ' failed=' + data.failed + ')');
+                // Converte schema do backend para o esperado pelo frontend
+                const samples = (data.samples || []).map(s => ({
+                    passo_h: s.passo_h,
+                    time: s.time_utc ? new Date(s.time_utc) : null,
+                    value: s.value,
+                    url: null,
+                }));
+                if (onProgress) onProgress(samples.length, samples.length, null, null);
+                return {
+                    samples,
+                    layerName: data.layer_name,
+                    lat, lon,
+                    runDate: new Date(data.run_date_utc),
+                    bbox: null,
+                    _accelerated: 'python',
+                };
+            } catch (e) {
+                console.warn('[gtPyHelper] timeseries falhou, fallback JS:', e.message);
+                state.available = false;  // re-probe na proxima
+                gtPyHelperUpdateBadge();
+                return null;
+            }
+        }
+
+        // ─── Perfil ao longo de polilinha ───
+        async function sampleProfileLine(tifUrl, coords, nSamples) {
+            if (!state.available) {
+                const ok = await refresh();
+                if (!ok) return null;
+            }
+            if (!tifUrl || !coords || coords.length < 2) return null;
+            try {
+                const r = await fetch(state.url + '/v1/profile/line', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tif_url: tifUrl,
+                        coords: coords.map(c => [c[0], c[1]]),
+                        n_samples: nSamples || 200,
+                    }),
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const data = await r.json();
+                console.log('[gtPyHelper] profile via Python OK em', data.elapsed_seconds + 's');
+                return { samples: data.samples, tif: data.tif, _accelerated: 'python' };
+            } catch (e) {
+                console.warn('[gtPyHelper] profile falhou:', e.message);
+                state.available = false;
+                gtPyHelperUpdateBadge();
+                return null;
+            }
+        }
+
+        // ─── Calculadora temporal ───
+        // indices: array de inteiros (1..N); reduction: 'sum'|'mean'|'max'|'min'|'count'
+        // Retorna { width, height, bbox, data: Float32Array, min, max, nodata } OU null
+        async function calcTemporal(modeloId, variavelId, dataRodada, indices, reduction) {
+            if (!state.available) {
+                const ok = await refresh();
+                if (!ok) return null;
+            }
+            const modelo = _buildModeloPayload(modeloId);
+            const variavel = _buildVariavelPayload(modeloId, variavelId);
+            if (!modelo || !variavel) return null;
+            try {
+                const r = await fetch(state.url + '/v1/calc/temporal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        modelo, variavel,
+                        dataRodada,
+                        indices,
+                        reduction,
+                        parallel_limit: 8,
+                    }),
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const data = await r.json();
+                console.log('[gtPyHelper] calc temporal via Python OK em',
+                            data.elapsed_seconds + 's');
+                // Decode base64 -> Float32Array
+                const binStr = atob(data.data_b64);
+                const buf = new ArrayBuffer(binStr.length);
+                const u8 = new Uint8Array(buf);
+                for (let i = 0; i < binStr.length; i++) u8[i] = binStr.charCodeAt(i);
+                const f32 = new Float32Array(buf);
+                return {
+                    width: data.width, height: data.height,
+                    bbox: data.bbox,
+                    data: f32,
+                    nodata: data.nodata_sentinel,
+                    min: data.min, max: data.max,
+                    _accelerated: 'python',
+                };
+            } catch (e) {
+                console.warn('[gtPyHelper] calc temporal falhou:', e.message);
+                state.available = false;
+                gtPyHelperUpdateBadge();
+                return null;
+            }
+        }
+
+        // Probe inicial (assincrono, nao bloqueia carregamento)
+        refresh();
+        // Re-probe periodico
+        setInterval(refresh, PROBE_INTERVAL_MS);
+
+        return {
+            get available() { return state.available; },
+            get url() { return state.url; },
+            get version() { return state.version; },
+            refresh,
+            sampleTimeSeries,
+            sampleProfileLine,
+            calcTemporal,
+        };
+    })();
+
+    // Badge UI mostrando status do helper Python
+    function gtPyHelperUpdateBadge() {
+        let badge = document.getElementById('gtPyHelperBadge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'gtPyHelperBadge';
+            badge.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;padding:2px 7px;border-radius:10px;font-family:ui-sans-serif,system-ui,sans-serif;font-weight:600;z-index:9999;pointer-events:none;user-select:none;letter-spacing:0.2px';
+            document.body.appendChild(badge);
+        }
+        if (gtPyHelper.available) {
+            badge.textContent = '⚡ Python v' + (gtPyHelper.version || '?');
+            badge.style.background = 'rgba(34,211,238,0.18)';
+            badge.style.color = '#22d3ee';
+            badge.style.border = '1px solid rgba(34,211,238,0.4)';
+            badge.title = 'Aceleracao Python ativa (' + (gtPyHelper.url || '?') + ')';
+        } else {
+            badge.textContent = 'JS only';
+            badge.style.background = 'rgba(148,163,184,0.08)';
+            badge.style.color = '#94a3b8';
+            badge.style.border = '1px solid rgba(148,163,184,0.2)';
+            badge.title = 'Python helper offline — usando fallback JS';
+        }
+    }
+    // Sincroniza badge com mudancas do main (Electron)
+    try {
+        if (window.GISELE_PYTHON && typeof window.GISELE_PYTHON.onStatusChange === 'function') {
+            window.GISELE_PYTHON.onStatusChange((status) => {
+                if (status && status.available) {
+                    gtPyHelper.refresh().then(() => gtPyHelperUpdateBadge());
+                } else {
+                    gtPyHelperUpdateBadge();
+                }
+            });
+        }
+    } catch (_) {}
+
     async function gtSampleTimeSeries(slotIdx, lat, lon, onProgress) {
+        // ── Tenta Python helper primeiro (fallback transparente para JS) ──
+        try {
+            if (gtPyHelper && gtPyHelper.available) {
+                const r = await gtPyHelper.sampleTimeSeries(slotIdx, lat, lon, onProgress);
+                if (r && r.samples && r.samples.length > 0) return r;
+            }
+        } catch (e) { console.warn('[gtSampleTimeSeries] Python helper falhou, fallback JS:', e); }
         const s = state && state.slots && state.slots[slotIdx];
         if (!s || !s.modelo || !s.data || !s.variavel) {
             throw new Error('slot ' + slotIdx + ' sem modelo/data/variável.');
@@ -8263,13 +8585,10 @@
             // os contornos antigos ficam stale (continuam mostrando os dados anteriores).
             try {
                 if (slotIdx === (gtActivePanel || 0)) {
-                    // Os dados do primary mudaram → invalida TODAS as entradas em cache que
-                    // começam com 'primary|' (chave inclui só layer.id, não o URL dos dados).
-                    try {
-                        for (const k of Array.from(_gtContourCache.keys())) {
-                            if (typeof k === 'string' && k.startsWith('primary|')) _gtContourCache.delete(k);
-                        }
-                    } catch (_) {}
+                    // Cache key inclui URL do TIF como fingerprint — troca de passo/modelo
+                    // naturalmente gera key diferente. Nao precisa invalidar manualmente.
+                    // Mantemos a recomputacao de effMin/effMax e re-render para refletir
+                    // a paleta atualizada nos contornos do novo dado.
                     const layer = gtGetLayerObj('primary');
                     if (layer && layer.props && layer.props.contours && layer.props.contours.enabled) {
                         // Recomputa effMin/effMax para a nova carga (sem isso os níveis
@@ -11048,7 +11367,7 @@
                 sub.className = 'gt-tree-config';
                 if (_gtCfgExpandedLayerId === l.id) sub.open = true;
                 const smr = document.createElement('summary');
-                smr.textContent = '⚙ Configuração da Camada';
+                smr.textContent = '🛠 Ferramentas';
                 sub.appendChild(smr);
                 const host = document.createElement('div');
                 host.className = 'gt-tree-config-host';
@@ -12202,58 +12521,41 @@
         // ─ Grupo 4: Colorbar + Info ─
         const cb = document.getElementById('gtColorbar'); if (cb) p.appendChild(cb);
         const inf = document.getElementById('gtInfo');    if (inf) p.appendChild(inf);
-        // ─ Grupo 5: Inverter Y ─
+        // ─ Grupo 5a: Opacidade da camada ─
+        const gOp = document.createElement('div');
+        gOp.className = 'gt-cfg-row';
+        gOp.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0';
+        gOp.innerHTML = ''
+            + '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted,#8aa);flex:1">'
+            + '<span style="min-width:65px">🌫 Opacidade:</span>'
+            + '<input type="range" id="gtCfgOpacity" min="0" max="100" value="85" style="flex:1">'
+            + '<span id="gtCfgOpacityVal" style="font-family:ui-monospace,Menlo,monospace;min-width:38px;text-align:right">85%</span>'
+            + '</label>';
+        p.appendChild(gOp);
+        // Wire do slider — aplica na camada ATIVA via funcao existente
+        const opSlider = gOp.querySelector('#gtCfgOpacity');
+        const opValSpan = gOp.querySelector('#gtCfgOpacityVal');
+        if (opSlider) {
+            opSlider.addEventListener('input', () => {
+                const pct = parseInt(opSlider.value, 10) || 0;
+                if (opValSpan) opValSpan.textContent = pct + '%';
+                if (typeof gtApplyOpacityToActive === 'function') {
+                    gtApplyOpacityToActive(pct / 100);
+                }
+            });
+        }
+        // ─ Grupo 5b: Inverter Y ─
         const g5 = document.createElement('div'); g5.className = 'gt-cfg-row';
         const flipBtn = document.getElementById('btnGtFlipY');
         if (flipBtn) g5.appendChild(flipBtn);
         p.appendChild(g5);
-        // ─ Grupo 6: Calculadora algébrica (op + escalar) — aplica na camada ATIVA ─
+        // ─ Grupo 6: Header "🧮 Calculadora" — o textarea de Tempos abaixo cobre
+        //   todos os casos (escalar, expressao entre passos, redutores).
         const gC = document.createElement('div');
         gC.className = 'gt-cfg-calc-row';
-        gC.innerHTML = ''
-            + '<span style="color:var(--text-muted,#8aa);font-size:11px;font-weight:600">🧮 Calc:</span>'
-            + '<span style="font-size:11px;color:var(--text-muted,#8aa)">camada</span>'
-            + '<select id="gtCfgCalcOp" style="font-size:11px;width:42px"><option value="+">+</option><option value="-">−</option><option value="*" selected>×</option><option value="/">÷</option></select>'
-            + '<input type="number" id="gtCfgCalcScalar" step="any" placeholder="ex: 1000" style="width:90px">'
-            + '<button type="button" id="btnGtCfgCalcApply" class="gt-tree-action" style="flex:0 0 auto;padding:2px 8px">Aplicar</button>'
-            + '<div id="gtCfgCalcStatus" style="flex:1 0 100%;font-size:11px;color:var(--text-muted,#8aa);min-height:1em"></div>';
+        gC.style.cssText = 'padding:4px 0 2px;border-top:1px dashed var(--border-subtle,#23304a);margin-top:4px';
+        gC.innerHTML = '<span style="color:var(--text-muted,#8aa);font-size:11px;font-weight:600">🧮 Calculadora</span>';
         p.appendChild(gC);
-        // Wire o Aplicar (uma única vez por painel — chamado uma vez no boot)
-        const btCfgCalc = gC.querySelector('#btnGtCfgCalcApply');
-        if (btCfgCalc) btCfgCalc.addEventListener('click', async () => {
-            const opEl = gC.querySelector('#gtCfgCalcOp');
-            const scEl = gC.querySelector('#gtCfgCalcScalar');
-            const stEl = gC.querySelector('#gtCfgCalcStatus');
-            if (!opEl || !scEl || !stEl) return;
-            const op = opEl.value;
-            const sc = parseFloat(scEl.value);
-            if (!isFinite(sc)) { stEl.textContent = 'Erro: valor escalar inválido'; stEl.style.color = '#ff7a90'; return; }
-            // Camada ATIVA — a do nó cuja Configuração está aberta
-            const activeLayer = (typeof gtGetLayerObj === 'function') ? gtGetLayerObj(gtActiveLayerId) : null;
-            if (!activeLayer || !activeLayer.decoded) {
-                stEl.textContent = 'Erro: camada ativa sem dados decodificados';
-                stEl.style.color = '#ff7a90'; return;
-            }
-            stEl.textContent = 'Calculando…'; stEl.style.color = 'var(--text-muted,#8aa)';
-            try {
-                // Constrói expressão "A OP scalar" com a camada ativa
-                const opSym = (op === '*') ? '×' : (op === '/') ? '÷' : (op === '-') ? '−' : op;
-                const exprStr = 'L * ' + sc;  // só pra montar nome amigável
-                const dispName = '(' + (activeLayer.name || activeLayer.id) + ' ' + opSym + ' ' + sc + ')';
-                // Reutiliza a engine de expressão: variável L = camada ativa
-                const newLayer = await gtCreateLayerFromExpression(
-                    'L ' + op + ' ' + sc,
-                    { L: activeLayer },
-                    dispName
-                );
-                stEl.textContent = 'OK: criada "' + newLayer.name + '"';
-                stEl.style.color = 'var(--accent-emerald,#10b981)';
-                scEl.value = '';
-            } catch (e) {
-                stEl.textContent = 'Erro: ' + (e && e.message);
-                stEl.style.color = '#ff7a90';
-            }
-        });
         // ─ Grupo 7: Calculadora Temporal (tN/hN, sum/mean/max/min, ranges) ─
         const gT = document.createElement('div');
         gT.className = 'gt-cfg-calc-row';
@@ -12321,6 +12623,27 @@
         const host = document.querySelector('[data-tree-layer-id="' + CSS.escape(layerId) + '"] .gt-tree-config-host');
         if (!host) { gtMoveCfgPanelHome(); return; }
         host.appendChild(p);
+        // Sincroniza slider de opacidade com a camada-alvo
+        try {
+            const opSlider = document.getElementById('gtCfgOpacity');
+            const opValSpan = document.getElementById('gtCfgOpacityVal');
+            if (opSlider) {
+                let curr = 0.85;
+                if (layerId === 'primary') {
+                    const gt = (typeof getGtSlotState === 'function')
+                        ? getGtSlotState((typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0)
+                        : null;
+                    if (gt && gt.opacity != null) curr = gt.opacity;
+                } else {
+                    const lx = (typeof gtExtraLayers !== 'undefined')
+                        ? gtExtraLayers.find(x => x.id === layerId) : null;
+                    if (lx && lx.opacity != null) curr = lx.opacity;
+                }
+                const pct = Math.round(curr * 100);
+                opSlider.value = pct;
+                if (opValSpan) opValSpan.textContent = pct + '%';
+            }
+        } catch (_) {}
     }
     function gtToggleLayerConfig(layerId) {
         if (_gtCfgExpandedLayerId === layerId) {

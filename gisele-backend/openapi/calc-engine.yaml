@@ -1,0 +1,91 @@
+openapi: 3.1.0
+info:
+  title: GISELE calc-engine
+  version: 0.1.0
+  description: |
+    Calculadora Algebrica + Temporal. Resposta assincrona via Server-Sent Events.
+    Sintaxe temporal: tN (indice do passo), hN (horas), ranges (t1..t24),
+    funcoes (sum, mean, max, min, count).
+servers:
+  - url: http://localhost:8083
+
+paths:
+  /health:
+    get: { summary: Health, responses: { '200': { description: OK } } }
+
+  /v1/calc/algebraic:
+    post:
+      summary: Calculadora algebrica entre N camadas decodificadas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expression, layers]
+              properties:
+                expression: { type: string, example: 'Camada1 * 1000 + Camada2' }
+                layers:
+                  type: object
+                  additionalProperties: { type: string, description: decoded_id }
+                  example:
+                    Camada1: sha256:abc...
+                    Camada2: sha256:def...
+      responses:
+        '202':
+          description: Aceito; jobId para acompanhar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId: { type: string }
+                  statusUrl: { type: string }
+                  streamUrl: { type: string }
+
+  /v1/calc/temporal:
+    post:
+      summary: Calculadora entre passos da mesma rodada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expression, modelId, variavelId, dataRodada]
+              properties:
+                expression: { type: string, example: 'sum(t1..t24)' }
+                modelId: { type: string, example: Eta3km }
+                variavelId: { type: string, example: prec }
+                dataRodada: { type: string, example: '2026052800' }
+      responses:
+        '202':
+          description: Aceito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId: { type: string }
+                  steps: { type: integer, description: 'Numero de passos requisitados (apos expansao de ranges)' }
+                  statusUrl: { type: string }
+                  streamUrl: { type: string }
+
+  /v1/calc/{jobId}/stream:
+    get:
+      summary: Server-Sent Events com progresso e resultado
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Stream de eventos
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  event: progress
+                  data: {"done": 5, "total": 24, "currentStep": "t5"}
+
+                  event: result
+                  data: {"id": "sha256:...", "min": 0, "max": 124.5, "bbox": {...}}

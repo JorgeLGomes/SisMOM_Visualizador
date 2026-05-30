@@ -1,0 +1,103 @@
+openapi: 3.1.0
+info:
+  title: GISELE raster-decoder
+  version: 0.1.0
+  description: Decodifica GeoTIFFs e aplica paletas no servidor.
+servers:
+  - url: http://localhost:8082
+
+paths:
+  /health:
+    get:
+      summary: Health
+      responses: { '200': { description: OK } }
+
+  /v1/decoder/decode:
+    post:
+      summary: Decodifica um GeoTIFF a partir de uma URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecodeRequest' }
+      responses:
+        '200':
+          description: Metadados do decoded + URL para os dados Float32
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DecodeResponse' }
+
+  /v1/decoder/data/{id}:
+    get:
+      summary: Stream do array Float32 cru
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: bytes Float32 (little-endian)
+          content:
+            application/octet-stream: { schema: { type: string, format: binary } }
+
+  /v1/decoder/palette:
+    post:
+      summary: Aplica paleta + min/max + clip + NoData e devolve PNG
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaletteRequest' }
+      responses:
+        '200':
+          description: PNG pronto para overlay
+          content:
+            image/png: { schema: { type: string, format: binary } }
+
+components:
+  schemas:
+    DecodeRequest:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, format: uri }
+
+    DecodeResponse:
+      type: object
+      properties:
+        id: { type: string, description: SHA-256 da URL (chave de cache) }
+        width: { type: integer }
+        height: { type: integer }
+        bbox:
+          type: object
+          properties:
+            minX: { type: number }
+            minY: { type: number }
+            maxX: { type: number }
+            maxY: { type: number }
+        nodata: { type: number, nullable: true }
+        dtype: { type: string, example: float32 }
+        min: { type: number }
+        max: { type: number }
+        percentiles:
+          type: object
+          properties:
+            p1:  { type: number }
+            p5:  { type: number }
+            p50: { type: number }
+            p95: { type: number }
+            p99: { type: number }
+        dataUrl: { type: string, format: uri }
+
+    PaletteRequest:
+      type: object
+      required: [id, paleta]
+      properties:
+        id: { type: string }
+        paleta:
+          type: string
+          enum: [viridis, plasma, inferno, magma, cividis, jet, turbo, grayscale,
+                 rdbu, rdylbu, spectral, brbg, seismic, coolwarm, terrain, ocean]
+        min: { type: number }
+        max: { type: number }
+        nodataExtras: { type: array, items: { type: number } }
+        clipBelow: { type: number }
+        clipAbove: { type: number }

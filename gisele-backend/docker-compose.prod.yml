@@ -1,0 +1,136 @@
+# GISELE backend — modo CENTRAL (servidor compartilhado do CPTEC)
+# Replicas para servir 100+ usuarios; auth obrigatoria; secrets via .env
+# `docker compose -f docker-compose.prod.yml up -d`
+#
+# Pre-requisitos:
+#   - .env com SECRETS (POSTGRES_PASSWORD, JWT_SECRET, MINIO_SECRET_KEY, etc)
+#   - DNS gisele.cptec.inpe.br -> servidor
+#   - Reverse proxy (nginx/traefik) terminando TLS na frente do gateway
+
+services:
+
+  gateway:
+    image: cptec/gisele-gateway:${TAG:-stable}
+    deploy:
+      replicas: 2
+      restart_policy: { condition: on-failure, max_attempts: 3 }
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - GATEWAY_MODE=central
+      - AUTH_ENABLED=true
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ISSUER=https://oauth.cptec.inpe.br
+      - RATE_LIMIT_PER_MINUTE=100
+    depends_on: [tile-cache, raster-decoder, calc-engine, export-service, format-converter, user-state]
+    networks: [gisele]
+
+  tile-cache:
+    image: cptec/gisele-tile-cache:${TAG:-stable}
+    deploy:
+      replicas: 2
+      restart_policy: { condition: on-failure }
+    environment:
+      - PORT=8081
+      - CACHE_DIR=/cache
+      - FTP_BASE=https://ftp1.cptec.inpe.br/modelos/tempo
+      - CACHE_MAX_SIZE_GB=500
+    volumes:
+      - tile-cache-data:/cache
+    networks: [gisele]
+
+  raster-decoder:
+    image: cptec/gisele-raster-decoder:${TAG:-stable}
+    deploy:
+      replicas: 4
+      restart_policy: { condition: on-failure }
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+    depends_on: [redis, minio]
+    networks: [gisele]
+
+  calc-engine:
+    image: cptec/gisele-calc-engine:${TAG:-stable}
+    deploy:
+      replicas: 4
+      restart_policy: { condition: on-failure }
+    environment:
+      - PORT=8080
+      - DECODER_URL=http://raster-decoder:8080
+      - TILE_CACHE_URL=http://tile-cache:8081
+    depends_on: [raster-decoder]
+    networks: [gisele]
+
+  export-service:
+    image: cptec/gisele-export-service:${TAG:-stable}
+    deploy:
+      replicas: 2
+    environment:
+      - PORT=8080
+      - DECODER_URL=http://raster-decoder:8080
+    volumes:
+      - exports-data:/exports
+    networks: [gisele]
+
+  format-converter:
+    image: cptec/gisele-format-converter:${TAG:-stable}
+    environment:
+      - PORT=8080
+    volumes:
+      - uploads-data:/uploads
+    networks: [gisele]
+
+  user-state:
+    image: cptec/gisele-user-state:${TAG:-stable}
+    environment:
+      - PORT=8086
+      - DATABASE_URL=postgres://gisele:${POSTGRES_PASSWORD}@postgres:5432/gisele
+    depends_on: [postgres]
+    networks: [gisele]
+
+  # ─── Storage ───
+
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      - POSTGRES_USER=gisele
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=gisele
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups  # daily pg_dump
+    networks: [gisele]
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 8gb --maxmemory-policy allkeys-lru --save 60 1000
+    volumes:
+      - redis-data:/data
+    networks: [gisele]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
+    volumes:
+      - minio-data:/data
+    networks: [gisele]
+
+volumes:
+  tile-cache-data:
+  exports-data:
+  uploads-data:
+  postgres-data:
+  redis-data:
+  minio-data:
+
+networks:
+  gisele:
+    driver: bridge

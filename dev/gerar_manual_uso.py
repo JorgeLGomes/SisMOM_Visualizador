@@ -142,8 +142,9 @@ sumario = [
     '11. Camadas Miscelâneas (referência geográfica)',
     '12. Exportar dados como GeoJSON (v2.6+)',
     '13. Servidor HTTP local de dados',
-    '14. Atalhos de teclado',
-    '15. Solução de problemas',
+    '14. Acelerador Python (helper local, v2.7+)',
+    '15. Atalhos de teclado',
+    '16. Solução de problemas',
 ]
 story.append(bullets(sumario))
 story.append(PageBreak())
@@ -418,11 +419,11 @@ story.append(p(
     'rótulo alterna conforme o estado (todos abertos = "Collapse folders", todos fechados = "Expand folders").'
 ))
 
-story.append(h2('Sub-menu "Configuração da Camada" (por nó)'))
+story.append(h2('Sub-menu "🛠 Ferramentas" (por nó, antes "Configuração da Camada")'))
 story.append(p(
-    'Cada camada raster (primary ou extra) tem um sub-menu <b>Configuração da Camada</b> que se abre '
-    '<b>inline dentro do nó da camada</b>, em layout vertical, com os controles que antes ficavam soltos '
-    'na sidebar:'
+    'A partir da v2.7 o sub-menu foi renomeado de "Configuração da Camada" para <b>🛠 Ferramentas</b>. '
+    'Cada camada raster (primary ou extra) tem esse sub-menu que se abre <b>inline dentro do nó</b>, em '
+    'layout vertical, com os controles que antes ficavam soltos na sidebar:'
 ))
 story.append(bullets([
     '<b>Paleta:</b> 15 paletas (Sequenciais: Viridis, Plasma, Inferno, Magma, Cividis, Jet, Turbo, Cinza; '
@@ -431,8 +432,11 @@ story.append(bullets([
     '<b>UNDEF + Clip ≥/≤:</b> sentinels e thresholds de mascaramento.',
     '<b>Contornos:</b> liga/desliga marching squares, intervalo entre isolinhas, espessura, '
     'preservar shaded (<i>keepFill</i> default ON).',
-    '<b>Calculadora per-layer:</b> linha "🧮 Calc: camada [op] [escalar] [Aplicar]" — aplica '
-    '<code>op</code> (+, −, ×, ÷) entre a camada atual e um escalar. Resultado vira nova camada extra.',
+    '<b>🌫 Opacidade (v2.7+):</b> slider 0–100% sincronizado com a camada-alvo. Ao trocar de nó, o slider '
+    'reflete o valor real da nova camada (não fica preso no último ajuste).',
+    '<b>🧮 Calculadora (v2.7+):</b> header introdutório; o textarea de <b>⏱ Tempos</b> abaixo cobre '
+    'todos os casos (expressão entre passos, escalar, redutores). O widget anterior de op+escalar foi '
+    'removido por redundância.',
 ]))
 story.append(tip(
     'O painel de configuração é fisicamente <b>um único elemento DOM</b> (<code>#gtLayerConfigPanel</code>) '
@@ -1047,8 +1051,65 @@ story.append(numbered([
 ]))
 story.append(PageBreak())
 
-# ===== 14. ATALHOS =====
-story.append(h1('14. Atalhos de teclado'))
+# ===== 14. ACELERADOR PYTHON =====
+story.append(h1('14. Acelerador Python (helper local, v2.7+)'))
+story.append(p(
+    'A partir da v2.7 o GISELE empacotado (Electron) pode subir um <b>servidor Python local</b> '
+    '(<code>gisele-python-helper</code>) como subprocess auxiliar. Quando ativo, operações pesadas '
+    '(extração temporal num ponto, calculadora temporal, perfil ao longo de linha) usam esse servidor '
+    'que faz <b>fetches paralelos</b> ao FTP CPTEC e decodifica com <code>rasterio</code>. Speedup '
+    'esperado: ~10× para 72 passos da Eta-3km. Se o servidor não estiver disponível, o frontend '
+    '<b>cai automaticamente para o caminho em JavaScript</b> — usuário nem percebe.'
+))
+story.append(h2('Como saber se está ativo'))
+story.append(p(
+    'No canto inferior direito da janela aparece um <b>badge</b>:'
+))
+story.append(bullets([
+    '<b>⚡ Python v0.1.0</b> (ciano) — helper rodando e acessível em <code>http://127.0.0.1:8765</code>.',
+    '<b>JS only</b> (cinza) — helper offline. As mesmas funções continuam disponíveis, só rodam no '
+    'JavaScript do navegador (mais lentas em operações com muitos passos).',
+]))
+story.append(h2('Funções aceleradas'))
+story.append(bullets([
+    '<b>Série temporal num ponto</b> (clique no ícone do relógio): em vez de baixar e decodificar passo '
+    'a passo no main thread, o helper Python dispara N fetches concorrentes (semáforo controla '
+    'concurrency = 8) e devolve a lista de valores num pull único.',
+    '<b>Calculadora temporal</b> (<code>sum(t1..t24)</code>, <code>mean(h6..h72)</code>, etc.): os N '
+    'TIFs são baixados em paralelo, decodificados com <code>rasterio</code>, e a redução é feita '
+    'vetorialmente em numpy.',
+    '<b>Perfil ao longo de polilinha</b>: decode rápido + sampling em numpy.',
+]))
+story.append(h2('Quando o helper sobe e quando não sobe'))
+story.append(bullets([
+    'No <b>build packaged</b> do Electron: o helper é distribuído como executável standalone '
+    '(<code>gisele-python-helper.exe</code> no Windows) embutido no installer via '
+    '<code>extraResources</code>. Sobe automático no startup.',
+    'No <b>modo dev</b> (rodando do source com <code>npm start</code>): o Electron tenta <code>python '
+    'electron-app/python-helper/server.py</code>. Precisa ter Python 3.11+ e as dependências instaladas '
+    '(<code>pip install -r requirements.txt</code>).',
+    'Em qualquer modo, a flag <code>--no-python-helper</code> desativa o spawn explicitamente.',
+]))
+story.append(h2('Como ligar manualmente o helper sem o Electron'))
+story.append(p(
+    'Útil para usar o GISELE em <code>file://</code> direto no browser (sem Electron) e mesmo assim ter '
+    'a aceleração:'
+))
+story.append(code(
+    'cd electron-app/python-helper<br/>'
+    'pip install -r requirements.txt<br/>'
+    'python server.py --port 8765<br/>'
+    '# O badge no GISELE muda para "⚡ Python v0.1.0" em ~5s.'
+))
+story.append(tip(
+    'O helper bind em <b>127.0.0.1 only</b> (loopback) — nunca é exposto na rede. Compatível com qualquer '
+    'firewall corporativo. Para diagnóstico, abra <code>http://127.0.0.1:8765/health</code> no navegador: '
+    'retorna JSON com uptime e versão.'
+))
+story.append(PageBreak())
+
+# ===== 15. ATALHOS =====
+story.append(h1('15. Atalhos de teclado'))
 story.append(tbl([
     ['Atalho', 'Acao'],
     ['Espaco',                'Play/Pause da animacao no painel ativo.'],
@@ -1061,69 +1122,69 @@ story.append(tbl([
     ['Enter',                 'Confirma dialogos de exportacao GeoJSON.'],
     ['Duplo-clique',          'Finaliza polilinha/poligono em desenho.'],
     ['Ctrl+F5',               'Recarrega o app forcando bypass de cache.'],
-    ['F12',                   'Abre o DevTools (Electron) — util pra ver console e build marker.'],
+    ['F12',                   'Abre o DevTools (Electron) - util pra ver console e build marker.'],
 ], col_widths=[3.5*cm, 12.4*cm]))
 story.append(PageBreak())
 
-# ===== 15. SOLUCAO DE PROBLEMAS =====
-story.append(h1('15. Solucao de problemas'))
-story.append(h2('"Falha ao carregar camada: Failed to fetch"'))
+# ===== 16. SOLUCAO DE PROBLEMAS =====
+story.append(h1('16. Solucao de problemas'))
+
+story.append(h2('Contornos demoram para aparecer'))
 story.append(p(
-    'Ocorre quando o app tenta buscar um arquivo (GeoJSON da Miscelanea, GeoTIFF do modelo, etc.) e o '
-    'protocolo <code>file://</code> bloqueia. Solucoes:'
+    'Na v2.7 o gerador de contornos foi reescrito: single-pass + mascara pre-computada + early-skip '
+    'por cellMin/cellMax. Speedup ~8-15x sobre v2.6. Alem disso, o cache agora usa fingerprint dos '
+    'dados (URL do TIF) - animacoes com contornos ligados reusam contornos ja computados. Se ainda '
+    'estiver lento, cheque o console (F12): mensagens [contours] miss indicam recomputacao; muitas '
+    'em sequencia podem indicar cache invalidado por troca rapida de paleta/min/max.'
 ))
+
+story.append(h2('Python helper nao subiu (badge JS only)'))
 story.append(bullets([
-    'Use o GISELE empacotado (Electron) em vez de abrir o HTML direto — ele tem acesso ao disco.',
-    'Suba o servidor HTTP local (secao 13) e ajuste a URL do modelo para <code>http://localhost:8765/...</code>.',
+    'No build packaged: cheque %APPDATA%/GISELE/launch.log - procure linhas [python-helper]. Se diz '
+    '"AVISO: gisele-python-helper.exe nao encontrado" o exe nao foi empacotado direito.',
+    'No modo dev: precisa Python 3.11+ no PATH e pip install -r electron-app/python-helper/requirements.txt. '
+    'O log mostra exatamente qual comando tentou rodar.',
+    'Firewall corporativo bloqueia 127.0.0.1:8765? E raro mas possivel. Tente outra porta com --no-python-helper '
+    '+ start manual: python server.py --port 8766.',
+    'Frontend continua funcionando sem o helper - so e mais lento em operacoes com muitos passos.',
 ]))
 
-story.append(h2('Erro: object is not iterable na exportacao'))
+story.append(h2('Falha ao carregar camada: Failed to fetch'))
 story.append(p(
-    'Esse erro ocorria em versoes anteriores ao v2.6 — o engine de exportacao fazia destructuring de array '
-    '(<code>const [...] = decoded.bbox</code>) sobre um objeto <code>{minX, minY, maxX, maxY}</code>. Corrigido '
-    'na build <code>20260529-4700-bboxfix</code>. Se ainda aparece, force reload (Ctrl+F5).'
-))
-
-story.append(h2('Shape importado aparece com bolas grossas no contorno'))
-story.append(p(
-    'Em versoes <= 2.5 o renderer desenhava circulos de 3px em cada vertice. A partir do v2.6 '
-    '(<code>style.noVertices=true</code>) shapes importados sao desenhados como linha fina pura. Se ainda '
-    'aparecem bolinhas: force reload e cheque o build marker.'
+    'Ocorre quando o app tenta buscar um arquivo (GeoJSON, GeoTIFF) e o protocolo file:// bloqueia. '
+    'Use o GISELE empacotado (Electron) que tem acesso ao disco, ou suba o servidor HTTP local (secao 13).'
 ))
 
 story.append(h2('Cores estranhas / sem dados visiveis'))
 story.append(bullets([
-    'Verifique a paleta atual e min/max em Configuracao da Camada.',
-    'Clique em <b>Auto min/max</b> para recalcular pelos percentis (5–95%).',
-    'Adicione valores NoData explicitos em <b>UNDEF</b> se o modelo usa sentinels nao-padrao (ex: 1e20, -9999).',
+    'Verifique a paleta atual e min/max em Ferramentas (sub-menu da camada).',
+    'Clique em Auto min/max para recalcular pelos percentis (5-95%).',
+    'Adicione valores NoData explicitos em UNDEF se o modelo usa sentinels nao-padrao (ex: 1e20, -9999).',
 ]))
 
 story.append(h2('GeoJSON exportado tem 500.000 features e foi cortado'))
 story.append(p(
-    'O exportador tem um cap de seguranca em 500.000 features para evitar arquivos gigantes em campos '
-    'globais. Reduza o bbox via recorte (poligono/retangulo/camada vetorial), ou ajuste o cap editando '
-    '<code>opts.maxFeatures</code> em <code>gtExportLayerToGeoJsonPointCloud</code>.'
+    'O exportador tem cap de seguranca em 500.000 features. Reduza o bbox via recorte (poligono/retangulo/'
+    'camada vetorial), ou ajuste opts.maxFeatures em gtExportLayerToGeoJsonPointCloud.'
 ))
 
 story.append(h2('Calculadora Temporal: "tempo fora do horizonte"'))
 story.append(p(
-    'A expressao tem um <code>tN</code> alem do horizonte da variavel. Maximo permitido: '
-    '<code>floor(horizonte / frequencia)</code>. Para verificar, abra Configurar > Editar e veja "Maximo de '
-    'passos" do modelo + frequencia da variavel. Exemplo: BESM Global PREC freq=24h e horizonte=720h → '
-    'maximo <code>t30</code>.'
+    'A expressao tem um tN alem do horizonte da variavel. Maximo permitido: floor(horizonte / frequencia). '
+    'Exemplo: BESM Global PREC freq=24h e horizonte=720h - maximo t30.'
 ))
 
 story.append(h2('Build marker e diagnostico'))
 story.append(p(
-    'Em qualquer duvida sobre versao, abra o DevTools (F12 no Electron) e veja a primeira linha do console: '
-    '<code>[GISELE] build = YYYYMMDD-NNNN-nome</code>. Reporte esse marker ao suporte para acelerar o diagnostico.'
+    'Em qualquer duvida sobre versao, abra o DevTools (F12) e veja a primeira linha do console: '
+    '[GISELE] build = YYYYMMDD-NNNN-nome. Reporte esse marker ao suporte.'
 ))
 
 story.append(h2('CORS e a flag --strict-cors'))
 story.append(p(
-    'O GISELE empacotado (Electron) roda com <code>webSecurity: false</code> por padrao para permitir vidеo MP4 '
+    'O GISELE empacotado (Electron) roda com webSecurity: false por padrao para permitir video MP4 '
     'sobre o FTP do CPTEC (que nao envia headers CORS). Para forcar isolamento estrito, passe a flag '
-    '<code>--strict-cors</code> ao executavel. O log <code>%APPDATA%/GISELE/launch.log</code> mostra o modo ativo.'
+    '--strict-cors ao executavel.'
 ))
 
 # ===== Build do PDF =====

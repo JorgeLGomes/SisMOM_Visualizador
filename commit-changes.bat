@@ -1,28 +1,26 @@
 @echo off
-REM Commit v2.6.0 GISELE - sessao 29/05/2026 (export GeoJSON + import shapefile + calc temporal)
-REM Cobre tudo desde v2.5.0:
-REM   - Calculadora Temporal per-layer (tN/hN + ranges + sum/mean/max/min/count)
-REM   - Exportar GeoJSON: campo cheio, poligono, retangulo, camada vetorial, serie temporal
-REM   - Importar shapefile (.shp/.zip) como camada vetorial + parser puro JS + ZIP via DecompressionStream
-REM   - Preview + dialog de confirmacao no upload (canto direito, fora do mapa)
-REM   - Renderer style.noVertices p/ shapes finos sem bolinhas
-REM   - Botao 👁/⊘ explicito + dim row ao ocultar
-REM   - Fix HUD lat/lon/valor default ON + toggle ERMA
-REM   - Fix bbox object (decoded.bbox eh {minX,minY,maxX,maxY} nao array)
-REM   - Mascara via camada vetorial carregada (substitui o upload de arquivo)
-REM   - bump electron-app/package.json 2.4.0 -> 2.6.0
-REM   - Atualizacao do Manual PDF + HANDOVER v2.6.0
+REM Commit v2.7.0 GISELE - sessao 29-30/05/2026 (Python helper + UX + perf contornos)
+REM Cobre tudo desde v2.6.0:
+REM   - Python helper subprocess no Electron (FastAPI + rasterio + httpx)
+REM     com bridge no frontend (gtPyHelper) e fallback transparente JS
+REM   - Slider de opacidade no painel + sync entre camadas
+REM   - Rename "Configuracao da Camada" -> "Ferramentas"
+REM   - Remocao do widget calc per-layer escalar
+REM   - Marching squares otimizado (~8-15x): single-pass + Uint8Array mask
+REM   - Cache de contornos com fingerprint dos dados + LRU true + cap 100
+REM   - electron-app/package.json 2.6.0 -> 2.7.0
+REM   - Manual PDF (16 secoes) + HANDOVER v2.7.0 (sec 2.15) regenerados
 
 setlocal
 cd /d "%~dp0"
 
 echo.
 echo === Removendo locks travados (.git\*.lock) ===
-for %%F in (.git\index.lock .git\index_staging.lock .git\idx_new1.lock .git\idx_v24.lock .git\idx_v25.lock .git\idx_v26.lock .git\index_new.lock) do (
+for %%F in (.git\index.lock .git\index_staging.lock .git\idx_v25.lock .git\idx_v26.lock .git\idx_v27.lock .git\index_new.lock) do (
     if exist "%%F" (
         del /F /Q "%%F" 2>nul
         if exist "%%F" (
-            echo AVISO: nao removeu %%F (talvez bloqueado)
+            echo AVISO: nao removeu %%F
         ) else (
             echo OK: %%F removido.
         )
@@ -31,7 +29,7 @@ for %%F in (.git\index.lock .git\index_staging.lock .git\idx_new1.lock .git\idx_
 
 echo.
 echo === Limpando index intermediarios criados em sandbox ===
-for %%F in (.git\index_staging .git\idx_new1 .git\idx_v24 .git\idx_v25 .git\idx_v26 .git\index_new .git\index.broken) do (
+for %%F in (.git\index_staging .git\idx_v25 .git\idx_v26 .git\idx_v27 .git\index_new .git\index.broken) do (
     if exist "%%F" del /F /Q "%%F" 2>nul
 )
 
@@ -59,69 +57,61 @@ if errorlevel 1 (
 )
 
 echo.
-echo === Commit v2.6.0 ===
+echo === Commit v2.7.0 ===
 git commit ^
- -m "v2.6.0 GISELE: Calculadora Temporal + Exportar GeoJSON + Importar Shapefile + UX layers" ^
+ -m "v2.7.0 GISELE: Python helper local + UX (opacidade/rename/calc) + perf contornos (~8-15x) + cache" ^
  -m "" ^
- -m "* Calculadora Temporal (per-layer) — sintaxe tN/hN, ranges tN..tM, funcoes sum/mean/max/min/count." ^
- -m "  - Parser estende gtParseExpr: function calls + ranges; novas funcs gtCollectTimeIdents, gtEvalTimeAst, _gtExpandRangeIdx." ^
- -m "  - Engine gtCreateLayerFromTimeExpression: resolve modelo/var/data da camada-fonte (primary ou extra com .source), fetch+decode sequencial, eval per-pixel propagando NoData." ^
- -m "  - Modal de progresso gtOpenTimeCalcProgress com botao Cancelar (AbortSignal)." ^
- -m "  - UI linha '⏱ Tempos' em gtBuildLayerConfigPanel; placeholder com exemplos sum(t1..t24), mean(h6..h72)*1000." ^
+ -m "* Python helper opcional subprocess no Electron:" ^
+ -m "  - electron-app/python-helper/: server.py 417L (FastAPI), url_builder.py 125L, sampler.py 144L" ^
+ -m "  - 4 endpoints: /health, /v1/timeseries/point[/geojson], /v1/calc/temporal, /v1/profile/line" ^
+ -m "  - Fetch paralelo via httpx async com semaforo (parallel_limit=8)" ^
+ -m "  - rasterio decode + numpy sample no ponto, convencao top-down identica ao JS" ^
+ -m "  - python-spawner.js gerencia subprocess: dev (python server.py) ou packaged (.exe via PyInstaller)" ^
+ -m "  - preload.js + ipcMain bridge: window.GISELE_PYTHON.getUrl/isAvailable/onStatusChange" ^
+ -m "  - main.js: app.whenReady spawna; before-quit mata (taskkill no Win, SIGTERM->SIGKILL Unix)" ^
+ -m "  - --no-python-helper desabilita explicitamente" ^
  -m "" ^
- -m "* Exportar GeoJSON (raster -> nuvem de pontos):" ^
- -m "  - Sub-no '📤 Exportar GeoJSON' no menu Ferramentas." ^
- -m "  - Modos: Campo cheio, Poligono (desenhar), Retangulo (drag), Por camada carregada (vetorial), Serie temporal de ponto." ^
- -m "  - Engine gtExportLayerToGeoJsonPointCloud: bbox da mascara restringe iteracao, NoData filtrado, cap 500k features." ^
- -m "  - Convencao top-down: row j=0 -> latMax; centro do pixel lat=latMax-(j+0.5)*dLat." ^
- -m "  - gtSampleTimeSeriesToGeoJson reusa gtSampleTimeSeries; N Features Point com properties {idx, passo_h, time_utc, value}." ^
- -m "  - Tools export-polygon, export-rect, export-timeseries aliases dos measure tools com routes diferentes em gtFinalizeDraft." ^
+ -m "* Bridge gtPyHelper no frontend (~280 linhas no HTML):" ^
+ -m "  - Probe /health a cada 5s (tenta window.GISELE_PYTHON.getUrl, fallback 127.0.0.1:8765)" ^
+ -m "  - sampleTimeSeries/sampleProfileLine/calcTemporal expostos" ^
+ -m "  - Badge UI canto inferior direito: '⚡ Python v0.1.0' (cyan) ou 'JS only' (cinza)" ^
+ -m "  - gtSampleTimeSeries guard com fallback transparente: tenta Python -> JS se null/erro" ^
+ -m "  - electron-app/package.json: preload.js, python-spawner.js em files; extraResources copia python-helper/dist -> resources/python-helper" ^
+ -m "  - build-helper.bat/sh com PyInstaller (--hidden-import=rasterio.*) gerando .exe standalone" ^
  -m "" ^
- -m "* Importar Shapefile como camada vetorial extra:" ^
- -m "  - gtAddExtraLayerFromFile aceita .shp e .zip (alem de .tif/.tiff/.geojson/.json)." ^
- -m "  - _gtParseShpBuffer (110 linhas): Polygon, PolygonZ, PolygonM; outer/hole pela orientacao do anel; multi-part c/ point-in-ring." ^
- -m "  - _gtExtractFromZip via DecompressionStream('deflate-raw') nativo: EOCD + central dir + LFH; suporta stored e deflate." ^
- -m "  - Smoke test Node com triangulo sintetico passou." ^
- -m "  - input multiple permite arrastar varios arquivos de uma vez." ^
+ -m "* UX no painel da camada:" ^
+ -m "  - Slider 'Opacidade' 0-100%% com label sincronizado, aplica via gtApplyOpacityToActive" ^
+ -m "  - gtMoveCfgPanelToLayer sincroniza slider com camada-alvo (primary ou extra) ao expandir no" ^
+ -m "  - Titulo do sub-menu renomeado '⚙ Configuracao da Camada' -> '🛠 Ferramentas'" ^
+ -m "  - Widget calc per-layer (select op + input escalar + btn Aplicar + status) removido" ^
+ -m "  - Substituido por header simples '🧮 Calculadora' (com border-top tracejada)" ^
+ -m "  - Textarea de Tempos abaixo cobre TODOS os casos (escalar via t1*1000, ranges sum(t1..t24), etc)" ^
  -m "" ^
- -m "* Preview + dialog de confirmacao (upload + camada vetorial):" ^
- -m "  - _gtShowPolygonPreview plota poligonos em ciano fininho (lineWidth=0.7, noVertices=true) com fit ao bbox." ^
- -m "  - gtOpenConfirmExtractDialog ancora no canto superior direito (top:14 right:14), sem backdrop fullscreen." ^
- -m "  - pointer-events:auto so no card -> permite interacao com o mapa em background." ^
- -m "  - Enter confirma, Esc cancela. Cleanup de previews em finally/catch." ^
+ -m "* Marching squares otimizado (~8-15x speedup):" ^
+ -m "  - Mascara NoData pre-computada como Uint8Array (1 byte/pixel, 1 pass)" ^
+ -m "  - Single-pass sobre o grid para TODOS os niveis (era 1 pass por nivel)" ^
+ -m "  - Early-skip por cellMin/cellMax: niveis fora da faixa pulam com break (sorted)" ^
+ -m "  - Zero closures no hot loop (era 4 closures T/R/B/L por celula)" ^
+ -m "  - Float32Array para Larr (acesso indexed mais rapido em V8)" ^
+ -m "  - Hoist de dLon, dLat, lat0, lon0 fora do loop" ^
+ -m "  - NaN check via v !== v (mais rapido que isFinite)" ^
+ -m "  - Bitwise OR para combinar 4 bytes da mascara em um teste" ^
  -m "" ^
- -m "* Substituir 'Upload mascara' por 'Por camada carregada (vetorial)':" ^
- -m "  - Filtro estendido de l.isMisc para l.type==='geojson' -> inclui Miscelaneas + Shapefiles + GeoJSONs." ^
- -m "  - Dialog mostra bolinha de cor + nome + [Origem, N features]." ^
- -m "  - Removido botao Upload e file input + handler 50 linhas." ^
- -m "" ^
- -m "* Renderer style.noVertices p/ shapes finos:" ^
- -m "  - Renderer de poligono (linha 9967+) skipava sempre desenho de circles 3px em cada vertice." ^
- -m "  - Para shapes complexos (100+ vertices) virava um massa cyan grossa." ^
- -m "  - Agora flag style.noVertices=true pula o loop; lineWidth uniforme 0.7." ^
- -m "" ^
- -m "* Toggle 👁/⊘ explicito em cada camada da arvore:" ^
- -m "  - Substituido checkbox pequeno por button 24x22px com cor cyan(on)/cinza(off)." ^
- -m "  - Row inteira recebe opacity:0.5 quando oculta (feedback visual claro)." ^
- -m "  - Funciona p/ todos os tipos: primary, geotiff extra, geojson (shapefile/misc), contour." ^
- -m "" ^
- -m "* Fix HUD lat/lon/valor:" ^
- -m "  - gtNavHudEnabled default era false (toggle escondido em .gt-old-controls)." ^
- -m "  - Agora default true; toggle visivel na toolbar da arvore ERMA espelhando legacy." ^
- -m "" ^
- -m "* Fix bbox object 'object is not iterable':" ^
- -m "  - Engine fazia const [latMin,...] = decoded.bbox; mas bbox eh {minX,minY,maxX,maxY}." ^
- -m "  - Destructuring de array sobre objeto disparava o erro Symbol(Symbol.iterator)." ^
- -m "  - Corrigido p/ leitura por campos + validacao de tipos + convencao top-down." ^
- -m "" ^
- -m "* electron-app/package.json bumped 2.4.0 -> 2.6.0 (evita lock do nome de artifact)." ^
+ -m "* Cache de contornos com fingerprint:" ^
+ -m "  - _gtContourCacheKey aceita dataFingerprint = lastLoadedURL[slot] para primary (era so layer.id)" ^
+ -m "  - Para extras, layer.id ja e unico" ^
+ -m "  - LRU true via delete+set on hit (Map preserva ordem de insercao)" ^
+ -m "  - Cap aumentado 16 -> 100 (cabe rodada Eta de 72 passos + extras)" ^
+ -m "  - Remocao da invalidacao agressiva 'primary|*' em gtRerenderSlot — fingerprint ja separa" ^
+ -m "  - console.log do hit/miss para diagnostico" ^
  -m "" ^
  -m "* Documentacao:" ^
- -m "  - Manual PDF: secao 12 nova 'Exportar dados como GeoJSON' + Calc Temporal em secao 9 + import shp em secao 9 + toggle 👁/⊘." ^
- -m "  - HANDOVER v2.6.0 com secao 2.14 'Importar / Exportar dados' documentando 13 features." ^
- -m "  - 3 PDFs regerados (Manual, HANDOVER, ESPECIFICACOES)." ^
+ -m "  - HANDOVER_GISELE.md v2.6.0 -> v2.7.0 com bloco 'Mudancas v2.6 -> v2.7' + secao 2.15 (Python helper + UX) com 13 features mapeadas" ^
+ -m "  - Manual PDF: secao 6 atualiza nome 'Ferramentas' + slider opacidade + calc unificada; nova secao 14 'Acelerador Python' (badge, funcoes aceleradas, deploy embedded vs manual); renumerada para 16 secoes" ^
+ -m "  - 3 PDFs regerados" ^
+ -m "  - electron-app/package.json 2.6.0 -> 2.7.0" ^
  -m "" ^
- -m "* Build markers: 20260529-4200-timecalc -> 20260529-4300-hudfix -> 20260529-4500-exportgj -> 20260529-4600-drawfix -> 20260529-4700-bboxfix -> 20260529-4800-shpzip -> 20260529-4900-previewcfm -> 20260529-5000-cardcorner -> 20260529-5100-thinline -> 20260529-5200-thinner -> 20260529-5300-novertex -> 20260529-5400-importshp -> 20260529-5500-toggleui -> 20260529-5600-vectormask."
+ -m "* Build markers: 20260529-5800-pyhelper -> 5900-cfgopcty -> 6000-calcsimpl -> 6100-ctroptim -> 6200-ctrcache."
 
 if errorlevel 1 (
     echo.
@@ -135,6 +125,6 @@ echo === Log dos ultimos 5 commits ===
 git log --oneline -5
 
 echo.
-echo Commit v2.6.0 concluido com sucesso.
+echo Commit v2.7.0 concluido com sucesso.
 echo Para enviar ao remoto: git push origin main
 pause

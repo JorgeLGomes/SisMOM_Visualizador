@@ -1,0 +1,21 @@
+{
+  "name": "@gisele/user-state",
+  "version": "0.1.0",
+  "description": "GISELE user state — persistencia de modelos, anotacoes, configuracoes",
+  "private": true,
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "prisma migrate deploy"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "@fastify/cors": "^10.0.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.20.0"
+  }
+}

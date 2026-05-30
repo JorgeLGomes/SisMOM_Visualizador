@@ -1,0 +1,162 @@
+# GISELE backend — modo LOCAL
+# Roda ao lado do Electron na maquina do usuario.
+# `docker compose -f docker-compose.local.yml up -d`
+# Aponta o frontend para http://localhost:8080
+#
+# Diferenca para o modo Central: sem replicas, sem auth obrigatoria,
+# volumes em ./data/, expoe apenas portas necessarias para debug.
+
+services:
+
+  gateway:
+    build: ./services/gateway
+    image: gisele/gateway:dev
+    container_name: gisele-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - GATEWAY_MODE=local
+      - AUTH_ENABLED=false
+    depends_on:
+      tile-cache: { condition: service_healthy }
+      raster-decoder: { condition: service_healthy }
+      calc-engine: { condition: service_healthy }
+      export-service: { condition: service_healthy }
+      format-converter: { condition: service_healthy }
+      user-state: { condition: service_healthy }
+    networks: [gisele]
+    restart: unless-stopped
+
+  tile-cache:
+    build: ./services/tile-cache
+    image: gisele/tile-cache:dev
+    container_name: gisele-tile-cache
+    environment:
+      - PORT=8081
+      - CACHE_DIR=/cache
+      - FTP_BASE=https://ftp1.cptec.inpe.br/modelos/tempo
+    volumes:
+      - ./data/tile-cache:/cache
+    networks: [gisele]
+    restart: unless-stopped
+
+  raster-decoder:
+    build: ./services/raster-decoder
+    image: gisele/raster-decoder:dev
+    container_name: gisele-raster-decoder
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=gisele
+      - MINIO_SECRET_KEY=gisele-dev-only
+    depends_on:
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    networks: [gisele]
+    restart: unless-stopped
+
+  calc-engine:
+    build: ./services/calc-engine
+    image: gisele/calc-engine:dev
+    container_name: gisele-calc-engine
+    environment:
+      - PORT=8080
+      - DECODER_URL=http://raster-decoder:8080
+      - TILE_CACHE_URL=http://tile-cache:8081
+    depends_on:
+      raster-decoder: { condition: service_healthy }
+    networks: [gisele]
+    restart: unless-stopped
+
+  export-service:
+    build: ./services/export-service
+    image: gisele/export-service:dev
+    container_name: gisele-export
+    environment:
+      - PORT=8080
+      - DECODER_URL=http://raster-decoder:8080
+    volumes:
+      - ./data/exports:/exports
+    networks: [gisele]
+    restart: unless-stopped
+
+  format-converter:
+    build: ./services/format-converter
+    image: gisele/format-converter:dev
+    container_name: gisele-format
+    environment:
+      - PORT=8080
+    volumes:
+      - ./data/uploads:/uploads
+    networks: [gisele]
+    restart: unless-stopped
+
+  user-state:
+    build: ./services/user-state
+    image: gisele/user-state:dev
+    container_name: gisele-user-state
+    environment:
+      - PORT=8086
+      - DATABASE_URL=postgres://gisele:gisele-dev-only@postgres:5432/gisele
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [gisele]
+    restart: unless-stopped
+
+  # ─── Storage layer ───
+
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: gisele-postgres
+    environment:
+      - POSTGRES_USER=gisele
+      - POSTGRES_PASSWORD=gisele-dev-only
+      - POSTGRES_DB=gisele
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "gisele"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [gisele]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: gisele-redis
+    command: redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [gisele]
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: gisele-minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=gisele
+      - MINIO_ROOT_PASSWORD=gisele-dev-only
+    ports:
+      - "9001:9001"  # console (apenas dev)
+    volumes:
+      - ./data/minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [gisele]
+    restart: unless-stopped
+
+networks:
+  gisele:
+    driver: bridge
