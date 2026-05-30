@@ -1,7 +1,7 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.7.0 — Build marker `20260529-6200-ctrcache`
+**Versão atual:** v2.8.0 — Build marker `20260529-7000-highlight`
 **Arquivos críticos (sempre em lockstep):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
@@ -14,6 +14,8 @@
 > **Mudanças v2.5 → v2.6:** (1) Nova **Calculadora Temporal** em Configuração da Camada com sintaxe `tN`/`hN`, ranges `t1..t24`, funções `sum/mean/max/min/count`. (2) **Exportar GeoJSON** (raster→nuvem de pontos): campo cheio, polígono/retângulo desenhado, ou recorte por camada vetorial carregada. Também **série temporal de ponto → GeoJSON**. (3) **Importar Shapefile** (.shp standalone ou .zip) como camada vetorial — parser puro JS embarcado + ZIP reader via `DecompressionStream`. (4) Fix HUD lat/lon/valor (default ON + toggle na árvore ERMA). (5) Botão `👁/⊘` explícito em cada camada com dim de row ao ocultar. (6) Renderer respeita `style.noVertices` (linha pura sem bolinhas em cada vértice — essencial para shapes com centenas de vértices).
 
 > **Mudanças v2.6 → v2.7:** (1) **Python helper opcional** (FastAPI + rasterio + httpx) embedado no Electron como subprocess — acelera extração temporal, calculadora temporal e perfil de linha com fetches paralelos (~10× speedup esperado). Frontend tem **fallback transparente** para JS quando o helper está offline. Badge UI no canto inferior direito mostra status `⚡ Python` ou `JS only`. (2) Sub-menu da árvore ERMA renomeado de `⚙ Configuração da Camada` → `🛠 Ferramentas`. (3) **Slider de opacidade** adicionado no painel (sincroniza com a camada ativa ao expandir nós). (4) Widget de calculadora escalar per-layer (op + escalar + Aplicar) removido — coberto pelo textarea de Tempos. (5) **Marching squares otimizado** (single-pass + máscara pré-computada Uint8Array + early-skip por cellMin/cellMax + zero closures no hot loop): ~8-15× mais rápido. (6) **Cache de contornos** com fingerprint dos dados (URL do TIF para primary) + LRU true (touch on hit) + cap 100 — animações com contornos ligados ficam quase instantâneas após primeira passagem.
+
+> **Mudanças v2.7 → v2.8:** (1) **Estatísticas no GeoJSON exportado**: `metadata.stats` inclui min, max, soma, média, média ponderada pela área (Soma / Área km²) e área total em m². (2) **Popup de resultado** após Polígono/Retângulo/Por camada/Área total — não auto-salva mais; usuário vê tabela com stats e decide via botão **💾 Salvar GeoJSON**. (3) **Reorganização da árvore Exportar GeoJSON** — 5 opções top-level: ⏱ Série temporal em ponto, ▦ Por polígono, ▭ Por retângulo, 🗂️ Por camada vetorial, 🌐 Área total da camada. (4) **Ícone "?" com popup de help** em cada seção (Calculadora, Exportar, Tempos) substituindo descrições inline; gtShowHelpPopup com auto-posicionamento. (5) **Highlight visual da opção selecionada** em Exportar GeoJSON — borda + background cyan + bullet `●` enquanto a ferramenta está ativa; flash animado na Área total.
 
 ---
 
@@ -235,6 +237,21 @@
 | **Remover widget calc per-layer escalar** | "não precisa essa opção, pois tem o espaço para expressão. Mudar Calc. camada para Calculadora, remover o dropdown dos sinais" | Edit (gC widget completo — select op + input escalar + btn Aplicar + status — substituído por simples header "🧮 Calculadora" com border-top) |
 | **Marching squares otimizado** | "demora para gerar os contornos da variável quando selecionado" | Edit (gtComputeContours reescrito: máscara Uint8Array pré-computada, single-pass com cellMin/cellMax early-skip, Float32Array para Larr, zero closures, inlining de pos/interp, hoist de dLon/dLat/lat0/lon0) — speedup ~8-15× |
 | **Cache de contornos com fingerprint** | "Quando gerar os contornos, salvar como camada ou guardar no cache, para economizar tempo de processamento" | Edit (_gtContourCacheKey aceita dataFingerprint = lastLoadedURL[slot] para primary OU layer.id; LRU true via delete+set on hit; cap 100; remoção da invalidação agressiva primary\|* em gtRerenderSlot) |
+
+### 2.16. Export stats + UX v2.8
+
+| Feature | Prompts originais | Ferramentas |
+|---|---|---|
+| **Estatísticas no metadata do GeoJSON** | "Na opção de exportar geojson, do polígono, inserir no geojson o valor máximo, mínimo, acumulado, médio e a média ponderada pela área" | Edit (gtExportLayerToGeoJsonPointCloud: statMin/statMax/statSum/statAreaWeightSum/statTotalAreaM2 no loop; return inclui `metadata.stats = { count, min, max, sum, mean, areaWeightedMean, totalAreaM2 }`) |
+| **Área em m² (não km²)** | "calcular a área em m2" | Edit (statTotalAreaM2 = R² × dΛ × |sin(latTop)−sin(latBot)| × 1e6) |
+| **Média ponderada = Soma / Área(km²)** | "o valor média ponderada deve ser calculada Soma (acumulada)/Área em km2" | Edit (removeu Σ(v·cos(lat))/Σcos(lat); agora areaWeightedMean = statSum / (statTotalAreaM2 / 1e6)) |
+| **Popup com stats + botão Salvar (sem auto-save)** | "Mostrar esses valores em um quadro popup com a opção de salvar as informações em geojson" | Edit (gtExpShowResultDialog: card 380px canto superior direito com tabela formatada; botões Fechar e 💾 Salvar GeoJSON; Enter salva, Esc fecha; pointer-events:auto só no card) |
+| **Separação Exportar GeoJSON ↔ Série temporal** | "separar 'Exportar geojson' e 'Série temporal em ponto' em duas opções de ferramentas" | Edit (tree HTML: duas details separadas; gtExpStatus + gtTsStatus distintos) |
+| **Reorganização hierárquica** | "Colocar subtarefas na seção Exportar GeoJSON" + "por polígono inclui Área total / Desenhar polígono / Por camada" | Edit (Por polígono virou details aninhado com 3 sub-opções; depois flat-out na próxima iteração) |
+| **Move Série temporal pra Exportar GeoJSON** | "Mover o menu série temporal em ponto para dentro do menu Exportar GeoJSON, substituindo a opção Por ponto" | Edit (Por ponto removido; ⏱ Série temporal em ponto vira primeira opção do Exportar GeoJSON; sub-tree separado removido) |
+| **5 opções flat top-level** | "Falta a opção... usar as camadas carregadas... incluir também a opção de área total da camada" | Edit (botões btnGtExpTimeseries/Poly/Rect/Misc/Full no mesmo container, sem nesting) |
+| **Ícone "?" com popup de help** | "informação sobre a ferramenta acessada através de uma ? no final do campo... Mover todos os textos de explicação para esse padrão" | Edit (CSS .gt-help-icon + .gt-help-popup; gtShowHelpPopup com auto-position; delegação global `document.addEventListener('click', ...)` em fase de captura; data-help em cada `<span class="gt-help-icon">?</span>`) |
+| **Highlight visual da opção ativa** | "Na seleção de Exportar GeoJSON, fazer highlight da seleção" | Edit (CSS .gt-tree-action.selected: bg/border/color cyan + bullet `●`; _GT_EXP_TOOL_TO_BTN mapeia tool→buttonId; gtSetSlotTool sync automático; _gtExpFlash para Área total; _gtExpHighlight/Clear no Misc dialog) |
 
 ---
 

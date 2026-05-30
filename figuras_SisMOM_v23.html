@@ -399,6 +399,9 @@
         .gt-tree-toolbar-btn { background: transparent; border: 1px solid var(--border-soft, #475569); color: var(--text-muted, #8aa); padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all .15s; }
         .gt-tree-toolbar-btn:hover { border-color: var(--accent-cyan, #4dd0e1); color: var(--accent-cyan, #4dd0e1); }
         .gt-tree-toolbar-btn:active { transform: scale(0.97); }
+        .gt-help-icon { display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; border-radius: 50%; background: var(--border-soft, #475569); color: #e6ecf2; font-size: 9.5px; font-weight: 700; cursor: help; margin-left: 6px; vertical-align: middle; user-select: none; transition: background .15s; }
+        .gt-help-icon:hover { background: var(--accent-cyan, #4dd0e1); color: #0b1220; }
+        .gt-help-popup { position: fixed; background: #ffffff; color: #1f2937; border: 1px solid #d4dbe6; border-radius: 6px; padding: 10px 14px; max-width: 340px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); font-size: 12px; line-height: 1.45; z-index: 100003; font-family: ui-sans-serif, system-ui, sans-serif; }
         .gt-tree details { border-bottom: 1px dashed var(--border-subtle, #2d3748); padding: 4px 0; }
         .gt-tree details:last-child { border-bottom: 0; }
         .gt-tree summary { cursor: pointer; padding: 4px 2px; font-weight: 600; color: var(--text, #cbd6e6); list-style: none; user-select: none; display: flex; align-items: center; gap: 6px; }
@@ -416,6 +419,10 @@
         .gt-tree-list .gt-tree-rm { background: transparent; border: 0; color: var(--text-muted, #8aa); cursor: pointer; padding: 0 4px; font-size: 13px; flex: 0 0 auto; }
         .gt-tree-list .gt-tree-rm:hover { color: #ff7a90; }
         .gt-tree-action { background: transparent; border: 1px dashed var(--border-soft, #475569); color: var(--text, #cbd6e6); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%; text-align: left; }
+        .gt-tree-action.selected { background: rgba(34, 211, 238, 0.16); border: 1px solid var(--accent-cyan, #4dd0e1); color: var(--accent-cyan, #4dd0e1); font-weight: 600; box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25) inset; }
+        .gt-tree-action.selected::before { content: '● '; font-size: 10px; vertical-align: middle; }
+        @keyframes gtExpFlash { 0%,100% { background: transparent; } 30% { background: rgba(34, 211, 238, 0.28); } }
+        .gt-tree-action.flash { animation: gtExpFlash 0.6s ease-in-out; }
         .gt-tree-action:hover { border-color: var(--accent-cyan, #4dd0e1); color: var(--accent-cyan, #4dd0e1); }
         .gt-old-controls { background: var(--bg-elev-1, #0e1622); border: 1px dashed var(--border-subtle, #2d3748); border-radius: 6px; padding: 6px 8px; }
         .gt-old-controls > summary { color: var(--text-muted, #8aa); font-size: 11px; cursor: pointer; padding: 2px 0; }
@@ -2117,9 +2124,8 @@
                         <li id="gtTreeAddModelFormHost" style="display:block;padding:0"></li>
                         <li style="padding:0;flex-direction:column;align-items:stretch">
                             <details class="gt-tree-calc">
-                                <summary style="cursor:pointer;font-size:12px;padding:4px 0">🧮 Calculadora (expressão entre camadas)</summary>
+                                <summary style="cursor:pointer;font-size:12px;padding:4px 0">🧮 Calculadora (expressão entre camadas)<span class="gt-help-icon" data-help="Clique numa camada abaixo para inserir o token. Use + − × ÷ e parênteses. Operações entre camadas raster do slot ativo. Resultado vira nova camada extra.">?</span></summary>
                                 <div class="gt-tree-calc-body">
-                                    <div style="font-size:11px;color:var(--text-muted,#8aa);margin-bottom:4px">Clique numa camada abaixo para inserir o token. Use <code>+ − × ÷</code> e parênteses.</div>
                                     <div id="gtTreeCalcTokens" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
                                     <textarea id="gtTreeCalcExpr" rows="2" placeholder="ex: Camada1 * 1000 + Camada2" style="width:100%;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:12px;background:var(--bg-elev,#0a0f17);color:var(--text,#cbd6e6);border:1px solid var(--border-soft,#475569);border-radius:4px;padding:4px;resize:vertical"></textarea>
                                     <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
@@ -2132,21 +2138,20 @@
                         </li>
                         <li style="padding:0;flex-direction:column;align-items:stretch">
                             <details class="gt-tree-calc">
-                                <summary style="cursor:pointer;font-size:12px;padding:4px 0">📤 Exportar GeoJSON (camada ativa)</summary>
+                                <summary style="cursor:pointer;font-size:12px;padding:4px 0">📤 Exportar GeoJSON (camada ativa)<span class="gt-help-icon" data-help="Calcula estatísticas (min, máx, soma, média, média ponderada pela área) e mostra em popup com opção de salvar como GeoJSON. Funciona em todas as opções: Série temporal em ponto, Por polígono, Por retângulo, Por camada vetorial, Área total.">?</span></summary>
                                 <div class="gt-tree-calc-body">
-                                    <div style="font-size:11px;color:var(--text-muted,#8aa);margin-bottom:6px">Salva valores da <b>camada ativa</b> como nuvem de pontos GeoJSON. Use uma das opções de recorte ou exporte o campo cheio.</div>
                                     <div style="display:flex;flex-direction:column;gap:4px">
-                                        <button type="button" id="btnGtExpFull" class="gt-tree-action" style="text-align:left">🌐 Campo cheio (sem recorte)</button>
-                                        <button type="button" id="btnGtExpPoly" class="gt-tree-action" style="text-align:left">▦ Polígono (desenhar — duplo-clique finaliza)</button>
-                                        <button type="button" id="btnGtExpRect" class="gt-tree-action" style="text-align:left">▭ Retângulo (clicar e arrastar)</button>
-                                        <button type="button" id="btnGtExpMisc" class="gt-tree-action" style="text-align:left">🗂️ Por camada carregada (vetorial)</button>
+                                        <button type="button" id="btnGtExpTimeseries" class="gt-tree-action" style="text-align:left">⏱ Série temporal em ponto (clicar no mapa)</button>
+                                        <button type="button" id="btnGtExpPoly" class="gt-tree-action" style="text-align:left">▦ Por polígono (desenhar — duplo-clique finaliza)</button>
+                                        <button type="button" id="btnGtExpRect" class="gt-tree-action" style="text-align:left">▭ Por retângulo (clicar e arrastar)</button>
+                                        <button type="button" id="btnGtExpMisc" class="gt-tree-action" style="text-align:left">🗂️ Por camada vetorial (shape, geojson)</button>
+                                        <button type="button" id="btnGtExpFull" class="gt-tree-action" style="text-align:left">🌐 Área total da camada</button>
                                     </div>
-                                    <div style="font-size:11px;color:var(--text-muted,#8aa);margin:8px 0 4px;border-top:1px dashed var(--border-subtle,#23304a);padding-top:6px">Série temporal em ponto:</div>
-                                    <button type="button" id="btnGtExpTimeseries" class="gt-tree-action" style="text-align:left;width:100%">⏱ Clique no mapa para exportar evolução temporal</button>
                                     <div id="gtExpStatus" style="font-size:11px;color:var(--text-muted,#8aa);margin-top:6px;min-height:1em"></div>
                                 </div>
                             </details>
                         </li>
+
                     </ul>
                 </details>
             </nav>
@@ -5893,7 +5898,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260529-6200-ctrcache'); document.documentElement.setAttribute('data-build', '20260529-6200-ctrcache'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260529-7000-highlight'); document.documentElement.setAttribute('data-build', '20260529-7000-highlight'); } catch (_) {}
         loadModelos();
         buildSlots();
         const restored = loadUIPrefs();
@@ -6832,6 +6837,31 @@
     const GT_TOOL_COLOR = '#ffd54f';
     function gtAnnotsForSlot(i) { return gtSlotAnnotations[i] || (gtSlotAnnotations[i] = []); }
     function gtGetSlotTool(i) { return gtSlotTool[i] || 'pan'; }
+    // Mapa: tool -> id do botao no menu Exportar GeoJSON (para highlight visual)
+    const _GT_EXP_TOOL_TO_BTN = {
+        'export-polygon':    'btnGtExpPoly',
+        'export-rect':       'btnGtExpRect',
+        'export-timeseries': 'btnGtExpTimeseries'
+    };
+    // Limpa highlights dos botoes de Exportar GeoJSON
+    function _gtExpClearHighlight() {
+        ['btnGtExpTimeseries','btnGtExpPoly','btnGtExpRect','btnGtExpMisc','btnGtExpFull'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('selected');
+        });
+    }
+    function _gtExpHighlight(btnId) {
+        _gtExpClearHighlight();
+        if (!btnId) return;
+        const el = document.getElementById(btnId);
+        if (el) el.classList.add('selected');
+    }
+    function _gtExpFlash(btnId) {
+        const el = document.getElementById(btnId);
+        if (!el) return;
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 700);
+    }
     function gtSetSlotTool(slotIdx, tool) {
         // Cancela rascunho ao trocar ferramenta (mesmo se for a mesma)
         gtToolDraft[slotIdx] = null;
@@ -6845,6 +6875,8 @@
                 b.classList.toggle('active', b.getAttribute('data-tool') === tool);
             });
         }
+        // Sincroniza highlight dos botoes de Exportar GeoJSON com a tool ativa
+        try { _gtExpHighlight(_GT_EXP_TOOL_TO_BTN[tool] || null); } catch (_) {}
         const m = _gtSlotMap[slotIdx];
         if (m && m.redraw) m.redraw();
         gtUpdateToolHint(slotIdx, null);
@@ -7717,6 +7749,44 @@
     })();
 
     // Badge UI mostrando status do helper Python
+    // Mostra popup com texto de ajuda ancorado num elemento (ícone ?)
+    function gtShowHelpPopup(anchorEl, text) {
+        try { const old = document.getElementById('gtHelpPopup'); if (old) old.remove(); } catch (_) {}
+        if (!text) return;
+        const pop = document.createElement('div');
+        pop.id = 'gtHelpPopup';
+        pop.className = 'gt-help-popup';
+        pop.textContent = text;
+        document.body.appendChild(pop);
+        const r = anchorEl.getBoundingClientRect();
+        // Posicionamento: padrão = abaixo + esquerda alinhado com o anchor.
+        let top = r.bottom + 6, left = r.left;
+        const w = pop.offsetWidth, h = pop.offsetHeight;
+        if (left + w > window.innerWidth - 10) left = window.innerWidth - w - 10;
+        if (left < 10) left = 10;
+        if (top + h > window.innerHeight - 10) top = Math.max(10, r.top - h - 6);
+        pop.style.left = left + 'px';
+        pop.style.top  = top  + 'px';
+        const close = () => { try { pop.remove(); } catch (_) {} document.removeEventListener('click', closer); document.removeEventListener('keydown', keyer); };
+        const closer = (e) => {
+            if (e.target.closest('.gt-help-icon')) return;
+            if (pop.contains(e.target)) return;
+            close();
+        };
+        const keyer = (e) => { if (e.key === 'Escape') close(); };
+        setTimeout(() => {
+            document.addEventListener('click', closer);
+            document.addEventListener('keydown', keyer);
+        }, 50);
+    }
+    // Delegação global: clique no ícone ? abre popup
+    document.addEventListener('click', (e) => {
+        const ico = e.target.closest && e.target.closest('.gt-help-icon');
+        if (!ico) return;
+        e.stopPropagation();
+        e.preventDefault();
+        gtShowHelpPopup(ico, ico.getAttribute('data-help') || '');
+    }, true);
     function gtPyHelperUpdateBadge() {
         let badge = document.getElementById('gtPyHelperBadge');
         if (!badge) {
@@ -8425,6 +8495,18 @@
                         });
                         if (m.redraw) m.redraw();
                     }
+                    return;
+                }
+                // Exportar valor da camada num unico ponto
+                if (tool === 'export-point') {
+                    gtAnnotsForSlot(slotIdx).push({
+                        id: 'ann_' + (++_gtAnnotSeq),
+                        type: 'text', coords: [latlon], text: '●',
+                        style: { stroke: GT_TOOL_COLOR }
+                    });
+                    if (m.redraw) m.redraw();
+                    gtSetSlotTool(slotIdx, 'pan');
+                    try { gtExpRunExportPoint(latlon[0], latlon[1]); } catch (err) { console.error('export-point', err); }
                     return;
                 }
                 // Exportar série temporal em ponto → GeoJSON
@@ -12337,6 +12419,12 @@
         const ndExtras = decoded.nodataExtras || null;
         const maxFeatures = opts.maxFeatures || 500000;  // safety cap
         let n = 0, skippedND = 0, skippedMask = 0;
+        // ─── Estatisticas agregadas (sobre os pixels exportados) ───
+        let statMin = Infinity, statMax = -Infinity;
+        let statSum = 0;
+        let statTotalAreaM2 = 0;         // Soma de areas reais dos pixels exportados (m^2)
+        const _R = 6371.0088;            // raio medio da Terra em km
+        const _D2R = Math.PI / 180;
         outer:
         for (let j = yMin; j <= yMax; j++) {
             // Top-down: pixel j=0 está no topo (latMax). Centro do pixel j: latMax - (j+0.5)*dLat
@@ -12361,11 +12449,37 @@
                     properties: { value: Number(v.toFixed(6)) }
                 });
                 n++;
+                // ─── Acumula estatisticas ───
+                if (v < statMin) statMin = v;
+                if (v > statMax) statMax = v;
+                statSum += v;
+                // Area real do pixel: R^2 * dLon * |sin(lat_top) - sin(lat_bot)|
+                // R em km -> area em km^2 -> *1e6 para m^2
+                const latTop = lat + dLat * 0.5;
+                const latBot = lat - dLat * 0.5;
+                statTotalAreaM2 += _R * _R * (dLon * _D2R) *
+                    Math.abs(Math.sin(latTop * _D2R) - Math.sin(latBot * _D2R)) * 1e6;
                 if (n >= maxFeatures) { console.warn('[gtExportGeoJson] atingiu cap de', maxFeatures, 'features'); break outer; }
             }
         }
         // bbox no formato GeoJSON: [west, south, east, north]
         const bboxGJ = [lonMin, latMin, lonMax, latMax];
+        // ─── Estatisticas finais ───
+        const stats = (n > 0) ? {
+            count: n,
+            min: Number(statMin.toFixed(6)),
+            max: Number(statMax.toFixed(6)),
+            sum: Number(statSum.toFixed(6)),
+            mean: Number((statSum / n).toFixed(6)),
+            // Media ponderada pela area: Soma / Area(km^2)
+            // Util como densidade por area (ex.: mm/km^2 para precipitacao).
+            // Diferente de uma media-cos-lat-weighted: aqui o denominador e' a area
+            // total em km^2, refletindo o pedido explicito do usuario.
+            areaWeightedMean: (statTotalAreaM2 > 0)
+                ? Number((statSum / (statTotalAreaM2 / 1e6)).toFixed(6))
+                : null,
+            totalAreaM2: Number(statTotalAreaM2.toFixed(2))
+        } : null;
         return {
             type: 'FeatureCollection',
             bbox: bboxGJ,
@@ -12377,7 +12491,8 @@
                 exported: n,
                 skippedNoData: skippedND,
                 skippedOutsideMask: skippedMask,
-                exportedAt: new Date().toISOString()
+                exportedAt: new Date().toISOString(),
+                stats: stats
             },
             features
         };
@@ -12424,10 +12539,163 @@
     function gtExpSetStatus(msg, isErr) {
         const el = document.getElementById('gtExpStatus');
         if (!el) { if (msg) console.log('[gtExp]', msg); return; }
-        el.textContent = msg || '';
+        // Aceita HTML simples (span + br) para exibir stats coloridos.
+        // Confiavel pois sempre vem do proprio codigo, nunca de input do usuario.
+        if (msg && (msg.indexOf('<') >= 0)) el.innerHTML = msg;
+        else el.textContent = msg || '';
         el.style.color = isErr ? '#ff7a90' : 'var(--text-muted,#8aa)';
+        el.style.minHeight = '2.5em';
     }
     // Fluxo: exporta usando polígonos calculados (ou null p/ campo cheio).
+    // Exporta um unico ponto da camada ativa como FeatureCollection (1 Feature Point).
+    // Para coerencia, gera stats: min=max=mean=value, areaWeightedMean=value, totalAreaM2=area_do_pixel.
+    function gtExpPointToGeoJson(decoded, layerName, lat, lon) {
+        if (!decoded || !decoded.bbox) throw new Error('camada sem bbox');
+        const bb = decoded.bbox;
+        const lonN = (typeof gtWrapLon === 'function') ? gtWrapLon(lon) : lon;
+        if (lat < bb.minY || lat > bb.maxY || lonN < bb.minX || lonN > bb.maxX) {
+            throw new Error('ponto fora do bbox da camada (lat=' + lat.toFixed(3) + ', lon=' + lonN.toFixed(3) + ')');
+        }
+        const W = decoded.width, H = decoded.height;
+        const dLon = (bb.maxX - bb.minX) / W;
+        const dLat = (bb.maxY - bb.minY) / H;
+        // Convencao top-down: row 0 = norte; centro do pixel j: lat = latMax - (j+0.5)*dLat
+        const col = Math.min(W - 1, Math.max(0, Math.floor((lonN - bb.minX) / dLon)));
+        const row = Math.min(H - 1, Math.max(0, Math.floor((bb.maxY - lat) / dLat)));
+        const v = decoded.data[row * W + col];
+        // NoData check via mesma logica do export
+        const nd = decoded.nodata;
+        const ndExtras = decoded.nodataExtras;
+        let isND = !isFinite(v);
+        if (!isND && nd != null && v === nd) isND = true;
+        if (!isND && ndExtras) for (let k = 0; k < ndExtras.length; k++) if (v === ndExtras[k]) { isND = true; break; }
+        // Centro do pixel para coords do feature
+        const cLat = bb.maxY - (row + 0.5) * dLat;
+        const cLon = bb.minX + (col + 0.5) * dLon;
+        // Area do pixel em m^2
+        const _R = 6371.0088, _D2R = Math.PI / 180;
+        const latTop = cLat + dLat * 0.5;
+        const latBot = cLat - dLat * 0.5;
+        const pixAreaM2 = _R * _R * (dLon * _D2R) * Math.abs(Math.sin(latTop * _D2R) - Math.sin(latBot * _D2R)) * 1e6;
+        const features = [];
+        if (!isND) {
+            features.push({
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [Number(cLon.toFixed(6)), Number(cLat.toFixed(6))] },
+                properties: {
+                    value: Number(v.toFixed(6)),
+                    clickedLat: Number(lat.toFixed(6)),
+                    clickedLon: Number(lonN.toFixed(6))
+                }
+            });
+        }
+        const stats = (!isND) ? {
+            count: 1,
+            min: Number(v.toFixed(6)),
+            max: Number(v.toFixed(6)),
+            sum: Number(v.toFixed(6)),
+            mean: Number(v.toFixed(6)),
+            // Soma / Area(km^2) — mesma convencao das outras opcoes
+            areaWeightedMean: (pixAreaM2 > 0) ? Number((v / (pixAreaM2 / 1e6)).toFixed(6)) : null,
+            totalAreaM2: Number(pixAreaM2.toFixed(2))
+        } : null;
+        return {
+            type: 'FeatureCollection',
+            bbox: [cLon - dLon * 0.5, cLat - dLat * 0.5, cLon + dLon * 0.5, cLat + dLat * 0.5],
+            metadata: {
+                generator: 'GISELE',
+                layer: layerName,
+                bbox: { minX: cLon - dLon * 0.5, minY: cLat - dLat * 0.5,
+                        maxX: cLon + dLon * 0.5, maxY: cLat + dLat * 0.5 },
+                gridSize: [W, H],
+                exported: features.length,
+                skippedNoData: isND ? 1 : 0,
+                skippedOutsideMask: 0,
+                pixel: { row, col },
+                exportedAt: new Date().toISOString(),
+                stats: stats
+            },
+            features
+        };
+    }
+    // Roda export-por-ponto: sample no (lat,lon), opens popup com stats.
+    function gtExpRunExportPoint(lat, lon) {
+        try {
+            const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+            const info = _gtResolveActiveDecoded(slotIdx);
+            if (!info.decoded) throw new Error('nenhuma camada raster ativa');
+            if (!info.decoded.bbox) throw new Error('camada ativa sem bbox geográfico');
+            const t0 = performance.now();
+            const gj = gtExpPointToGeoJson(info.decoded, info.name, lat, lon);
+            const dt = ((performance.now() - t0) / 1000).toFixed(2);
+            const safeName = (info.name || 'camada').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 60);
+            const fn = 'gisele_' + safeName + '_point_' + lat.toFixed(3) + '_' + lon.toFixed(3) + '.geojson';
+            if (gj.features.length === 0) {
+                gtExpSetStatus('Ponto está em NoData ou fora do raster — nada a exportar.', true);
+                return;
+            }
+            gtExpSetStatus('Ponto amostrado em ' + dt + 's. Veja o popup.');
+            gtExpShowResultDialog(gj, fn, info, dt);
+        } catch (e) {
+            console.error('[gtExp] point err:', e);
+            gtExpSetStatus('Erro: ' + (e && e.message ? e.message : e), true);
+        }
+    }
+    // Mostra popup com estatisticas + botao Salvar GeoJSON.
+    // NAO salva automaticamente — usuario confirma no popup.
+    function gtExpShowResultDialog(gj, fn, info, dt) {
+        try { const old = document.getElementById('gtExpResultDlg'); if (old) old.remove(); } catch (_) {}
+        const meta = gj.metadata || {};
+        const s = meta.stats || {};
+        const fmt = (v) => (v == null) ? '—' :
+            (Math.abs(v) >= 1e6 || (Math.abs(v) < 0.01 && v !== 0))
+                ? v.toExponential(4)
+                : v.toLocaleString('pt-BR', { maximumFractionDigits: 6 });
+        const fmtArea = (m2) => {
+            if (m2 == null) return '—';
+            if (m2 >= 1e10) return (m2 / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' km² (' + m2.toExponential(4) + ' m²)';
+            return m2.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m²';
+        };
+        const ov = document.createElement('div');
+        ov.id = 'gtExpResultDlg';
+        ov.style.cssText = 'position:fixed;top:14px;right:14px;z-index:100002;font-family:ui-sans-serif,system-ui,sans-serif;pointer-events:none';
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#ffffff;color:#1f2937;border:1px solid #d4dbe6;border-radius:8px;padding:14px 18px;width:380px;max-width:90vw;box-shadow:0 12px 32px rgba(0,0,0,0.35);pointer-events:auto';
+        const layerName = (info && info.name ? info.name : 'camada')
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        card.innerHTML = ''
+            + '<div style="font-weight:600;font-size:13px;margin-bottom:6px;color:#0b1e3a">📊 Resultado da extração</div>'
+            + '<div style="font-size:11px;color:#384858;margin-bottom:10px">Camada: <b>' + layerName + '</b><br>'
+            + 'Pontos exportáveis: <b>' + gj.features.length.toLocaleString('pt-BR') + '</b> · '
+            + 'ND: ' + (meta.skippedNoData || 0) + ' · fora máscara: ' + (meta.skippedOutsideMask || 0) + ' · '
+            + 'computado em ' + dt + 's</div>'
+            + '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px">'
+            + '<tbody>'
+            + '<tr><td style="padding:3px 0;color:#6a7c8e">Mínimo</td><td style="text-align:right;font-family:ui-monospace,Menlo,monospace"><b>' + fmt(s.min) + '</b></td></tr>'
+            + '<tr><td style="padding:3px 0;color:#6a7c8e">Máximo</td><td style="text-align:right;font-family:ui-monospace,Menlo,monospace"><b>' + fmt(s.max) + '</b></td></tr>'
+            + '<tr><td style="padding:3px 0;color:#6a7c8e">Soma (acumulado)</td><td style="text-align:right;font-family:ui-monospace,Menlo,monospace"><b>' + fmt(s.sum) + '</b></td></tr>'
+            + '<tr><td style="padding:3px 0;color:#6a7c8e">Média</td><td style="text-align:right;font-family:ui-monospace,Menlo,monospace"><b>' + fmt(s.mean) + '</b></td></tr>'
+            + '<tr><td style="padding:3px 0;color:#6a7c8e">Média ponderada (área)</td><td style="text-align:right;font-family:ui-monospace,Menlo,monospace"><b>' + fmt(s.areaWeightedMean) + '</b></td></tr>'
+            + '<tr style="border-top:1px solid #e6ecf2"><td style="padding:6px 0 3px;color:#6a7c8e">Área total</td><td style="text-align:right;font-family:ui-monospace,Menlo,monospace;padding:6px 0 3px"><b>' + fmtArea(s.totalAreaM2) + '</b></td></tr>'
+            + '</tbody></table>'
+            + '<div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">'
+            + '<button type="button" id="btnGtExpResClose" style="padding:6px 14px;font-size:12px;background:#e6ecf2;color:#0b1e3a;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer">Fechar</button>'
+            + '<button type="button" id="btnGtExpResSave" style="padding:6px 14px;font-size:12px;background:#0a6e8a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600">💾 Salvar GeoJSON</button>'
+            + '</div>';
+        ov.appendChild(card);
+        document.body.appendChild(ov);
+        const close = () => { try { ov.remove(); } catch (_) {} };
+        document.getElementById('btnGtExpResClose').addEventListener('click', close);
+        document.getElementById('btnGtExpResSave').addEventListener('click', () => {
+            try { gtDownloadGeoJson(gj, fn); } catch (e) { console.error('save', e); }
+            close();
+        });
+        const keyHandler = (e) => {
+            if (e.key === 'Escape') { document.removeEventListener('keydown', keyHandler); close(); }
+            else if (e.key === 'Enter') { document.removeEventListener('keydown', keyHandler); document.getElementById('btnGtExpResSave').click(); }
+        };
+        document.addEventListener('keydown', keyHandler);
+    }
     function gtExpRunExport(polygons, suffix) {
         try {
             const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
@@ -12436,8 +12704,7 @@
             if (!info.decoded.bbox) throw new Error('camada ativa sem bbox geográfico');
             const W = info.decoded.width, H = info.decoded.height;
             console.log('[gtExp] camada=' + info.name + ' size=' + W + 'x' + H + ' bbox=', info.decoded.bbox, ' polygons=', polygons);
-            gtExpSetStatus('Gerando GeoJSON… (' + W + 'x' + H + ' pixels)');
-            // Pequeno yield pra UI mostrar o status antes do loop pesado
+            gtExpSetStatus('Computando estatísticas… (' + W + 'x' + H + ' pixels)');
             setTimeout(() => {
                 try {
                     const t0 = performance.now();
@@ -12445,9 +12712,9 @@
                     const dt = ((performance.now() - t0) / 1000).toFixed(1);
                     const safeName = (info.name || 'camada').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 60);
                     const fn = 'gisele_' + safeName + (suffix ? '_' + suffix : '') + '.geojson';
-                    gtDownloadGeoJson(gj, fn);
-                    const meta = gj.metadata || {};
-                    gtExpSetStatus('OK: ' + gj.features.length + ' pts em ' + dt + 's · ND filtrados: ' + (meta.skippedNoData || 0) + ' · fora máscara: ' + (meta.skippedOutsideMask || 0) + ' → ' + fn);
+                    gtExpSetStatus('OK: ' + gj.features.length.toLocaleString('pt-BR') + ' pontos em ' + dt + 's. Veja o popup para estatísticas.');
+                    // Mostra popup com stats e botao Salvar (sem auto-download)
+                    gtExpShowResultDialog(gj, fn, info, dt);
                 } catch (e) {
                     console.error('[gtExp] erro no export:', e);
                     gtExpSetStatus('Erro: ' + (e && e.message ? e.message : e), true);
@@ -12562,11 +12829,8 @@
         gT.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border-subtle,#23304a)';
         gT.innerHTML = ''
             + '<div style="display:flex;align-items:center;gap:6px"><span style="color:var(--text-muted,#8aa);font-size:11px;font-weight:600">⏱ Tempos:</span>'
-            + '<span style="font-size:10px;color:var(--text-muted,#8aa);flex:1">expressão entre passos da mesma rodada</span></div>'
+            + '<span class="gt-help-icon" data-help="Expressão entre passos da mesma rodada. tN=índice (t1, t2…) · hN=horas (h6, h24…) · ..=range · funções: sum, mean, max, min, count. Exemplos: t1+t2+t3, sum(t1..t24), mean(h6..h72)*1000">?</span></div>'
             + '<textarea id="gtCfgTimeExpr" rows="2" placeholder="ex: t1+t2+t3   ou   sum(t1..t24)   ou   mean(h6..h72)*1000" style="width:100%;font-family:ui-monospace,Menlo,monospace;font-size:11px;padding:4px 6px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:4px;resize:vertical;box-sizing:border-box"></textarea>'
-            + '<div style="font-size:10px;color:var(--text-muted,#8aa);line-height:1.35">'
-            + '<b>tN</b>=índice (t1, t2…) · <b>hN</b>=horas (h6, h24…) · <b>..</b>=range · funções: <b>sum, mean, max, min, count</b>'
-            + '</div>'
             + '<div style="display:flex;gap:6px;align-items:center">'
             + '<button type="button" id="btnGtCfgTimeApply" class="gt-tree-action" style="padding:3px 10px;font-size:11px">Aplicar</button>'
             + '<span id="gtCfgTimeStatus" style="flex:1;font-size:11px;color:var(--text-muted,#8aa);min-height:1em"></span>'
@@ -12702,7 +12966,10 @@
             const btRect = document.getElementById('btnGtExpRect');
             const btMisc = document.getElementById('btnGtExpMisc');
             const btTS   = document.getElementById('btnGtExpTimeseries');
-            if (btFull) btFull.addEventListener('click', () => gtExpRunExport(null, 'full'));
+            if (btFull) btFull.addEventListener('click', () => {
+                _gtExpFlash('btnGtExpFull');
+                gtExpRunExport(null, 'full');
+            });
             if (btPoly) btPoly.addEventListener('click', () => {
                 const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
                 gtSetSlotTool(slotIdx, 'export-polygon');
@@ -12713,17 +12980,20 @@
                 gtSetSlotTool(slotIdx, 'export-rect');
                 gtExpSetStatus('Clique e arraste para definir o retângulo — soltar finaliza e exporta. ESC cancela.');
             });
+
             if (btTS) btTS.addEventListener('click', () => {
                 const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
                 gtSetSlotTool(slotIdx, 'export-timeseries');
                 gtExpSetStatus('Clique em qualquer ponto do mapa para exportar a evolução temporal nessa coordenada.');
             });
             if (btMisc) btMisc.addEventListener('click', () => {
+                _gtExpHighlight('btnGtExpMisc');
                 // Lista TODAS as camadas vetoriais carregadas (Miscelâneas + Shapefiles + GeoJSON)
                 const miscs = (typeof gtExtraLayers !== 'undefined')
                     ? gtExtraLayers.filter(l => l && l.type === 'geojson' && l.data)
                     : [];
                 if (!miscs.length) {
+                    _gtExpClearHighlight();
                     gtExpSetStatus('Nenhuma camada vetorial carregada. Use "＋ Adicionar GeoTIFF / GeoJSON / Shapefile…" no menu Ferramentas para carregar um shape, ou marque uma Miscelânea.', true);
                     return;
                 }
@@ -12758,7 +13028,7 @@
                      + '</div>';
                 dlg.innerHTML = html;
                 document.body.appendChild(dlg);
-                document.getElementById('btnGtExpMiscCancel').addEventListener('click', () => dlg.remove());
+                document.getElementById('btnGtExpMiscCancel').addEventListener('click', () => { _gtExpClearHighlight(); dlg.remove(); });
                 document.getElementById('btnGtExpMiscOK').addEventListener('click', async () => {
                     const checked = Array.from(dlg.querySelectorAll('input[type=checkbox]:checked')).map(i => parseInt(i.dataset.miscIdx, 10));
                     if (!checked.length) { dlg.remove(); gtExpSetStatus('Nenhuma miscelânea selecionada.', true); return; }
@@ -12785,10 +13055,12 @@
                             bbox: _gtPolygonsBbox(polys)
                         });
                         _gtClearPolygonPreview(slotIdx, previewIds);
+                        _gtExpClearHighlight();
                         if (!confirmed) { gtExpSetStatus('Extração cancelada.'); return; }
                         gtExpRunExport(polys, 'misc');
                     } catch (err) {
                         _gtClearPolygonPreview(slotIdx, previewIds);
+                        _gtExpClearHighlight();
                         gtExpSetStatus('Erro: ' + (err && err.message ? err.message : err), true);
                     }
                 });
