@@ -1,21 +1,18 @@
 @echo off
-REM Commit v2.8.0 GISELE - sessao 29-30/05/2026 (Export GeoJSON stats + UX)
-REM Cobre tudo desde v2.7.0:
-REM   - Estatisticas no metadata do GeoJSON exportado (min/max/sum/mean/areaWeightedMean/totalAreaM2)
-REM   - Popup com stats + botao Salvar GeoJSON (sem auto-save)
-REM   - Reorganizacao da arvore Exportar GeoJSON: 5 opcoes top-level
-REM   - Serie temporal em ponto INTEGRADA no Exportar GeoJSON (substitui Por ponto)
-REM   - Icone "?" com popup help substituindo descricoes inline
-REM   - Highlight visual da opcao selecionada
-REM   - electron-app/package.json 2.7.0 -> 2.8.0
-REM   - Manual + HANDOVER v2.8.0 regenerados
+REM Commit v2.9.0 GISELE - sessao 30/05/2026 (Multipainel + Poligonos do usuario + UI reorg + Graficos)
+REM Cobre tudo desde v2.8.0:
+REM   - Python helper: in-memory decoded cache + endpoint /v1/render/png (matplotlib) + bridge JS renderTilePNG
+REM   - Poligonos do usuario: storage localStorage + dialog + tree + gear/trash/color/perimetro + import/export GeoJSON
+REM   - UI reorg: Lat/Lon/Valor em Ferramentas, DnD reorder, boot colapsado, gear inline em Camadas
+REM   - Multipainel: viewport sync, lock per slot, replicacao acoes, perfil/TS combinados
+REM   - Graficos: toggle on/off com olho, zoom drag, clipping, amostragem paralela TS
 
 setlocal
 cd /d "%~dp0"
 
 echo.
 echo === Removendo locks travados (.git\*.lock) ===
-for %%F in (.git\index.lock .git\idx_v27.lock .git\idx_v28.lock .git\index_new.lock) do (
+for %%F in (.git\index.lock .git\idx_v28.lock .git\idx_v29.lock .git\index_new.lock) do (
     if exist "%%F" (
         del /F /Q "%%F" 2>nul
         if exist "%%F" (echo AVISO: nao removeu %%F) else (echo OK: %%F removido.)
@@ -24,7 +21,7 @@ for %%F in (.git\index.lock .git\idx_v27.lock .git\idx_v28.lock .git\index_new.l
 
 echo.
 echo === Limpando index intermediarios ===
-for %%F in (.git\idx_v27 .git\idx_v28 .git\index_new .git\index.broken) do (
+for %%F in (.git\idx_v28 .git\idx_v29 .git\index_new .git\index.broken) do (
     if exist "%%F" del /F /Q "%%F" 2>nul
 )
 
@@ -44,54 +41,55 @@ git add -A
 if errorlevel 1 (echo ERRO ao executar git add. & pause & exit /b 1)
 
 echo.
-echo === Commit v2.8.0 ===
+echo === Commit v2.9.0 ===
 git commit ^
- -m "v2.8.0 GISELE: Export GeoJSON com stats + popup confirm + reorganizacao UX" ^
+ -m "v2.9.0 GISELE: Multipainel + Poligonos do usuario + UI reorg + Graficos interativos" ^
  -m "" ^
- -m "* Estatisticas no metadata.stats do GeoJSON exportado:" ^
- -m "  - count, min, max, sum, mean, areaWeightedMean, totalAreaM2" ^
- -m "  - Computadas durante a iteracao do export (sem segundo passe)" ^
- -m "  - Area em m^2 via formula esferica: R^2 * dLon * |sin(latTop)-sin(latBot)| * 1e6" ^
- -m "  - Media ponderada = Soma / Area(km^2) — densidade por area conforme pedido" ^
+ -m "PYTHON HELPER (server.py v0.6.0):" ^
+ -m "  - In-memory decoded cache (LRU OrderedDict, GISELE_DECODED_CACHE_MAX=256)" ^
+ -m "  - Endpoint /v1/render/png: aplica paleta matplotlib + auto vmin/vmax percentil 5-95 + NoData->alpha=0" ^
+ -m "  - Hierarquia 4 niveis: png cache -> decoded cache -> disk cache -> FTP" ^
+ -m "  - /health reporta stats decoded_cache + png_cache" ^
+ -m "  - requirements.txt: matplotlib==3.9.2, Pillow==10.4.0, h2==4.1.0" ^
  -m "" ^
- -m "* Popup de resultado (sem auto-save):" ^
- -m "  - gtExpShowResultDialog: card 380px canto superior direito (fora do mapa)" ^
- -m "  - Tabela formatada: Minimo, Maximo, Soma, Media, Media ponderada, Area total" ^
- -m "  - Formatador inteligente: cientifico para |v| >= 1e6 ou < 0.01; pt-BR locale" ^
- -m "  - Botoes Fechar / Salvar GeoJSON; Enter salva, Esc fecha" ^
- -m "  - pointer-events:auto so no card — permite interagir com o mapa em background" ^
+ -m "BRIDGE JS (figuras_SisMOM_v23.html):" ^
+ -m "  - gtPyHelper.renderTilePNG(url, opts) retorna ImageBitmap (createImageBitmap)" ^
+ -m "  - Opt-in, nao altera caminho principal de animacao" ^
  -m "" ^
- -m "* Reorganizacao da arvore Exportar GeoJSON (5 opcoes top-level flat):" ^
- -m "  - Serie temporal em ponto (substituiu Por ponto single-pixel)" ^
- -m "  - Por poligono (desenhar)" ^
- -m "  - Por retangulo (clicar e arrastar)" ^
- -m "  - Por camada vetorial (shape, geojson)" ^
- -m "  - Area total da camada (era Campo cheio)" ^
- -m "  - Sub-tree separado de Serie temporal removido (consolidado no Exportar)" ^
- -m "  - btnGtExpPoint + tool export-point removidos da UI (funcoes ficam no codigo)" ^
+ -m "POLIGONOS DO USUARIO (modulo novo):" ^
+ -m "  - gtSavedPolygons localStorage backing (gisele.savedPolygons.v1)" ^
+ -m "  - Submenu Ferramentas -> 'Poligonos do usuario' com lista colapsavel" ^
+ -m "  - Acoes: Desenhar e salvar / Exportar GeoJSON / Importar GeoJSON" ^
+ -m "  - Por linha: checkbox visualizacao + gear (renomeia/perimetro/area) + color picker + trash" ^
+ -m "  - Toggled ON aparece em 'Por camada vetorial' (Exportar GeoJSON) automaticamente" ^
  -m "" ^
- -m "* Icone (?) com popup de help:" ^
- -m "  - CSS .gt-help-icon (circulo 14px) + .gt-help-popup (card branco)" ^
- -m "  - gtShowHelpPopup com auto-posicionamento (reposiciona se sair da tela)" ^
- -m "  - Delegacao global em fase de captura: document.addEventListener('click', ..., true)" ^
- -m "  - Esc fecha; click fora fecha; click dentro do popup nao fecha (permite copiar texto)" ^
- -m "  - Aplicado em: Calculadora, Exportar GeoJSON, Tempos" ^
- -m "  - Descricoes inline removidas das tres secoes" ^
+ -m "REORGANIZACAO UI:" ^
+ -m "  - Lat/Lon/Valor movido toolbar -> Ferramentas (titulo capitalizado)" ^
+ -m "  - DnD reorder de Ferramentas via grip (gisele.tools.order.v1)" ^
+ -m "  - Boot sempre colapsado (4 secoes top-level sem 'open')" ^
+ -m "  - Camadas: gear inline + trash substituem details 'Ferramentas' + botao x" ^
  -m "" ^
- -m "* Highlight visual da opcao selecionada em Exportar GeoJSON:" ^
- -m "  - CSS .gt-tree-action.selected: bg cyan 16%% + border solid cyan + texto cyan + font-weight 600 + bullet pseudo-element" ^
- -m "  - _GT_EXP_TOOL_TO_BTN mapeia tool->botao" ^
- -m "  - gtSetSlotTool sincroniza highlight automaticamente — qualquer caminho que muda tool propaga" ^
- -m "  - Por camada vetorial: highlight manual no open do dialog; clear no Cancel/OK/erro" ^
- -m "  - Area total: animacao gtExpFlash (600ms ease-in-out) como feedback do trigger imediato" ^
- -m "  - Limpeza defensiva em todos os caminhos de erro do confirm dialog" ^
+ -m "MULTIPAINEL:" ^
+ -m "  - SisMOM_Map ganhou getViewport/applyViewportRaw/setViewportChangeListener" ^
+ -m "  - Pan/zoom em qualquer painel propaga para todos (sync de viewport)" ^
+ -m "  - _gtApplyMapView: slots !=0 copiam vp do painel 1 ao trocar modelo (preserva area)" ^
+ -m "  - Trocar modelo em slot !=0 alinha data inicial ao painel 1" ^
+ -m "  - Lock por painel (botao 🔒/🔓 ao lado do pin)" ^
+ -m "  - Replicacao para travados: distancia, linha, texto, perfil, limpar anotacoes" ^
+ -m "  - Perfil combinado: amostra todos paineis-alvo, curvas coloridas, CSV combinado" ^
+ -m "  - Serie temporal: amostragem PARALELA via Promise.all + progress agregado + CSV combinado" ^
  -m "" ^
- -m "* Documentacao:" ^
- -m "  - HANDOVER_GISELE.md v2.7.0 -> v2.8.0 com bloco 'Mudancas v2.7 -> v2.8' + secao 2.16 (Export stats + UX) com 10 features mapeadas" ^
- -m "  - 3 PDFs regerados (Manual, HANDOVER, ESPECIFICACOES mantido)" ^
- -m "  - electron-app/package.json 2.7.0 -> 2.8.0" ^
+ -m "GRAFICOS INTERATIVOS (TS + Perfil):" ^
+ -m "  - Toggle on/off por chip da legenda (icone olho/proibido)" ^
+ -m "  - Zoom por click-and-drag (rubber-band) + double-click reseta + botao reset" ^
+ -m "  - Clipping (ctx.save + rect + clip + restore) evita curvas vazando fora do plot" ^
+ -m "  - Y range auto-zoom sobre series visiveis" ^
  -m "" ^
- -m "* Build markers: 20260529-6300-expstats -> 6400-exppopup -> 6500-areadiv -> 6600-bypoint -> 6700-polynest -> 6800-tsinexp -> 6900-helpicon -> 7000-highlight."
+ -m "DOCUMENTACAO:" ^
+ -m "  - HANDOVER_GISELE.md v2.8.0 -> v2.9.0 com bloco 'Mudancas v2.8 -> v2.9'" ^
+ -m "  - electron-app/package.json 2.8.0 -> 2.9.0" ^
+ -m "" ^
+ -m "* Build markers: 20260529-7100-pyhelper -> 20260530-9600-clip"
 
 if errorlevel 1 (echo. & echo ERRO no commit. & pause & exit /b 1)
 
@@ -100,6 +98,6 @@ echo === Log dos ultimos 5 commits ===
 git log --oneline -5
 
 echo.
-echo Commit v2.8.0 concluido com sucesso.
+echo Commit v2.9.0 concluido com sucesso.
 echo Para enviar ao remoto: git push origin main
 pause

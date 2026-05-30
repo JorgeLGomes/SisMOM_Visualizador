@@ -253,6 +253,30 @@
                                   cursor: pointer; display: none; backdrop-filter: blur(8px); }
         body.gt-mode-active .map-body .gt-panel-pin { display: inline-block; }
         body.gt-mode-active .map-box.gt-active .map-body .gt-panel-pin { background: var(--accent-cyan, #4dd0e1); color: #0b1220; border-color: rgba(0,0,0,0.2); }
+        /* Botão de travamento (replica ações entre painéis) */
+        .map-body .gt-panel-lock { position: absolute; top: 8px; z-index: 7;
+                                   background: rgba(40,55,80,0.85); color: var(--text-muted, #8aa); border: 1px solid rgba(255,255,255,0.14);
+                                   border-radius: 4px; padding: 2px 7px; font-size: 11px; line-height: 1;
+                                   cursor: pointer; display: none; backdrop-filter: blur(8px); }
+        body.gt-mode-active .map-body .gt-panel-lock { display: inline-block; }
+        .map-body .gt-panel-lock.gt-locked { background: rgba(220,180,40,0.92); color: #2a1f00; border-color: rgba(0,0,0,0.2); }
+        /* Chip de legenda clicável (multipainel: liga/desliga curva) */
+        .gt-mp-legend-chip { cursor: pointer; padding: 2px 5px; border-radius: 3px; user-select: none; transition: background 120ms; }
+        .gt-mp-legend-chip:hover { background: rgba(15, 23, 42, 0.06); }
+        .gt-mp-legend-chip.gt-off { opacity: 0.4; text-decoration: line-through; }
+        .gt-mp-legend-chip .gt-mp-eye { font-size: 11px; margin-right: 2px; line-height: 1; opacity: 0.85; }
+        /* Rubber-band rectangle para zoom por drag em gráficos */
+        .gt-chart-zoom-rect { position: absolute; pointer-events: none; background: rgba(37,99,235,0.18); border: 1px solid rgba(37,99,235,0.55); border-radius: 2px; display: none; z-index: 3; }
+        /* Botão "Reset zoom" que aparece dentro do gráfico quando há zoom ativo */
+        .gt-chart-zoom-reset { position: absolute; top: 6px; right: 6px; z-index: 4;
+                               background: rgba(15,23,42,0.85); color: #fff; border: 0; border-radius: 4px;
+                               padding: 3px 8px; font-size: 11px; cursor: pointer; display: none;
+                               box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+        .gt-chart-zoom-reset:hover { background: rgba(15,23,42,1); }
+        /* Hint text inicial */
+        .gt-chart-zoom-hint { position: absolute; bottom: 6px; right: 8px; z-index: 2;
+                              font-size: 10px; color: rgba(71,85,105,0.7); pointer-events: none;
+                              font-family: ui-sans-serif, system-ui, sans-serif; }
         #modalGeoTIFF.inline > .modal { max-width: none; width: 100%; box-shadow: none; border-radius: 0; max-height: none; height: calc(100vh - 70px); display: flex; flex-direction: column; }
         #modalGeoTIFF.inline > .modal > .modal-header { display: none; }
         #modalGeoTIFF.inline > .modal > .modal-body { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 8px 12px; }
@@ -411,6 +435,12 @@
         .gt-tree-icon { font-size: 14px; }
         .gt-tree-list { list-style: none; padding: 2px 0 4px 22px; margin: 0; }
         .gt-tree-list li { padding: 2px 0; display: flex; align-items: center; gap: 6px; min-width: 0; }
+        /* ─── Drag-and-drop reorder das Ferramentas ─── */
+        #gtToolsList > li[data-tool-id] { transition: background-color 120ms; }
+        #gtToolsList > li.gt-tool-dragging { opacity: 0.4; }
+        #gtToolsList > li.gt-tool-drop-before { box-shadow: inset 0 2px 0 0 var(--accent-cyan, #4dd0e1); }
+        #gtToolsList > li.gt-tool-drop-after { box-shadow: inset 0 -2px 0 0 var(--accent-cyan, #4dd0e1); }
+        #gtToolsList .gt-tool-grip:hover { background: rgba(77, 208, 225, 0.08); border-radius: 3px; }
         .gt-tree-list li.gt-tree-empty { color: var(--text-muted, #8aa); font-style: italic; font-size: 12px; }
         .gt-tree-list label { display: flex; align-items: center; gap: 6px; cursor: pointer; flex: 1; min-width: 0; }
         .gt-tree-list input[type="radio"], .gt-tree-list input[type="checkbox"] { margin: 0; flex: 0 0 auto; }
@@ -2100,30 +2130,36 @@
                  a árvore é uma camada de UI alternativa que delega aos mesmos handlers. -->
             <nav id="gtTree" class="gt-tree" aria-label="Camadas e ferramentas">
                 <div class="gt-tree-toolbar">
-                    <label class="gt-tree-hud-toggle" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted,#8aa);margin-right:auto;cursor:pointer;user-select:none" title="Mostra lat/lon e valor da camada ativa sob o cursor (HUD no topo do mapa)">
-                        <input type="checkbox" id="gtTreeShowNavHud" style="margin:0">
-                        <span>📍 Lat/lon/valor</span>
-                    </label>
-                    <button type="button" id="gtTreeCollapseAll" class="gt-tree-toolbar-btn" title="Recolher todos os grupos (Background, Miscelânea, Camadas, Ferramentas)">Collapse folders</button>
+                    <button type="button" id="gtTreeCollapseAll" class="gt-tree-toolbar-btn" title="Recolher todos os grupos (Background, Miscelânea, Camadas, Ferramentas)" style="margin-left:auto">Collapse folders</button>
                 </div>
-                <details open><summary><span class="gt-tree-icon">🌍</span> Background</summary>
+                <details><summary><span class="gt-tree-icon">🌍</span> Background</summary>
                     <ul id="gtTreeBackground" class="gt-tree-list"></ul>
                 </details>
-                <details open><summary><span class="gt-tree-icon">📌</span> Miscelânea</summary>
+                <details><summary><span class="gt-tree-icon">📌</span> Miscelânea</summary>
                     <ul id="gtTreeMisc" class="gt-tree-list"></ul>
                 </details>
-                <details open><summary><span class="gt-tree-icon">🗂️</span> Camadas</summary>
+                <details><summary><span class="gt-tree-icon">🗂️</span> Camadas</summary>
                     <ul id="gtTreeLayers" class="gt-tree-list">
                         <li class="gt-tree-empty">— nenhuma camada carregada —</li>
                     </ul>
                 </details>
-                <details open><summary><span class="gt-tree-icon">🔧</span> Ferramentas</summary>
-                    <ul class="gt-tree-list">
-                        <li><button type="button" class="gt-tree-action" id="gtTreeAddTif">＋ Adicionar GeoTIFF / GeoJSON / Shapefile…</button></li>
-                        <li><button type="button" class="gt-tree-action" id="gtTreeAddModel">＋ Adicionar Modelo</button></li>
-                        <li id="gtTreeAddModelFormHost" style="display:block;padding:0"></li>
-                        <li style="padding:0;flex-direction:column;align-items:stretch">
-                            <details class="gt-tree-calc">
+                <details><summary><span class="gt-tree-icon">🔧</span> Ferramentas</summary>
+                    <ul id="gtToolsList" class="gt-tree-list">
+                        <li data-tool-id="addtif"><button type="button" class="gt-tree-action" id="gtTreeAddTif">＋ Adicionar GeoTIFF / GeoJSON / Shapefile…</button></li>
+                        <li data-tool-id="addmodel">
+                            <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:stretch;gap:0">
+                                <button type="button" class="gt-tree-action" id="gtTreeAddModel" style="text-align:left">＋ Adicionar Modelo</button>
+                                <div id="gtTreeAddModelFormHost" style="display:block;padding:0"></div>
+                            </div>
+                        </li>
+                        <li data-tool-id="navhud">
+                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;user-select:none;flex:1" title="Mostra lat/lon e valor da camada ativa sob o cursor (HUD no topo do mapa)">
+                                <input type="checkbox" id="gtTreeShowNavHud" style="margin:0">
+                                <span>📍 Lat/Lon/Valor</span>
+                            </label>
+                        </li>
+                        <li data-tool-id="calc">
+                            <details class="gt-tree-calc" style="flex:1 1 auto;min-width:0">
                                 <summary style="cursor:pointer;font-size:12px;padding:4px 0">🧮 Calculadora (expressão entre camadas)<span class="gt-help-icon" data-help="Clique numa camada abaixo para inserir o token. Use + − × ÷ e parênteses. Operações entre camadas raster do slot ativo. Resultado vira nova camada extra.">?</span></summary>
                                 <div class="gt-tree-calc-body">
                                     <div id="gtTreeCalcTokens" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
@@ -2136,14 +2172,27 @@
                                 </div>
                             </details>
                         </li>
-                        <li style="padding:0;flex-direction:column;align-items:stretch">
-                            <details class="gt-tree-calc">
-                                <summary style="cursor:pointer;font-size:12px;padding:4px 0">📤 Exportar GeoJSON (camada ativa)<span class="gt-help-icon" data-help="Calcula estatísticas (min, máx, soma, média, média ponderada pela área) e mostra em popup com opção de salvar como GeoJSON. Funciona em todas as opções: Série temporal em ponto, Por polígono, Por retângulo, Por camada vetorial, Área total.">?</span></summary>
+                        <li data-tool-id="userpoly">
+                            <details class="gt-tree-calc" style="flex:1 1 auto;min-width:0">
+                                <summary style="cursor:pointer;font-size:12px;padding:4px 0">👤 Polígonos do usuário<span class="gt-help-icon" data-help="Polígonos que você desenhou e salvou. Marque o checkbox para sobrepor ao campo atual. Quando ativos, ficam disponíveis também em 'Por camada vetorial' (Exportar GeoJSON) para uso como máscara de extração. Use '✏️ Desenhar e salvar' para criar um novo sem extrair.">?</span></summary>
+                                <div class="gt-tree-calc-body">
+                                    <div id="gtTreeUserPolyBody" style="display:flex;flex-direction:column;gap:4px"></div>
+                                </div>
+                            </details>
+                        </li>
+                        <li data-tool-id="export">
+                            <details class="gt-tree-calc" style="flex:1 1 auto;min-width:0">
+                                <summary style="cursor:pointer;font-size:12px;padding:4px 0">📤 Exportar GeoJSON (camada ativa)<span class="gt-help-icon" data-help="Calcula estatísticas (min, máx, soma, média, média ponderada pela área) e mostra em popup com opção de salvar como GeoJSON.">?</span></summary>
                                 <div class="gt-tree-calc-body">
                                     <div style="display:flex;flex-direction:column;gap:4px">
                                         <button type="button" id="btnGtExpTimeseries" class="gt-tree-action" style="text-align:left">⏱ Série temporal em ponto (clicar no mapa)</button>
+                                        <div style="display:flex;gap:6px;align-items:center;padding:2px 4px 0 4px;font-size:10.5px;color:var(--text-muted,#8aa)">
+                                            <span>Intervalo (h):</span>
+                                            <input type="number" id="gtTsStart" min="0" step="1" placeholder="de" style="width:50px;font-size:11px;padding:1px 4px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:3px">
+                                            <input type="number" id="gtTsEnd"   min="0" step="1" placeholder="até" style="width:50px;font-size:11px;padding:1px 4px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:3px">
+                                            <span class="gt-help-icon" data-help="Intervalo opcional de passos para varrer. Valores em HORAS de previsão (ex.: de=6, até=72 amostra passos entre +6h e +72h da rodada). Deixe vazio para usar o horizonte completo da variável.">?</span>
+                                        </div>
                                         <button type="button" id="btnGtExpPoly" class="gt-tree-action" style="text-align:left">▦ Por polígono (desenhar — duplo-clique finaliza)</button>
-                                        <button type="button" id="btnGtExpRect" class="gt-tree-action" style="text-align:left">▭ Por retângulo (clicar e arrastar)</button>
                                         <button type="button" id="btnGtExpMisc" class="gt-tree-action" style="text-align:left">🗂️ Por camada vetorial (shape, geojson)</button>
                                         <button type="button" id="btnGtExpFull" class="gt-tree-action" style="text-align:left">🌐 Área total da camada</button>
                                     </div>
@@ -4013,6 +4062,22 @@
             if (slotIdx === 0) {
                 // tenta manter a data atual para o novo modelo; se não existir, recua
                 resolverEAplicarDataM1(false, { fromCurrent: true });
+            } else {
+                // ─── Multi-painel: ao trocar modelo num slot != 0, alinhar a data
+                // inicial (condição inicial) com a do painel 1. Assim, com a mesma
+                // data, getEffectivePasso devolve o mesmo passo do painel 1 e a
+                // data de validade (rodada + passo) também coincide.
+                // Pula a sincronização se o slot está com sync explícito (já está
+                // amarrado ao painel 1) ou se o novo modelo é igual ao do painel 1
+                // (mantém a cascata de dias para comparação de rodadas).
+                try {
+                    const s0 = state.slots[0];
+                    if (s0 && s0.data && s.modelo !== s0.modelo && !s.sync) {
+                        s.data = s0.data;
+                        const inpD = slotEl(slotIdx).querySelector('[data-cfg="data"]');
+                        if (inpD) inpD.value = dataFTPtoISO(s.data);
+                    }
+                } catch (_) {}
             }
         } else if (cfg === 'data') {
             s.data = formatarData(value);
@@ -5898,7 +5963,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260529-7000-highlight'); document.documentElement.setAttribute('data-build', '20260529-7000-highlight'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260530-9600-clip'); document.documentElement.setAttribute('data-build', '20260530-9600-clip'); } catch (_) {}
         loadModelos();
         buildSlots();
         const restored = loadUIPrefs();
@@ -6443,16 +6508,47 @@
     function gtCacheClear() { _gtDecodedCache.clear(); }
     /* ─── Dedup de fetch + scratch canvas + skip de view repetida ─── */
     const _gtInflight = new Map(); // url -> Promise<decoded>
+    // Constroi URL de fetch via proxy do Python helper se disponivel.
+    // Hit no cache do helper = ~5-10ms ao inves de FTP latency completo.
+    function _gtBuildFetchUrl(url) {
+        try {
+            if (typeof gtPyHelper !== 'undefined' && gtPyHelper.available && gtPyHelper.url) {
+                // So usa proxy para URLs http(s) — file:// fica direto
+                if (/^https?:/i.test(url)) {
+                    return gtPyHelper.url + '/v1/tile/fetch?url=' + encodeURIComponent(url);
+                }
+            }
+        } catch (_) {}
+        return url;
+    }
     async function _gtFetchAndDecode(url) {
         const cached = gtCacheGet(url);
         if (cached) return cached;
         if (_gtInflight.has(url)) return _gtInflight.get(url);
+        const fetchUrl = _gtBuildFetchUrl(url);
         const p = (async () => {
-            const resp = await fetch(url);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const resp = await fetch(fetchUrl);
+            if (!resp.ok) {
+                // Fallback se proxy falhar: tenta direto na URL original
+                if (fetchUrl !== url) {
+                    console.warn('[gtFetchAndDecode] proxy falhou, fallback direto:', resp.status);
+                    const r2 = await fetch(url);
+                    if (!r2.ok) throw new Error('HTTP ' + r2.status);
+                    const ab2 = await r2.arrayBuffer();
+                    const decoded2 = await SisMOM_GeoTIFF.decodeTIFF(ab2);
+                    gtCachePut(url, decoded2);
+                    return decoded2;
+                }
+                throw new Error('HTTP ' + resp.status);
+            }
             const ab = await resp.arrayBuffer();
             const decoded = await SisMOM_GeoTIFF.decodeTIFF(ab);
             gtCachePut(url, decoded);
+            // Log de cache do helper (X-Gisele-Cache: HIT|MISS) para diagnostico
+            try {
+                const cacheStatus = resp.headers.get('X-Gisele-Cache');
+                if (cacheStatus === 'HIT') console.log('[gtFetch] helper cache HIT:', url.slice(-40));
+            } catch (_) {}
             return decoded;
         })().finally(() => { _gtInflight.delete(url); });
         _gtInflight.set(url, p);
@@ -6479,7 +6575,28 @@
             _gtSlotLastProvider[slotIdx] = provider;
         }
         if (!_bboxEqExact(_gtSlotLastBbox[slotIdx], bbox)) {
-            try { m.fitTo(bbox); } catch (_) {}
+            // ─── Trava no painel 1 (slot 0) ───
+            // Para slots != 0: NÃO faz fitTo do bbox do layer; em vez disso, copia o
+            // viewport atual do slot 0 (painel 1 = referência). Assim, ao trocar
+            // modelo em Mi 2/3/4, a área navegada delimitada por Mi 1 é preservada.
+            // Fallback para fitTo só se slot 0 ainda não existe (ex: carga inicial
+            // antes do Mi 1 ter sido renderizado, ou se Mi 1 não tem viewport).
+            let synced = false;
+            if (slotIdx !== 0) {
+                const ref = _gtSlotMap[0];
+                if (ref && typeof ref.getViewport === 'function' && typeof m.applyViewportRaw === 'function') {
+                    try {
+                        const refVp = ref.getViewport();
+                        if (refVp && refVp.length === 4 && isFinite(refVp[0])) {
+                            m.applyViewportRaw(refVp);
+                            synced = true;
+                        }
+                    } catch (_) {}
+                }
+            }
+            if (!synced) {
+                try { m.fitTo(bbox); } catch (_) {}
+            }
             _gtSlotLastBbox[slotIdx] = bbox;
         }
     }
@@ -6834,18 +6951,20 @@
     // Ferramenta ativa por slot (default 'pan')
     const gtSlotTool = [];
     let _gtAnnotSeq = 0;
+    // _gtDrawIntent: 'export' (default) → desenho dispara extração + opção de salvar
+    //                'save-only'        → desenho APENAS salva o polígono (sem extração)
+    let _gtDrawIntent = 'export';
     const GT_TOOL_COLOR = '#ffd54f';
     function gtAnnotsForSlot(i) { return gtSlotAnnotations[i] || (gtSlotAnnotations[i] = []); }
     function gtGetSlotTool(i) { return gtSlotTool[i] || 'pan'; }
     // Mapa: tool -> id do botao no menu Exportar GeoJSON (para highlight visual)
     const _GT_EXP_TOOL_TO_BTN = {
         'export-polygon':    'btnGtExpPoly',
-        'export-rect':       'btnGtExpRect',
         'export-timeseries': 'btnGtExpTimeseries'
     };
     // Limpa highlights dos botoes de Exportar GeoJSON
     function _gtExpClearHighlight() {
-        ['btnGtExpTimeseries','btnGtExpPoly','btnGtExpRect','btnGtExpMisc','btnGtExpFull'].forEach(id => {
+        ['btnGtExpTimeseries','btnGtExpPoly','btnGtExpMisc','btnGtExpFull'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('selected');
         });
@@ -6993,6 +7112,140 @@
             alert('Falha ao carregar camada: ' + (e && e.message));
         }
     }
+    // ─── Camadas "Polígono do usuário" — convertem registros salvos em geojson layers ───
+    function gtFindUserPolyLayer(savedId) {
+        return gtExtraLayers.find(l => l && l.isUserPoly && l.userPolyId === savedId) || null;
+    }
+    function _gtUserPolyToGeoJson(rec) {
+        // rec.coords = [[lat,lon], ...]. Para 'rect', são 2 corners.
+        // Constrói FeatureCollection com 1 Polygon feature.
+        let ringLatLon;
+        if (rec.kind === 'rect' && rec.coords && rec.coords.length >= 2) {
+            const [lat1, lon1] = rec.coords[0];
+            const [lat2, lon2] = rec.coords[1];
+            const latA = Math.min(lat1, lat2), latB = Math.max(lat1, lat2);
+            const lonA = Math.min(lon1, lon2), lonB = Math.max(lon1, lon2);
+            ringLatLon = [[latA, lonA], [latA, lonB], [latB, lonB], [latB, lonA]];
+        } else {
+            ringLatLon = (rec.coords || []).map(c => [+c[0], +c[1]]);
+        }
+        // Fecha o anel
+        if (ringLatLon.length >= 3) {
+            const first = ringLatLon[0], last = ringLatLon[ringLatLon.length - 1];
+            if (first[0] !== last[0] || first[1] !== last[1]) ringLatLon.push([first[0], first[1]]);
+        }
+        // GeoJSON: [lon, lat]
+        const ringLonLat = ringLatLon.map(([la, lo]) => [lo, la]);
+        return {
+            type: 'FeatureCollection',
+            features: [{
+                type: 'Feature',
+                properties: {
+                    nome: rec.nome,
+                    origem: 'Polígono do usuário',
+                    kind: rec.kind || 'poly',
+                    savedAt: rec.savedAt
+                },
+                geometry: { type: 'Polygon', coordinates: [ringLonLat] }
+            }]
+        };
+    }
+    async function gtAddUserPolyLayer(savedId) {
+        const rec = gtSavedPolygons.getById(savedId);
+        if (!rec) { console.warn('[gtAddUserPolyLayer] registro não encontrado:', savedId); return null; }
+        // Se já existe, só liga visibilidade
+        const exist = gtFindUserPolyLayer(savedId);
+        if (exist) {
+            if (exist.visible === false && typeof gtToggleExtraLayer === 'function') gtToggleExtraLayer(exist.id);
+            return exist;
+        }
+        const data = _gtUserPolyToGeoJson(rec);
+        const layerId = 'userpoly_' + savedId + '_' + (++gtLayerSeq);
+        // Cor persistida no registro (rec.color) ou default magenta
+        const color = (rec.color && /^#[0-9a-f]{6}$/i.test(rec.color)) ? rec.color : '#e91e63';
+        const layer = {
+            id: layerId, type: 'geojson', name: '👤 ' + (rec.nome || rec.id),
+            visible: true, opacity: 1, data, color,
+            isUserPoly: true, userPolyId: savedId
+        };
+        gtExtraLayers.push(layer);
+        try { gtLayerEnsureMap(); } catch (_) {}
+        try { await gtLayerPushToMap(layer); } catch (e) { console.warn('[gtAddUserPolyLayer] push:', e); }
+        try { gtRenderLayerChips(); } catch (_) {}
+        try { gtRenderOverlayColorbars(); } catch (_) {}
+        try { gtRenderCalcSelects(); } catch (_) {}
+        return layer;
+    }
+    function gtRemoveUserPolyLayer(savedId) {
+        const all = gtExtraLayers.filter(l => l && l.isUserPoly && l.userPolyId === savedId);
+        for (const l of all) {
+            try { gtRemoveExtraLayer(l.id); } catch (_) {}
+        }
+    }
+    // Exporta TODOS os polígonos salvos para um único FeatureCollection (backup em disco)
+    function gtExportAllUserPolygonsToFile() {
+        const list = gtSavedPolygons.list();
+        if (!list.length) {
+            try { gtExpSetStatus('Nenhum polígono salvo para exportar.', true); } catch (_) {}
+            return false;
+        }
+        const features = list.map(rec => {
+            const fc = _gtUserPolyToGeoJson(rec);
+            const f = fc.features[0];
+            f.properties.id = rec.id;
+            f.properties.bbox = rec.bbox;
+            return f;
+        });
+        const data = {
+            type: 'FeatureCollection',
+            metadata: {
+                generator: 'GISELE',
+                kind: 'user-saved-polygons',
+                count: list.length,
+                exportedAt: new Date().toISOString()
+            },
+            features
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/geo+json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'gisele_poligonos_salvos_' + new Date().toISOString().slice(0, 10) + '.geojson';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} try { a.remove(); } catch (_) {} }, 0);
+        return true;
+    }
+    // Importa um GeoJSON (FeatureCollection com Polygons) e adiciona como polígonos salvos
+    async function gtImportUserPolygonsFromFile(file) {
+        if (!file) return 0;
+        const txt = await file.text();
+        let gj;
+        try { gj = JSON.parse(txt); } catch (e) { throw new Error('JSON inválido: ' + e.message); }
+        if (!gj || gj.type !== 'FeatureCollection' || !Array.isArray(gj.features)) {
+            throw new Error('arquivo não é uma FeatureCollection GeoJSON');
+        }
+        let imported = 0, skipped = 0;
+        for (const f of gj.features) {
+            const g = f && f.geometry;
+            if (!g || g.type !== 'Polygon') { skipped++; continue; }
+            const ring = (g.coordinates && g.coordinates[0]) || [];
+            if (ring.length < 3) { skipped++; continue; }
+            // GeoJSON ring = [lon, lat]; convertemos pra [lat, lon] dropando o fechamento
+            const coords = ring.slice(0, ring.length - 1).map(([lo, la]) => [+la, +lo]);
+            const props = f.properties || {};
+            let nome = String(props.nome || props.name || 'Importado_' + (++imported)).trim() || ('Importado_' + imported);
+            // Anti-colisão de nome
+            let nm = nome, k = 2;
+            while (gtSavedPolygons.exists(nm)) { nm = nome + ' (' + (k++) + ')'; }
+            try {
+                gtSavedPolygons.save(nm, coords, 'poly', { source: 'import' });
+                imported++;
+            } catch (e) { console.warn('[gtImportUserPolygonsFromFile] skip:', e.message); skipped++; }
+        }
+        return { imported, skipped };
+    }
+
     function _gtPointInRing(lat, lon, ring) {
         // Ray-casting (x = lon, y = lat). ring é array de [lon, lat].
         let inside = false;
@@ -7172,7 +7425,69 @@
             const mm = _gtSlotMap[slotIdx];
             if (mm && mm.redraw) mm.redraw();
             gtSetSlotTool(slotIdx, 'pan');
-            try { gtExpRunExport(polys, kind); } catch (e) { console.error('export', e); }
+            // Captura intent e reseta antes do dialog assíncrono
+            const intent = _gtDrawIntent;
+            _gtDrawIntent = 'export';
+            (async function _finishDraw() {
+                try {
+                    // Computa metadados para o dialog (vértices, bbox, área aproximada)
+                    let nVert = coords.length;
+                    let areaKm2 = NaN;
+                    try {
+                        if (kind === 'poly') areaKm2 = gtSphericalPolygonAreaKm2(coords);
+                        else if (kind === 'rect' && coords.length >= 2) {
+                            const [lat1, lon1] = coords[0], [lat2, lon2] = coords[1];
+                            const _R = 6371.0088, _D2R = Math.PI / 180;
+                            const dx = Math.abs(lon2 - lon1);
+                            areaKm2 = _R * _R * (dx * _D2R) * Math.abs(Math.sin(lat2 * _D2R) - Math.sin(lat1 * _D2R));
+                        }
+                    } catch (_) {}
+                    let latMin = +Infinity, latMax = -Infinity, lonMin = +Infinity, lonMax = -Infinity;
+                    for (const c of coords) {
+                        if (!Array.isArray(c) || c.length < 2) continue;
+                        const la = +c[0], lo = +c[1];
+                        if (la < latMin) latMin = la; if (la > latMax) latMax = la;
+                        if (lo < lonMin) lonMin = lo; if (lo > lonMax) lonMax = lo;
+                    }
+                    const bbox = { latMin, latMax, lonMin, lonMax };
+                    // ─── Caminho A: SAVE-ONLY (acionado por "✏️ Desenhar e salvar" do tree Polígonos do usuário) ───
+                    if (intent === 'save-only') {
+                        const nm = (await gtAskSaveOnlyDialog({ nVert, bbox, areaKm2, kind })) || null;
+                        if (!nm) { try { gtExpSetStatus('Salvamento cancelado.'); } catch (_) {} return; }
+                        try {
+                            const rec = gtSavedPolygons.save(nm, coords, kind, { source: 'draw-save' });
+                            try { gtExpSetStatus('Polígono "' + rec.nome + '" salvo.'); } catch (_) {}
+                            try { gtRenderTreeUserPoly(); } catch (_) {}
+                            // Ativa visualização automática para feedback
+                            try { await gtAddUserPolyLayer(rec.id); } catch (_) {}
+                            try { gtRenderTreeUserPoly(); } catch (_) {}
+                        } catch (e) {
+                            try { gtExpSetStatus('Erro ao salvar: ' + e.message, true); } catch (_) {}
+                        }
+                        return;
+                    }
+                    // ─── Caminho B: EXPORT (default) — dialog com opção de salvar + extração ───
+                    const res = await gtAskSaveAndExportDialog({ nVert, bbox, areaKm2, kind });
+                    if (!res || res.action !== 'export') {
+                        try { gtExpSetStatus('Extração cancelada.'); } catch (_) {}
+                        return;
+                    }
+                    if (res.save && res.nome) {
+                        try {
+                            const rec = gtSavedPolygons.save(res.nome, coords, kind, { source: 'draw' });
+                            try { gtExpSetStatus('Polígono "' + rec.nome + '" salvo. Executando extração…'); } catch (_) {}
+                            try { gtRenderTreeUserPoly(); } catch (_) {}
+                        } catch (e) {
+                            console.warn('[gtSavedPolygons] save falhou:', e);
+                            try { gtExpSetStatus('Aviso: não foi possível salvar (' + e.message + '). Extração continua.', true); } catch (_) {}
+                        }
+                    }
+                    gtExpRunExport(polys, kind);
+                } catch (e) {
+                    console.error('draw-finish', e);
+                    try { gtExpSetStatus('Erro: ' + (e && e.message ? e.message : e), true); } catch (_) {}
+                }
+            })();
             return true;
         }
         const ann = { id: 'ann_' + (++_gtAnnotSeq), coords, style: { stroke: GT_TOOL_COLOR, lineWidth: 2, fill: 'rgba(255,213,79,0.20)' } };
@@ -7205,6 +7520,11 @@
         gtUpdateToolHint(slotIdx, null);
         const m = _gtSlotMap[slotIdx];
         if (m && m.redraw) m.redraw();
+        // ─── Multi-painel: replica anotação visual para painéis travados ───
+        // Apenas para ferramentas que o usuário pediu replicar
+        if (t === 'measure-distance' || t === 'draw-line' || t === 'profile') {
+            try { gtReplicateAnnotation(slotIdx, ann); } catch (e) { console.warn('replicate:', e); }
+        }
         // Se for profile, abre o popup com o gráfico após renderizar
         if (t === 'profile') {
             try { gtOpenProfilePopup(slotIdx, coords); } catch (e) { console.error('profile popup', e); }
@@ -7288,9 +7608,26 @@
         }
         return { samples, layerName: foreName, totalKm: cumKm };
     }
+    // Paleta de cores fixa para até 4 painéis (Mi 1..4) no gráfico de perfil combinado
+    const _GT_PROFILE_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#9333ea'];
     function gtOpenProfilePopup(slotIdx, coords) {
-        const profile = gtSampleProfile(slotIdx, coords);
-        if (!profile || !profile.samples.length) { alert('Não foi possível gerar perfil — camada do topo sem dados na região.'); return; }
+        // ─── Multi-painel: amostra perfil em todos os painéis-alvo ───
+        const targets = gtTargetSlots(slotIdx);
+        const profiles = [];
+        for (const i of targets) {
+            try {
+                const p = gtSampleProfile(i, coords);
+                if (p && p.samples && p.samples.length) {
+                    p.slotIdx = i;
+                    p.color = _GT_PROFILE_COLORS[i % _GT_PROFILE_COLORS.length];
+                    p.panelLabel = 'M' + (i + 1);
+                    profiles.push(p);
+                }
+            } catch (e) { console.warn('[profile] slot', i, e); }
+        }
+        if (!profiles.length) { alert('Não foi possível gerar perfil — camada do topo sem dados na região.'); return; }
+        // Para compatibilidade com handlers existentes, mantém referência ao perfil "primario" (source)
+        const profile = profiles.find(p => p.slotIdx === slotIdx) || profiles[0];
         try { const old = document.getElementById('gtProfilePopup'); if (old) old.remove(); } catch (_) {}
         const pop = document.createElement('div');
         pop.id = 'gtProfilePopup';
@@ -7305,32 +7642,65 @@
             'display:flex', 'flex-direction:column',
             'resize:both', 'overflow:hidden'
         ].join(';');
+        // Legenda inline (chip por painel, no header) — clicável para liga/desliga curva
+        const _renderProfileLegendHtml = () => profiles.map(p => {
+            const off = (p.visible === false);
+            return '<span class="gt-mp-legend-chip' + (off ? ' gt-off' : '') + '" '
+                + 'data-slot-idx="' + p.slotIdx + '" '
+                + 'title="' + (off ? 'Ligar' : 'Desligar') + ' ' + p.panelLabel + ' (clique p/ alternar)" '
+                + 'style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#374151">'
+                + '<span class="gt-mp-eye">' + (off ? '⊘' : '👁') + '</span>'
+                + '<span style="display:inline-block;width:14px;height:3px;background:' + p.color + ';border-radius:2px"></span>'
+                + '<b>' + p.panelLabel + '</b> · ' + (p.layerName || '—')
+                + '</span>';
+        }).join('<span style="color:#cbd5e1;margin:0 4px">·</span>');
+        const titleSuffix = (profiles.length > 1) ? ' (' + profiles.length + ' painéis)' : '';
         pop.innerHTML = ''
-            + '<div style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;display:flex;align-items:center;gap:8px;flex:0 0 auto">'
-            +   '<strong style="color:#0f172a">Perfil</strong>'
-            +   '<span style="color:#475569">·</span>'
-            +   '<span>' + profile.layerName + '</span>'
-            +   '<span style="color:#475569">·</span>'
-            +   '<span>' + profile.samples.length + ' pontos</span>'
+            + '<div style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;display:flex;align-items:center;gap:8px;flex:0 0 auto;flex-wrap:wrap">'
+            +   '<strong style="color:#0f172a">Perfil' + titleSuffix + '</strong>'
             +   '<span style="color:#475569">·</span>'
             +   '<span>' + gtFmtDist(profile.totalKm) + '</span>'
+            +   '<span style="color:#475569">·</span>'
+            +   '<span id="gtProfileLegend" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">' + _renderProfileLegendHtml() + '</span>'
             +   '<button id="gtProfileClose" style="margin-left:auto;background:transparent;border:0;color:#475569;font-size:22px;cursor:pointer;line-height:1;padding:0 6px">&times;</button>'
             + '</div>'
             + '<div id="gtProfileChartWrap" style="flex:1 1 auto;position:relative;background:#ffffff;overflow:hidden">'
-            +   '<canvas id="gtProfileChart" style="display:block;width:100%;height:100%"></canvas>'
+            +   '<canvas id="gtProfileChart" style="display:block;width:100%;height:100%;cursor:crosshair"></canvas>'
             +   '<div id="gtProfileTip" style="position:absolute;display:none;pointer-events:none;background:#0f172a;color:#fff;padding:6px 9px;border-radius:5px;font-size:11px;font-family:ui-monospace,monospace;box-shadow:0 4px 12px rgba(0,0,0,0.25);line-height:1.4;white-space:nowrap;z-index:2"></div>'
             +   '<div id="gtProfileCursor" style="position:absolute;display:none;pointer-events:none;top:0;bottom:0;width:1px;background:rgba(15,23,42,0.35);z-index:1"></div>'
+            +   '<div id="gtProfileZoomRect" class="gt-chart-zoom-rect"></div>'
+            +   '<button id="gtProfileZoomReset" type="button" class="gt-chart-zoom-reset" title="Resetar zoom (ou dê duplo-clique no gráfico)">↻ zoom</button>'
+            +   '<div class="gt-chart-zoom-hint">arraste para zoom · duplo-clique reseta</div>'
             + '</div>'
             + '<div style="padding:8px 14px;border-top:1px solid #e5e7eb;flex:0 0 auto;display:flex;gap:8px">'
             +   '<button id="gtProfileDownload" style="padding:5px 12px;background:#2563eb;border:0;color:#fff;border-radius:5px;cursor:pointer;font-size:12px">Baixar CSV</button>'
             +   '<button id="gtProfileSavePNG" style="padding:5px 12px;background:#0ea5e9;border:0;color:#fff;border-radius:5px;cursor:pointer;font-size:12px">Salvar PNG</button>'
             + '</div>';
         document.body.appendChild(pop);
-        // State pra redraw
-        const state = { profile, chartGeom: null };
+        // State pra redraw — profile = primario (compat com tooltip/CSV); profiles = array completo
+        const state = { profile, profiles, chartGeom: null };
         pop._profileState = state;
         const drawNow = () => _gtDrawProfileChart(pop, state);
         drawNow();
+        // ─── Toggle on/off por chip da legenda (multipainel) ───
+        if (profiles.length > 1) {
+            const legendEl = pop.querySelector('#gtProfileLegend');
+            const _rewireLegend = () => {
+                if (!legendEl) return;
+                legendEl.querySelectorAll('.gt-mp-legend-chip').forEach(chip => {
+                    chip.addEventListener('click', () => {
+                        const si = parseInt(chip.dataset.slotIdx, 10);
+                        const tgt = profiles.find(p => p.slotIdx === si);
+                        if (!tgt) return;
+                        tgt.visible = (tgt.visible === false) ? true : false;
+                        legendEl.innerHTML = _renderProfileLegendHtml();
+                        _rewireLegend();
+                        drawNow();
+                    });
+                });
+            };
+            _rewireLegend();
+        }
         // ResizeObserver pra redesenhar quando a janela é redimensionada
         try {
             const ro = new ResizeObserver(() => drawNow());
@@ -7341,18 +7711,80 @@
         const chartWrap = pop.querySelector('#gtProfileChartWrap');
         const tip = pop.querySelector('#gtProfileTip');
         const cursor = pop.querySelector('#gtProfileCursor');
+        // ─── Zoom por click-and-drag (rubber band) ───
+        const pfZoomRect = pop.querySelector('#gtProfileZoomRect');
+        const pfZoomResetBtn = pop.querySelector('#gtProfileZoomReset');
+        let _pfDrag = null;
+        const _pfShowResetBtn = () => { if (pfZoomResetBtn) pfZoomResetBtn.style.display = state.xZoom ? 'block' : 'none'; };
+        chartWrap.addEventListener('mousedown', (e) => {
+            const g = state.chartGeom;
+            if (!g) return;
+            if (e.button !== 0) return;
+            const r = chartWrap.getBoundingClientRect();
+            const mx = e.clientX - r.left, my = e.clientY - r.top;
+            if (mx < g.plotX || mx > g.plotX + g.plotW || my < g.plotY || my > g.plotY + g.plotH) return;
+            _pfDrag = { x0: mx, x1: mx, g };
+            e.preventDefault();
+        });
+        chartWrap.addEventListener('mouseup', (e) => {
+            if (!_pfDrag) return;
+            const dx = Math.abs(_pfDrag.x1 - _pfDrag.x0);
+            pfZoomRect.style.display = 'none';
+            if (dx >= 6) {
+                const g = _pfDrag.g;
+                const xL = Math.min(_pfDrag.x0, _pfDrag.x1);
+                const xR = Math.max(_pfDrag.x0, _pfDrag.x1);
+                // Para o perfil, o eixo X é distância (km). Inverso de xToPx, considerando
+                // o zoom corrente (chartGeom guarda os limites efetivos do plot).
+                const dMin = g.xMin + ((xL - g.plotX) / g.plotW) * (g.xMax - g.xMin);
+                const dMax = g.xMin + ((xR - g.plotX) / g.plotW) * (g.xMax - g.xMin);
+                state.xZoom = { min: dMin, max: dMax };
+                _pfShowResetBtn();
+                drawNow();
+            }
+            _pfDrag = null;
+        });
+        chartWrap.addEventListener('mouseleave', () => {
+            if (_pfDrag) { _pfDrag = null; pfZoomRect.style.display = 'none'; }
+        });
+        chartWrap.addEventListener('dblclick', () => {
+            if (state.xZoom) {
+                state.xZoom = null;
+                _pfShowResetBtn();
+                drawNow();
+            }
+        });
+        if (pfZoomResetBtn) pfZoomResetBtn.addEventListener('click', () => {
+            state.xZoom = null;
+            _pfShowResetBtn();
+            drawNow();
+        });
         chartWrap.addEventListener('mousemove', (e) => {
             const g = state.chartGeom;
             if (!g) return;
             const r = chartWrap.getBoundingClientRect();
             const mx = e.clientX - r.left, my = e.clientY - r.top;
+            // ─── Rubber-band do zoom em andamento ───
+            if (_pfDrag) {
+                const mxc = Math.max(g.plotX, Math.min(g.plotX + g.plotW, mx));
+                _pfDrag.x1 = mxc;
+                pfZoomRect.style.display = 'block';
+                pfZoomRect.style.left = Math.min(_pfDrag.x0, _pfDrag.x1) + 'px';
+                pfZoomRect.style.width = Math.abs(_pfDrag.x1 - _pfDrag.x0) + 'px';
+                pfZoomRect.style.top = g.plotY + 'px';
+                pfZoomRect.style.height = g.plotH + 'px';
+                tip.style.display = 'none'; cursor.style.display = 'none';
+                return;
+            }
             if (mx < g.plotX || mx > g.plotX + g.plotW || my < g.plotY || my > g.plotY + g.plotH) {
                 tip.style.display = 'none'; cursor.style.display = 'none'; return;
             }
-            // Inversa: mx → distância → índice do sample mais próximo
+            // Inversa: mx → distância (respeita xMin/xMax do plot zoom) → índice mais próximo
             const xFrac = (mx - g.plotX) / g.plotW;
-            const targetDist = xFrac * (profile.totalKm || 1);
-            // Busca binária pelo sample com menor |dist - targetDist|
+            const xMin0 = (g.xMin != null) ? g.xMin : 0;
+            const xMax0 = g.xMax || (profile.totalKm || 1);
+            const targetDist = xMin0 + xFrac * (xMax0 - xMin0);
+            // Busca binária pelo sample mais próximo NO PERFIL primário (para lat/lon)
             let best = 0, bestDiff = Infinity;
             for (let i = 0; i < profile.samples.length; i++) {
                 const d = Math.abs(profile.samples[i].dist - targetDist);
@@ -7362,13 +7794,28 @@
             // Desenha cursor vertical
             cursor.style.display = 'block';
             cursor.style.left = mx + 'px';
-            // Atualiza tooltip
-            const valTxt = (s.value == null || !isFinite(s.value)) ? '—' : gtFmtValue(s.value);
+            // ─── Tooltip multi-painel: mostra valores apenas dos perfis VISÍVEIS ───
+            let valsHtml = '';
+            const allProfiles = (pop._profileState && pop._profileState.profiles) || [profile];
+            for (const p of allProfiles) {
+                if (p.visible === false) continue;  // pula curvas desligadas
+                let bestS = null, bd = Infinity;
+                for (const sx of p.samples) {
+                    const dd = Math.abs(sx.dist - targetDist);
+                    if (dd < bd) { bd = dd; bestS = sx; }
+                }
+                const v = bestS && bestS.value != null && isFinite(bestS.value) ? gtFmtValue(bestS.value) : '—';
+                valsHtml += '<div style="display:flex;align-items:center;gap:5px">'
+                          + '<span style="display:inline-block;width:10px;height:3px;background:' + (p.color || '#2563eb') + ';border-radius:2px"></span>'
+                          + '<span style="opacity:0.85"><b>' + p.panelLabel + '</b></span>'
+                          + '<span>· <strong>' + v + '</strong></span>'
+                          + '</div>';
+            }
             tip.innerHTML = ''
                 + '<div><strong>' + gtFmtDist(s.dist) + '</strong></div>'
-                + '<div>Lat: ' + s.lat.toFixed(4) + '°</div>'
-                + '<div>Lon: ' + s.lon.toFixed(4) + '°</div>'
-                + '<div>Valor: <strong>' + valTxt + '</strong></div>';
+                + '<div style="opacity:0.85">Lat ' + s.lat.toFixed(4) + '° · Lon ' + s.lon.toFixed(4) + '°</div>'
+                + '<div style="height:4px"></div>'
+                + valsHtml;
             tip.style.display = 'block';
             // Posiciona o tip evitando estourar a janela
             const tipW = tip.offsetWidth, tipH = tip.offsetHeight;
@@ -7386,7 +7833,11 @@
             try { pop._gtRO && pop._gtRO.disconnect(); } catch (_) {}
             pop.remove();
         });
-        pop.querySelector('#gtProfileDownload').addEventListener('click', () => _gtDownloadProfileCSV(profile));
+        pop.querySelector('#gtProfileDownload').addEventListener('click', () => {
+            // Se múltiplos perfis, gera CSV combinado (uma coluna value_<panel> por painel)
+            if (profiles.length > 1) _gtDownloadProfileCSVMulti(profiles);
+            else _gtDownloadProfileCSV(profile);
+        });
         pop.querySelector('#gtProfileSavePNG').addEventListener('click', () => {
             try {
                 const cv = pop.querySelector('#gtProfileChart');
@@ -7420,20 +7871,30 @@
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, W, H);
         const profile = state.profile;
+        const profilesAll = state.profiles || [profile];
+        // Filtra perfis visíveis (toggle on/off via legenda)
+        const profiles = profilesAll.filter(p => p.visible !== false);
         const margin = { l: 56, r: 16, t: 14, b: 38 };
         const plotW = Math.max(50, W - margin.l - margin.r);
         const plotH = Math.max(50, H - margin.t - margin.b);
-        // Range Y
+        // Range Y — APENAS sobre perfis visíveis (auto-zoom ao toggla)
         let yMin = Infinity, yMax = -Infinity;
-        for (const s of profile.samples) {
-            if (s.value == null || !isFinite(s.value)) continue;
-            if (s.value < yMin) yMin = s.value;
-            if (s.value > yMax) yMax = s.value;
+        for (const p of (profiles.length ? profiles : profilesAll)) {
+            for (const s of p.samples) {
+                if (s.value == null || !isFinite(s.value)) continue;
+                if (s.value < yMin) yMin = s.value;
+                if (s.value > yMax) yMax = s.value;
+            }
         }
         if (!isFinite(yMin)) { yMin = 0; yMax = 1; }
         if (yMax === yMin) { yMin -= 1; yMax += 1; }
-        const xMax = profile.totalKm || 1;
-        const xToPx = (x) => margin.l + (x / xMax) * plotW;
+        // ─── Zoom: respeita o intervalo selecionado pelo usuário (drag) ───
+        let xMinView = 0, xMax = profile.totalKm || 1;
+        if (state.xZoom && isFinite(state.xZoom.min) && isFinite(state.xZoom.max) && state.xZoom.max > state.xZoom.min) {
+            xMinView = state.xZoom.min;
+            xMax = state.xZoom.max;
+        }
+        const xToPx = (x) => margin.l + ((x - xMinView) / (xMax - xMinView)) * plotW;
         const yToPy = (y) => margin.t + (1 - (y - yMin) / (yMax - yMin)) * plotH;
         // Grid claro
         ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
@@ -7453,7 +7914,7 @@
         // Ticks + labels
         ctx.fillStyle = '#1f2937'; ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
         for (let i = 0; i <= 5; i++) {
-            const x = (i / 5) * xMax;
+            const x = xMinView + (i / 5) * (xMax - xMinView);
             const px = xToPx(x);
             ctx.beginPath(); ctx.moveTo(px, margin.t + plotH); ctx.lineTo(px, margin.t + plotH + 4); ctx.stroke();
             const txt = gtFmtDist(x);
@@ -7468,29 +7929,53 @@
             const tw = ctx.measureText(txt).width;
             ctx.fillText(txt, margin.l - tw - 6, py + 4);
         }
-        // Área preenchida sob a linha (azul translúcido)
-        ctx.fillStyle = 'rgba(37,99,235,0.10)';
+        // ─── Multi-painel: plota uma curva por perfil, cores distintas ───
+        // CLIP: restringe desenho ao retângulo do plot — quando há zoom, valores fora
+        // do intervalo selecionado não extrapolam o eixo.
+        ctx.save();
         ctx.beginPath();
-        let started = false, lastX = margin.l;
-        for (const s of profile.samples) {
-            if (s.value == null || !isFinite(s.value)) continue;
-            const px = xToPx(s.dist), py = yToPy(s.value);
-            if (!started) { ctx.moveTo(px, margin.t + plotH); ctx.lineTo(px, py); started = true; }
-            else { ctx.lineTo(px, py); }
-            lastX = px;
+        ctx.rect(margin.l, margin.t, plotW, plotH);
+        ctx.clip();
+        // Apenas o primeiro perfil (source) recebe área preenchida (mais discreto)
+        const primary = profile;
+        if (primary && primary.samples && profiles.length === 1) {
+            // Area só faz sentido para 1 perfil — fica poluído com várias áreas sobrepostas
+            const rgba = (primary.color || '#2563eb');
+            // Converte hex pra rgba 10%
+            const hx = rgba.replace('#','');
+            const rr = parseInt(hx.slice(0,2),16), gg = parseInt(hx.slice(2,4),16), bb = parseInt(hx.slice(4,6),16);
+            ctx.fillStyle = 'rgba(' + rr + ',' + gg + ',' + bb + ',0.10)';
+            ctx.beginPath();
+            let started = false, lastX = margin.l;
+            for (const s of primary.samples) {
+                if (s.value == null || !isFinite(s.value)) continue;
+                const px = xToPx(s.dist), py = yToPy(s.value);
+                if (!started) { ctx.moveTo(px, margin.t + plotH); ctx.lineTo(px, py); started = true; }
+                else { ctx.lineTo(px, py); }
+                lastX = px;
+            }
+            if (started) { ctx.lineTo(lastX, margin.t + plotH); ctx.closePath(); ctx.fill(); }
         }
-        if (started) { ctx.lineTo(lastX, margin.t + plotH); ctx.closePath(); ctx.fill(); }
-        // Linha do perfil (azul forte)
-        ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
-        ctx.beginPath();
-        started = false;
-        for (const s of profile.samples) {
-            if (s.value == null || !isFinite(s.value)) { started = false; continue; }
-            const px = xToPx(s.dist), py = yToPy(s.value);
-            if (!started) { ctx.moveTo(px, py); started = true; }
-            else { ctx.lineTo(px, py); }
+        // Plota linha de cada perfil
+        for (const p of profiles) {
+            ctx.strokeStyle = p.color || '#2563eb';
+            ctx.lineWidth = (p === primary) ? 2.2 : 1.8;
+            ctx.beginPath();
+            let started = false;
+            // x deve mapear a distância CUMULATIVA. Como todos compartilham as mesmas
+            // coords da polilinha, a escala de distâncias é a mesma.
+            for (const s of p.samples) {
+                if (s.value == null || !isFinite(s.value)) { started = false; continue; }
+                // Reusa a mesma régua x — todos os perfis têm mesma extensão geográfica
+                // (xMinView/xMax respeitam o zoom corrente)
+                const px = xToPx(s.dist);
+                const py = yToPy(s.value);
+                if (!started) { ctx.moveTo(px, py); started = true; }
+                else { ctx.lineTo(px, py); }
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
+        ctx.restore();  // ─── Encerra clip do plot ───
         // Labels dos eixos
         ctx.fillStyle = '#475569'; ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
         const xLabel = 'Distância acumulada (km)';
@@ -7501,8 +7986,8 @@
         ctx.rotate(-Math.PI/2);
         ctx.fillText('Valor', -12, 0);
         ctx.restore();
-        // Salva geometria do plot para hover
-        state.chartGeom = { plotX: margin.l, plotY: margin.t, plotW, plotH, xMax, yMin, yMax };
+        // Salva geometria do plot para hover (inclui xMin pra suportar zoom)
+        state.chartGeom = { plotX: margin.l, plotY: margin.t, plotW, plotH, xMin: xMinView, xMax, yMin, yMax };
     }
     function _gtDownloadProfileCSV(profile) {
         let csv = 'index,distance_km,lat,lon,value\n';
@@ -7513,6 +7998,35 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = 'perfil_' + profile.layerName.replace(/[^a-z0-9]/gi, '_').slice(0, 40) + '.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 200);
+    }
+    function _gtDownloadProfileCSVMulti(profiles) {
+        // CSV combinado: colunas value_<panelLabel> uma por painel. Lat/lon vêm do perfil
+        // primário (todos os perfis compartilham as mesmas coordenadas da polilinha).
+        const ref = profiles[0];
+        const headers = ['index','distance_km','lat','lon'];
+        for (const p of profiles) headers.push('value_' + p.panelLabel);
+        let csv = headers.join(',') + '\n';
+        // Metadados como linhas de comentário
+        let meta = '# Perfil combinado · ' + profiles.length + ' painéis\n';
+        for (const p of profiles) meta += '# ' + p.panelLabel + ' = ' + (p.layerName || '—') + '\n';
+        csv = meta + csv;
+        // Itera por índice do perfil de referência
+        for (let i = 0; i < ref.samples.length; i++) {
+            const s = ref.samples[i];
+            const row = [i, s.dist.toFixed(3), s.lat.toFixed(5), s.lon.toFixed(5)];
+            for (const p of profiles) {
+                const ps = (p === ref) ? s : (p.samples[i] || null);
+                row.push((ps && ps.value != null) ? ps.value : '');
+            }
+            csv += row.join(',') + '\n';
+        }
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'perfil_multi_' + profiles.length + '_paineis.csv';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 200);
     }
@@ -7737,6 +8251,75 @@
         // Re-probe periodico
         setInterval(refresh, PROBE_INTERVAL_MS);
 
+        // Prefetch — dispara para o helper baixar lista de URLs em background.
+        // Fire-and-forget; retorna { queued, skipped_already_cached } imediatamente.
+        async function prefetchTiles(urls, concurrency) {
+            if (!state.available) {
+                const ok = await refresh();
+                if (!ok) return null;
+            }
+            if (!Array.isArray(urls) || urls.length === 0) return null;
+            try {
+                const r = await fetch(state.url + '/v1/tile/prefetch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls, concurrency: concurrency || 8 })
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const data = await r.json();
+                console.log('[gtPyHelper] prefetch:', data.queued, 'queued,', data.skipped_already_cached, 'ja em cache');
+                return data;
+            } catch (e) {
+                console.warn('[gtPyHelper] prefetch falhou:', e.message);
+                return null;
+            }
+        }
+
+        // Render PNG no backend Python: aplica paleta (matplotlib) + vmin/vmax + NoData -> alpha.
+        // Retorna ImageBitmap (pronto para drawImage) ou null em fallback.
+        // opts: { paleta='viridis', vmin, vmax, undef:[lista] }
+        // NAO altera o caminho principal de animacao — uso explicito (opt-in).
+        async function renderTilePNG(url, opts) {
+            if (!state.available) {
+                const ok = await refresh();
+                if (!ok) return null;
+            }
+            if (!url || !/^https?:/i.test(url)) return null;
+            const o = opts || {};
+            const params = new URLSearchParams();
+            params.set('url', url);
+            if (o.paleta) params.set('paleta', String(o.paleta));
+            if (o.vmin !== undefined && o.vmin !== null && isFinite(o.vmin)) params.set('vmin', String(o.vmin));
+            if (o.vmax !== undefined && o.vmax !== null && isFinite(o.vmax)) params.set('vmax', String(o.vmax));
+            if (Array.isArray(o.undef) && o.undef.length) {
+                params.set('undef', o.undef.filter(v => isFinite(v)).join(','));
+            }
+            try {
+                const r = await fetch(state.url + '/v1/render/png?' + params.toString());
+                if (!r.ok) {
+                    console.warn('[gtPyHelper] renderTilePNG HTTP', r.status);
+                    return null;
+                }
+                const blob = await r.blob();
+                if (!blob || blob.size === 0) return null;
+                // createImageBitmap retorna objeto leve, pronto para drawImage no canvas
+                try {
+                    return await createImageBitmap(blob);
+                } catch (_) {
+                    // Fallback para HTMLImageElement
+                    return await new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = URL.createObjectURL(blob);
+                    });
+                }
+            } catch (e) {
+                console.warn('[gtPyHelper] renderTilePNG falhou:', e.message);
+                return null;
+            }
+        }
+
         return {
             get available() { return state.available; },
             get url() { return state.url; },
@@ -7745,6 +8328,8 @@
             sampleTimeSeries,
             sampleProfileLine,
             calcTemporal,
+            prefetchTiles,
+            renderTilePNG,
         };
     })();
 
@@ -7822,12 +8407,23 @@
         }
     } catch (_) {}
 
-    async function gtSampleTimeSeries(slotIdx, lat, lon, onProgress) {
+    async function gtSampleTimeSeries(slotIdx, lat, lon, onProgress, opts) {
+        opts = opts || {};
+        const passoMin = (opts.passoMin != null && isFinite(opts.passoMin) && opts.passoMin > 0) ? opts.passoMin : null;
+        const passoMax = (opts.passoMax != null && isFinite(opts.passoMax) && opts.passoMax > 0) ? opts.passoMax : null;
         // ── Tenta Python helper primeiro (fallback transparente para JS) ──
         try {
             if (gtPyHelper && gtPyHelper.available) {
-                const r = await gtPyHelper.sampleTimeSeries(slotIdx, lat, lon, onProgress);
-                if (r && r.samples && r.samples.length > 0) return r;
+                const r = await gtPyHelper.sampleTimeSeries(slotIdx, lat, lon, onProgress, { passoMin, passoMax });
+                if (r && r.samples && r.samples.length > 0) {
+                    // Filtra no cliente se o helper nao soube respeitar (versao antiga)
+                    if (passoMin || passoMax) {
+                        r.samples = r.samples.filter(s =>
+                            (passoMin == null || s.passo_h >= passoMin) &&
+                            (passoMax == null || s.passo_h <= passoMax));
+                    }
+                    if (r.samples.length > 0) return r;
+                }
             }
         } catch (e) { console.warn('[gtSampleTimeSeries] Python helper falhou, fallback JS:', e); }
         const s = state && state.slots && state.slots[slotIdx];
@@ -7855,14 +8451,31 @@
         const hasOwnTifRoute = !isNativeGt && ((m.url_path_tif && !m.same_url_for_tif) || (m.file_name_tif && !m.same_name_for_tif));
         const samples = [];
         let firstBbox = null;
-        for (let file_idx = 1; file_idx <= fileMax; file_idx++) {
-            const passo_h = file_idx * freq;
-            // Constrói URL do TIF para este passo
-            let urlTif = null;
+        // Calcula intervalo efetivo de file_idx baseado em passoMin/passoMax (em horas)
+        let idxMin = 1;
+        let idxMax = fileMax;
+        if (passoMin != null) idxMin = Math.max(1, Math.ceil(passoMin / freq));
+        if (passoMax != null) idxMax = Math.min(fileMax, Math.floor(passoMax / freq));
+        if (idxMin > idxMax) throw new Error('intervalo inválido: de=' + passoMin + 'h até=' + passoMax + 'h não cobre nenhum passo (freq=' + freq + 'h)');
+        if (passoMin != null || passoMax != null) {
+            console.log('[GISELE/TS] intervalo restrito:', { passoMin, passoMax, idxMin, idxMax, totalPassos: idxMax - idxMin + 1 });
+        }
+
+        // ─── Paralelizacao do fallback JS ───
+        // Cada passo e' independente (fetch + decode + sample). Usa worker pool
+        // com concurrency cap (CONCURRENCY) para nao saturar o FTP.
+        const CONCURRENCY = 12;
+        const total = idxMax - idxMin + 1;
+        const samplesArr = new Array(total);     // preserva ordem
+        let completed = 0;
+        let nextIdx = 0;
+
+        function _buildUrlFor(passo_h) {
             try {
                 if (isNativeGt) {
-                    urlTif = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
-                } else if (hasOwnTifRoute) {
+                    return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
+                }
+                if (hasOwnTifRoute) {
                     const mTif = Object.assign({}, m, {
                         url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path),
                         file_name: m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name),
@@ -7870,32 +8483,47 @@
                     });
                     const orig = modelos[s.modelo];
                     modelos[s.modelo] = mTif;
-                    try { urlTif = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h }); }
+                    try { return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h }); }
                     finally { modelos[s.modelo] = orig; }
-                } else {
-                    const urlPng = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
-                    urlTif = (typeof gtDeriveTifUrl === 'function') ? gtDeriveTifUrl(urlPng) : urlPng;
                 }
-            } catch (e) { console.warn('[gtSampleTimeSeries] passo', passo_h, 'url err', e); }
-            // Data de validade = rodada + passo_h
-            const validDate = new Date(dataFTPtoDate(s.data).getTime() + passo_h * 3600000);
-            if (!urlTif) {
-                samples.push({ passo_h, time: validDate, value: null, url: null });
-                if (onProgress) onProgress(file_idx, fileMax, validDate, null);
-                continue;
-            }
-            let value = null;
-            try {
-                const decoded = await _gtFetchAndDecode(urlTif);
-                if (!firstBbox) firstBbox = decoded.bbox;
-                const sample = gtSampleDecodedAtLatLon(decoded, lat, lon);
-                value = (sample && sample.valid && !sample.noData) ? sample.value : null;
-            } catch (e) {
-                console.warn('[gtSampleTimeSeries] passo', passo_h, 'fetch err', e && e.message);
-            }
-            samples.push({ passo_h, time: validDate, value, url: urlTif });
-            if (onProgress) onProgress(file_idx, fileMax, validDate, value);
+                const urlPng = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
+                return (typeof gtDeriveTifUrl === 'function') ? gtDeriveTifUrl(urlPng) : urlPng;
+            } catch (e) { console.warn('[gtSampleTimeSeries] passo', passo_h, 'url err', e); return null; }
         }
+
+        async function worker() {
+            while (true) {
+                const slot = nextIdx++;
+                if (slot >= total) break;
+                const file_idx = idxMin + slot;
+                const passo_h = file_idx * freq;
+                const urlTif = _buildUrlFor(passo_h);
+                const validDate = new Date(dataFTPtoDate(s.data).getTime() + passo_h * 3600000);
+                if (!urlTif) {
+                    samplesArr[slot] = { passo_h, time: validDate, value: null, url: null };
+                } else {
+                    let value = null;
+                    try {
+                        const decoded = await _gtFetchAndDecode(urlTif);
+                        if (!firstBbox) firstBbox = decoded.bbox;
+                        const sample = gtSampleDecodedAtLatLon(decoded, lat, lon);
+                        value = (sample && sample.valid && !sample.noData) ? sample.value : null;
+                    } catch (e) {
+                        console.warn('[gtSampleTimeSeries] passo', passo_h, 'fetch err', e && e.message);
+                    }
+                    samplesArr[slot] = { passo_h, time: validDate, value, url: urlTif };
+                }
+                completed++;
+                if (onProgress) onProgress(completed, total, validDate, samplesArr[slot].value);
+            }
+        }
+
+        const workers = [];
+        for (let w = 0; w < Math.min(CONCURRENCY, total); w++) workers.push(worker());
+        await Promise.all(workers);
+        // Copia para samples na ordem original
+        for (const sm of samplesArr) samples.push(sm);
+
         return { samples, layerName, lat, lon, runDate: dataFTPtoDate(s.data), bbox: firstBbox };
     }
     function gtOpenTimeSeriesPopup(slotIdx, lat, lon) {
@@ -7921,9 +8549,12 @@
             +   '<button id="gtTSCancel" title="Cancelar/Fechar" style="background:transparent;border:0;color:#475569;font-size:22px;cursor:pointer;line-height:1;padding:0 6px">&times;</button>'
             + '</div>'
             + '<div id="gtTSChartWrap" style="flex:1 1 auto;position:relative;background:#ffffff;overflow:hidden">'
-            +   '<canvas id="gtTSChart" style="display:block;width:100%;height:100%"></canvas>'
+            +   '<canvas id="gtTSChart" style="display:block;width:100%;height:100%;cursor:crosshair"></canvas>'
             +   '<div id="gtTSTip" style="position:absolute;display:none;pointer-events:none;background:#0f172a;color:#fff;padding:6px 9px;border-radius:5px;font-size:11px;font-family:ui-monospace,monospace;box-shadow:0 4px 12px rgba(0,0,0,0.25);line-height:1.4;white-space:nowrap;z-index:2"></div>'
             +   '<div id="gtTSCursor" style="position:absolute;display:none;pointer-events:none;top:0;bottom:0;width:1px;background:rgba(15,23,42,0.35);z-index:1"></div>'
+            +   '<div id="gtTSZoomRect" class="gt-chart-zoom-rect"></div>'
+            +   '<button id="gtTSZoomReset" type="button" class="gt-chart-zoom-reset" title="Resetar zoom (ou dê duplo-clique no gráfico)">↻ zoom</button>'
+            +   '<div class="gt-chart-zoom-hint">arraste para zoom · duplo-clique reseta</div>'
             + '</div>'
             + '<div style="padding:8px 14px;border-top:1px solid #e5e7eb;flex:0 0 auto;display:flex;gap:8px;align-items:center">'
             +   '<span style="color:#475569;font-size:11px">Ponto: lat <strong>' + lat.toFixed(4) + '°</strong>, lon <strong>' + lon.toFixed(4) + '°</strong></span>'
@@ -7931,8 +8562,8 @@
             +   '<button id="gtTSSavePNG" style="padding:5px 12px;background:#0ea5e9;border:0;color:#fff;border-radius:5px;cursor:pointer;font-size:12px">Salvar PNG</button>'
             + '</div>';
         document.body.appendChild(pop);
-        // State pra redraw e hover
-        const state2 = { ts: null, chartGeom: null, aborted: false };
+        // State pra redraw e hover. tsList = array de séries (multi-painel).
+        const state2 = { ts: null, tsList: [], chartGeom: null, aborted: false };
         pop._tsState = state2;
         const drawNow = () => _gtDrawTimeSeriesChart(pop, state2);
         try {
@@ -7944,30 +8575,109 @@
         const wrap = pop.querySelector('#gtTSChartWrap');
         const tip  = pop.querySelector('#gtTSTip');
         const cursor = pop.querySelector('#gtTSCursor');
-        wrap.addEventListener('mousemove', (e) => {
+        // ─── Zoom por click-and-drag (rubber band) ───
+        const zoomRect = pop.querySelector('#gtTSZoomRect');
+        const zoomResetBtn = pop.querySelector('#gtTSZoomReset');
+        let _tsDrag = null;   // { x0, x1 }
+        const _showResetBtn = () => { if (zoomResetBtn) zoomResetBtn.style.display = state2.xZoom ? 'block' : 'none'; };
+        wrap.addEventListener('mousedown', (e) => {
             const g = state2.chartGeom;
-            const ts = state2.ts;
-            if (!g || !ts || !ts.samples.length) return;
+            if (!g) return;
+            if (e.button !== 0) return;   // só botão esquerdo
             const r = wrap.getBoundingClientRect();
             const mx = e.clientX - r.left, my = e.clientY - r.top;
+            if (mx < g.plotX || mx > g.plotX + g.plotW || my < g.plotY || my > g.plotY + g.plotH) return;
+            _tsDrag = { x0: mx, x1: mx, g };
+            e.preventDefault();
+        });
+        wrap.addEventListener('mouseup', (e) => {
+            if (!_tsDrag) return;
+            const dx = Math.abs(_tsDrag.x1 - _tsDrag.x0);
+            zoomRect.style.display = 'none';
+            if (dx >= 6) {
+                const g = _tsDrag.g;
+                const xL = Math.min(_tsDrag.x0, _tsDrag.x1);
+                const xR = Math.max(_tsDrag.x0, _tsDrag.x1);
+                const tL = g.tMin + ((xL - g.plotX) / g.plotW) * (g.tMax - g.tMin);
+                const tR = g.tMin + ((xR - g.plotX) / g.plotW) * (g.tMax - g.tMin);
+                state2.xZoom = { min: tL, max: tR };
+                _showResetBtn();
+                drawNow();
+            }
+            _tsDrag = null;
+        });
+        wrap.addEventListener('mouseleave', () => {
+            // Cancela drag em curso se sair do gráfico
+            if (_tsDrag) { _tsDrag = null; zoomRect.style.display = 'none'; }
+        });
+        // Double-click reseta zoom
+        wrap.addEventListener('dblclick', () => {
+            if (state2.xZoom) {
+                state2.xZoom = null;
+                _showResetBtn();
+                drawNow();
+            }
+        });
+        if (zoomResetBtn) zoomResetBtn.addEventListener('click', () => {
+            state2.xZoom = null;
+            _showResetBtn();
+            drawNow();
+        });
+        wrap.addEventListener('mousemove', (e) => {
+            const g = state2.chartGeom;
+            const list = (state2.tsList && state2.tsList.length) ? state2.tsList : (state2.ts ? [state2.ts] : []);
+            if (!g || !list.length) return;
+            const r = wrap.getBoundingClientRect();
+            const mx = e.clientX - r.left, my = e.clientY - r.top;
+            // ─── Rubber-band do zoom em andamento ───
+            if (_tsDrag) {
+                const mxc = Math.max(g.plotX, Math.min(g.plotX + g.plotW, mx));
+                _tsDrag.x1 = mxc;
+                zoomRect.style.display = 'block';
+                zoomRect.style.left = Math.min(_tsDrag.x0, _tsDrag.x1) + 'px';
+                zoomRect.style.width = Math.abs(_tsDrag.x1 - _tsDrag.x0) + 'px';
+                zoomRect.style.top = g.plotY + 'px';
+                zoomRect.style.height = g.plotH + 'px';
+                tip.style.display = 'none'; cursor.style.display = 'none';
+                return;
+            }
             if (mx < g.plotX || mx > g.plotX + g.plotW || my < g.plotY || my > g.plotY + g.plotH) {
                 tip.style.display = 'none'; cursor.style.display = 'none'; return;
             }
             const xFrac = (mx - g.plotX) / g.plotW;
             const targetT = g.tMin + xFrac * (g.tMax - g.tMin);
-            let best = 0, bestDiff = Infinity;
-            for (let i = 0; i < ts.samples.length; i++) {
-                const d = Math.abs(ts.samples[i].time.getTime() - targetT);
-                if (d < bestDiff) { bestDiff = d; best = i; }
+            // Para o cabeçalho do tooltip, usa a sample mais próxima do primeiro ts
+            const refTs = list[0];
+            let bestRef = 0, refDiff = Infinity;
+            for (let i = 0; i < refTs.samples.length; i++) {
+                const d = Math.abs(refTs.samples[i].time.getTime() - targetT);
+                if (d < refDiff) { refDiff = d; bestRef = i; }
             }
-            const s = ts.samples[best];
+            const refS = refTs.samples[bestRef];
             cursor.style.display = 'block';
             cursor.style.left = mx + 'px';
-            const valTxt = (s.value == null || !isFinite(s.value)) ? '—' : gtFmtValue(s.value);
+            // ─── Multi-série: lista valores de cada painel VISÍVEL ───
+            let valsHtml = '';
+            for (const ts of list) {
+                if (ts.visible === false) continue;  // pula séries desligadas
+                let best = 0, bd = Infinity;
+                for (let i = 0; i < ts.samples.length; i++) {
+                    const d = Math.abs(ts.samples[i].time.getTime() - targetT);
+                    if (d < bd) { bd = d; best = i; }
+                }
+                const s = ts.samples[best];
+                const v = (s && s.value != null && isFinite(s.value)) ? gtFmtValue(s.value) : '—';
+                valsHtml += '<div style="display:flex;align-items:center;gap:5px">'
+                          + '<span style="display:inline-block;width:10px;height:3px;background:' + (ts.color || '#0ea5e9') + ';border-radius:2px"></span>'
+                          + '<span style="opacity:0.85"><b>' + (ts.panelLabel || 'M?') + '</b></span>'
+                          + '<span>· <strong>' + v + '</strong></span>'
+                          + '</div>';
+            }
             tip.innerHTML = ''
-                + '<div><strong>' + _gtFmtDateTime(s.time) + ' UTC</strong></div>'
-                + '<div>+' + s.passo_h + 'h da rodada</div>'
-                + '<div>Valor: <strong>' + valTxt + '</strong></div>';
+                + '<div><strong>' + _gtFmtDateTime(refS.time) + ' UTC</strong></div>'
+                + '<div style="opacity:0.85">+' + refS.passo_h + 'h da rodada</div>'
+                + '<div style="height:4px"></div>'
+                + valsHtml;
             tip.style.display = 'block';
             const tipW = tip.offsetWidth, tipH = tip.offsetHeight;
             let tx = mx + 10, ty = my + 10;
@@ -7986,7 +8696,8 @@
             pop.remove();
         });
         pop.querySelector('#gtTSDownload').addEventListener('click', () => {
-            if (state2.ts) _gtDownloadTimeSeriesCSV(state2.ts);
+            if (state2.tsList && state2.tsList.length > 1) _gtDownloadTimeSeriesCSVMulti(state2.tsList);
+            else if (state2.ts) _gtDownloadTimeSeriesCSV(state2.ts);
         });
         pop.querySelector('#gtTSSavePNG').addEventListener('click', () => {
             if (!state2.ts) return;
@@ -8010,24 +8721,117 @@
         ctx0.fillStyle = '#475569';
         ctx0.font = '14px ui-sans-serif, system-ui, sans-serif';
         ctx0.fillText('Carregando passos…', 24, 40);
-        // Dispara o sampling em background
+        // ─── Multi-painel: amostra série temporal de TODOS os painéis-alvo EM PARALELO ───
+        // Painel ativo (source) + painéis travados (gtLockedPanels).
+        const targets = (typeof gtTargetSlots === 'function') ? gtTargetSlots(slotIdx) : [slotIdx];
+        const COLORS = (typeof _GT_PROFILE_COLORS !== 'undefined') ? _GT_PROFILE_COLORS : ['#0ea5e9'];
+        // Estado de progress por slot (todos rodam concorrentemente)
+        const _progPerSlot = {};
+        for (const ti of targets) _progPerSlot[ti] = { i: 0, total: 0, done: false, err: false };
+        const _updateProg = () => {
+            if (state2.aborted) return;
+            if (targets.length === 1) {
+                const p = _progPerSlot[targets[0]];
+                progEl.textContent = p.total ? (p.i + '/' + p.total + ' passos' + (p.done ? ' ✓' : '')) : 'iniciando…';
+                return;
+            }
+            // N>1: mostra "M1: a/b · M2: c/d · ..." (truncado)
+            const parts = targets.map(ti => {
+                const p = _progPerSlot[ti];
+                const tag = 'M' + (ti + 1);
+                if (p.err) return tag + ':✗';
+                if (p.done) return tag + ':✓';
+                if (!p.total) return tag + ':…';
+                return tag + ':' + p.i + '/' + p.total;
+            });
+            progEl.textContent = parts.join(' · ');
+        };
+        // Helper: insere ts mantendo state2.tsList ordenado por slotIdx
+        const _insertSortedTs = (ts) => {
+            let at = state2.tsList.length;
+            for (let i = 0; i < state2.tsList.length; i++) {
+                if (state2.tsList[i].slotIdx > ts.slotIdx) { at = i; break; }
+            }
+            state2.tsList.splice(at, 0, ts);
+        };
+        // Dispara o sampling em paralelo
         (async () => {
             try {
-                const ts = await gtSampleTimeSeries(slotIdx, lat, lon, (i, total, t, v) => {
-                    if (state2.aborted) return;
-                    progEl.textContent = i + '/' + total + ' passos';
-                    // Atualiza header com layer name + janela temporal
-                    if (i === 1) {
-                        headerEl.textContent = '(carregando…)';
-                    }
-                });
+                headerEl.textContent = (targets.length > 1)
+                    ? ('amostrando ' + targets.length + ' painéis em paralelo…')
+                    : '(carregando…)';
+                _updateProg();
+                // ─── Promise.all com tratamento de erro por slot ───
+                const promises = targets.map(ti =>
+                    gtSampleTimeSeries(ti, lat, lon, (i, total, t, v) => {
+                        if (state2.aborted) return;
+                        _progPerSlot[ti].i = i;
+                        _progPerSlot[ti].total = total;
+                        _updateProg();
+                    })
+                    .then(ts => {
+                        if (state2.aborted) return null;
+                        ts.slotIdx = ti;
+                        ts.color = COLORS[ti % COLORS.length];
+                        ts.panelLabel = 'M' + (ti + 1);
+                        _insertSortedTs(ts);
+                        if (!state2.ts) state2.ts = ts;
+                        _progPerSlot[ti].done = true;
+                        _updateProg();
+                        drawNow();   // redraw incremental — cada série nova aparece imediatamente
+                        return ts;
+                    })
+                    .catch(e => {
+                        console.warn('[TS] slot', ti, e);
+                        _progPerSlot[ti].err = true;
+                        _updateProg();
+                        return null;
+                    })
+                );
+                await Promise.all(promises);
                 if (state2.aborted) return;
-                state2.ts = ts;
-                const validVals = ts.samples.filter(s => s.value != null && isFinite(s.value));
-                headerEl.textContent = ts.layerName
-                    + ' · ' + ts.samples.length + ' passos'
-                    + ' · ' + validVals.length + ' válidos';
-                progEl.textContent = 'concluído';
+                // Header final: legend + métricas
+                if (state2.tsList.length === 0) {
+                    headerEl.textContent = 'Sem dados.';
+                    progEl.textContent = 'erro';
+                    return;
+                }
+                if (state2.tsList.length === 1) {
+                    const ts = state2.tsList[0];
+                    const validVals = ts.samples.filter(s => s.value != null && isFinite(s.value));
+                    headerEl.textContent = ts.layerName
+                        + ' · ' + ts.samples.length + ' passos'
+                        + ' · ' + validVals.length + ' válidos';
+                } else {
+                    const _renderLegend = () => {
+                        const chips = state2.tsList.map(ts => {
+                            const off = (ts.visible === false);
+                            return '<span class="gt-mp-legend-chip' + (off ? ' gt-off' : '') + '" '
+                                + 'data-slot-idx="' + ts.slotIdx + '" '
+                                + 'title="' + (off ? 'Ligar' : 'Desligar') + ' ' + ts.panelLabel + ' (clique p/ alternar)" '
+                                + 'style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#374151">'
+                                + '<span class="gt-mp-eye">' + (off ? '⊘' : '👁') + '</span>'
+                                + '<span style="display:inline-block;width:14px;height:3px;background:' + ts.color + ';border-radius:2px"></span>'
+                                + '<b>' + ts.panelLabel + '</b> · ' + (ts.layerName || '—')
+                                + '</span>';
+                        }).join('<span style="color:#cbd5e1;margin:0 4px">·</span>');
+                        headerEl.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">' + chips + '</span>';
+                        // Wire click handlers
+                        headerEl.querySelectorAll('.gt-mp-legend-chip').forEach(chip => {
+                            chip.addEventListener('click', () => {
+                                const si = parseInt(chip.dataset.slotIdx, 10);
+                                const tgt = state2.tsList.find(t => t.slotIdx === si);
+                                if (!tgt) return;
+                                tgt.visible = (tgt.visible === false) ? true : false;
+                                _renderLegend();
+                                drawNow();
+                            });
+                        });
+                    };
+                    state2._renderLegend = _renderLegend;
+                    _renderLegend();
+                }
+                progEl.textContent = 'concluído (' + state2.tsList.length + (state2.tsList.length > 1 ? ' painéis)' : ' painel)');
                 drawNow();
                 setTimeout(drawNow, 30);
             } catch (e) {
@@ -8066,8 +8870,10 @@
         const W = r.width, H = r.height;
         ctx.clearRect(0, 0, W, H);
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-        const ts = st.ts;
-        if (!ts || !ts.samples.length) {
+        // ─── Multi-painel: lista de séries (filtradas pelas visíveis para plot/range) ───
+        const tsListAll = (st.tsList && st.tsList.length) ? st.tsList : (st.ts ? [st.ts] : []);
+        const tsList = tsListAll.filter(ts => ts.visible !== false);
+        if (!tsListAll.length || !tsListAll[0].samples || !tsListAll[0].samples.length) {
             ctx.fillStyle = '#475569';
             ctx.font = '14px ui-sans-serif, system-ui, sans-serif';
             ctx.fillText('Sem dados.', 24, 40);
@@ -8076,18 +8882,35 @@
         const margin = { l: 64, r: 16, t: 14, b: 50 };
         const plotW = Math.max(50, W - margin.l - margin.r);
         const plotH = Math.max(50, H - margin.t - margin.b);
-        // Ranges
+        // Tempo: sempre baseado em TODAS as séries (eixo X estável quando toggla)
+        let tMin = Infinity, tMax = -Infinity;
+        for (const ts of tsListAll) {
+            for (const s of ts.samples) {
+                const t = s.time.getTime();
+                if (t < tMin) tMin = t;
+                if (t > tMax) tMax = t;
+            }
+        }
+        // ─── Zoom: respeita o intervalo selecionado pelo usuário (drag) ───
+        if (st.xZoom && isFinite(st.xZoom.min) && isFinite(st.xZoom.max) && st.xZoom.max > st.xZoom.min) {
+            tMin = st.xZoom.min;
+            tMax = st.xZoom.max;
+        }
+        // Y range: APENAS sobre as séries VISÍVEIS (auto-zoom ao desligar/ligar)
         let yMin = Infinity, yMax = -Infinity;
-        for (const s of ts.samples) {
-            if (s.value == null || !isFinite(s.value)) continue;
-            if (s.value < yMin) yMin = s.value;
-            if (s.value > yMax) yMax = s.value;
+        for (const ts of (tsList.length ? tsList : tsListAll)) {
+            for (const s of ts.samples) {
+                if (s.value == null || !isFinite(s.value)) continue;
+                if (s.value < yMin) yMin = s.value;
+                if (s.value > yMax) yMax = s.value;
+            }
         }
         if (!isFinite(yMin)) { yMin = 0; yMax = 1; }
         if (yMax === yMin) { yMin -= 1; yMax += 1; }
-        const tMin = ts.samples[0].time.getTime();
-        const tMax = ts.samples[ts.samples.length - 1].time.getTime();
+        if (!isFinite(tMin)) { tMin = 0; tMax = 1; }
         const tSpan = Math.max(1, tMax - tMin);
+        // Mantém ts (compat) apontando para o primeiro visível ou primeiro absoluto
+        const ts = tsList[0] || tsListAll[0];
         const xToPx = (t) => margin.l + ((t - tMin) / tSpan) * plotW;
         const yToPy = (y) => margin.t + (1 - (y - yMin) / (yMax - yMin)) * plotH;
         // Grid
@@ -8129,35 +8952,55 @@
             const tw = ctx.measureText(txt).width;
             ctx.fillText(txt, margin.l - tw - 6, py + 4);
         }
-        // Fill area + line
-        ctx.fillStyle = 'rgba(14,165,233,0.10)';
+        // ─── Multi-painel: plota uma curva (+ pontos) por série, cores distintas ───
+        // CLIP: restringe desenho ao retângulo do plot — quando há zoom, valores fora
+        // do intervalo selecionado não aparecem extrapolando o eixo.
+        ctx.save();
         ctx.beginPath();
-        let started = false, lastPx = margin.l;
-        for (const s of ts.samples) {
-            if (s.value == null || !isFinite(s.value)) continue;
-            const px = xToPx(s.time.getTime()), py = yToPy(s.value);
-            if (!started) { ctx.moveTo(px, margin.t + plotH); ctx.lineTo(px, py); started = true; }
-            else { ctx.lineTo(px, py); }
-            lastPx = px;
+        ctx.rect(margin.l, margin.t, plotW, plotH);
+        ctx.clip();
+        // Área translúcida só pra 1 série (evita poluição visual com várias áreas sobrepostas)
+        if (tsList.length === 1) {
+            const ts0 = tsList[0];
+            const col = ts0.color || '#0ea5e9';
+            const hx = col.replace('#','');
+            const rr = parseInt(hx.slice(0,2),16), gg = parseInt(hx.slice(2,4),16), bb = parseInt(hx.slice(4,6),16);
+            ctx.fillStyle = 'rgba(' + rr + ',' + gg + ',' + bb + ',0.10)';
+            ctx.beginPath();
+            let started = false, lastPx = margin.l;
+            for (const s of ts0.samples) {
+                if (s.value == null || !isFinite(s.value)) continue;
+                const px = xToPx(s.time.getTime()), py = yToPy(s.value);
+                if (!started) { ctx.moveTo(px, margin.t + plotH); ctx.lineTo(px, py); started = true; }
+                else { ctx.lineTo(px, py); }
+                lastPx = px;
+            }
+            if (started) { ctx.lineTo(lastPx, margin.t + plotH); ctx.closePath(); ctx.fill(); }
         }
-        if (started) { ctx.lineTo(lastPx, margin.t + plotH); ctx.closePath(); ctx.fill(); }
-        ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = 2;
-        ctx.beginPath();
-        started = false;
-        for (const s of ts.samples) {
-            if (s.value == null || !isFinite(s.value)) { started = false; continue; }
-            const px = xToPx(s.time.getTime()), py = yToPy(s.value);
-            if (!started) { ctx.moveTo(px, py); started = true; }
-            else { ctx.lineTo(px, py); }
+        // Linhas + pontos por série
+        for (const ts of tsList) {
+            const col = ts.color || '#0ea5e9';
+            ctx.strokeStyle = col;
+            ctx.lineWidth = (tsList.length === 1) ? 2 : 1.8;
+            ctx.beginPath();
+            let started = false;
+            for (const s of ts.samples) {
+                if (s.value == null || !isFinite(s.value)) { started = false; continue; }
+                const px = xToPx(s.time.getTime()), py = yToPy(s.value);
+                if (!started) { ctx.moveTo(px, py); started = true; }
+                else { ctx.lineTo(px, py); }
+            }
+            ctx.stroke();
+            // Pontos
+            ctx.fillStyle = col;
+            const ptR = (tsList.length === 1) ? 2.5 : 1.8;
+            for (const s of ts.samples) {
+                if (s.value == null || !isFinite(s.value)) continue;
+                const px = xToPx(s.time.getTime()), py = yToPy(s.value);
+                ctx.beginPath(); ctx.arc(px, py, ptR, 0, Math.PI * 2); ctx.fill();
+            }
         }
-        ctx.stroke();
-        // Pontos
-        ctx.fillStyle = '#0ea5e9';
-        for (const s of ts.samples) {
-            if (s.value == null || !isFinite(s.value)) continue;
-            const px = xToPx(s.time.getTime()), py = yToPy(s.value);
-            ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fill();
-        }
+        ctx.restore();  // ─── Encerra clip do plot ───
         // Labels dos eixos
         ctx.fillStyle = '#475569'; ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
         const xLabel = 'Data/Hora UTC (validade)';
@@ -8180,6 +9023,45 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = 'serie_' + ts.layerName.replace(/[^a-z0-9]/gi, '_').slice(0, 40) + '.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 200);
+    }
+    function _gtDownloadTimeSeriesCSVMulti(tsList) {
+        // CSV combinado por valid time (time_utc). Cada painel = 1 coluna value_<panelLabel>.
+        // Une todos os timestamps de todas as séries num sorted set; depois preenche por lookup.
+        const tset = new Map();   // ms -> {time, passo_h_ref}
+        for (const ts of tsList) {
+            for (const s of ts.samples) {
+                const k = s.time.getTime();
+                if (!tset.has(k)) tset.set(k, { time: s.time, passo_h: s.passo_h });
+            }
+        }
+        const keys = Array.from(tset.keys()).sort((a, b) => a - b);
+        // Header + metadados
+        const headers = ['index', 'time_utc', 'passo_h_ref', 'lat', 'lon'];
+        for (const ts of tsList) headers.push('value_' + ts.panelLabel);
+        let meta = '# Série temporal multi-painel · ' + tsList.length + ' painéis\n';
+        for (const ts of tsList) meta += '# ' + ts.panelLabel + ' = ' + (ts.layerName || '—') + '\n';
+        let csv = meta + headers.join(',') + '\n';
+        const refLat = tsList[0].lat, refLon = tsList[0].lon;
+        keys.forEach((k, idx) => {
+            const tinfo = tset.get(k);
+            const row = [idx, tinfo.time.toISOString(), tinfo.passo_h, refLat.toFixed(5), refLon.toFixed(5)];
+            for (const ts of tsList) {
+                // procura sample com mesmo timestamp
+                let v = '';
+                for (const s of ts.samples) {
+                    if (s.time.getTime() === k) { v = (s.value == null ? '' : s.value); break; }
+                }
+                row.push(v);
+            }
+            csv += row.join(',') + '\n';
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'serie_multi_' + tsList.length + '_paineis.csv';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 200);
     }
@@ -8344,9 +9226,21 @@
                 if (bbox && m.fitTo) m.fitTo(bbox);
             }
             else if (action === 'clear-annotations') {
-                if (gtAnnotsForSlot(slotIdx).length || gtToolDraft[slotIdx]) {
-                    if (window.confirm('Remover todas as anotações deste painel?')) {
-                        gtClearSlotAnnotations(slotIdx);
+                // ─── Multi-painel: limpa também os painéis travados ───
+                const targets = (typeof gtTargetSlots === 'function') ? gtTargetSlots(slotIdx) : [slotIdx];
+                // Verifica se ALGUM dos alvos tem anotações ou rascunho ativo
+                const hasAny = targets.some(i =>
+                    (gtSlotAnnotations[i] && gtSlotAnnotations[i].length) || gtToolDraft[i]
+                );
+                if (!hasAny) return;
+                const otherTargets = targets.filter(i => i !== slotIdx);
+                const msg = (otherTargets.length > 0)
+                    ? ('Remover todas as anotações de ' + targets.length + ' painel' + (targets.length > 1 ? 'es' : '')
+                        + ' (M' + targets.map(i => i + 1).join(', M') + ')?')
+                    : 'Remover todas as anotações deste painel?';
+                if (window.confirm(msg)) {
+                    for (const i of targets) {
+                        try { gtClearSlotAnnotations(i); } catch (e) { console.warn('clear ann', i, e); }
                     }
                 }
             }
@@ -8365,6 +9259,35 @@
         }
     }
 
+    // ─── Sincronização de viewport entre painéis Mi (mesmos corners lat/lon) ───
+    // Quando o usuário pan/zoom em um painel, todos os outros painéis ativos
+    // recebem o mesmo bbox. Painel 0 (Mi 1) é o source-of-truth ao criar novos
+    // painéis — eles entram já alinhados.
+    let _gtSyncingVp = false;
+    function _gtFindReferenceMap(excludeIdx) {
+        // Prioriza slot 0; se não existir, pega o primeiro disponivel.
+        for (let i = 0; i < _gtSlotMap.length; i++) {
+            if (i === excludeIdx) continue;
+            if (_gtSlotMap[i]) return _gtSlotMap[i];
+        }
+        return null;
+    }
+    function _gtMakeViewportPropagator(srcIdx) {
+        return function _propagateVp(vp) {
+            if (_gtSyncingVp) return;
+            if (!vp || vp.length < 4) return;
+            _gtSyncingVp = true;
+            try {
+                for (let i = 0; i < _gtSlotMap.length; i++) {
+                    if (i === srcIdx) continue;
+                    const tgt = _gtSlotMap[i];
+                    if (!tgt || typeof tgt.applyViewportRaw !== 'function') continue;
+                    try { tgt.applyViewportRaw(vp); } catch (_) {}
+                }
+            } finally { _gtSyncingVp = false; }
+        };
+    }
+
     function gtSlotEnsureMap(slotIdx) {
         if (_gtSlotMap[slotIdx]) return _gtSlotMap[slotIdx];
         const box = slotEl(slotIdx);
@@ -8375,6 +9298,26 @@
         _gtSlotMap[slotIdx] = m;
         const gt = getGtSlotState(slotIdx);
         m.setTileProvider(gt.mapProvider || 'esri');
+        // ─── Sync de viewport entre painéis Mi ───
+        // Qualquer pan/zoom/resize neste mapa propaga o vp para todos os outros
+        // mapas ativos. Guard `_gtSyncingVp` evita loop infinito (cada propagação
+        // dispara um redraw silencioso via applyViewportRaw, que não re-emite).
+        try {
+            if (typeof m.setViewportChangeListener === 'function') {
+                m.setViewportChangeListener(_gtMakeViewportPropagator(slotIdx));
+            }
+        } catch (_) {}
+        // Se já existe um mapa de referência (slot 0 normalmente), copia o vp para
+        // o novo mapa assim que ele estiver pronto — garante "mesmos corners" ao
+        // adicionar um painel.
+        try {
+            const ref = _gtFindReferenceMap(slotIdx);
+            if (ref && ref !== m && typeof ref.getViewport === 'function' && typeof m.applyViewportRaw === 'function') {
+                setTimeout(() => {
+                    try { m.applyViewportRaw(ref.getViewport()); } catch (_) {}
+                }, 0);
+            }
+        } catch (_) {}
         // Provider de anotações (medições + desenhos + texto)
         try { m.setAnnotationsProvider(gtMakeAnnotProvider(slotIdx)); } catch (_) {}
         // Cursor → atualiza HUD do slot + rascunho de ferramenta
@@ -8488,12 +9431,15 @@
                 if (tool === 'annotate-text') {
                     const t = window.prompt('Texto da anotação:', '');
                     if (t && t.trim()) {
-                        gtAnnotsForSlot(slotIdx).push({
+                        const ann = {
                             id: 'ann_' + (++_gtAnnotSeq),
                             type: 'text', coords: [latlon], text: t.trim(),
                             style: { stroke: GT_TOOL_COLOR }
-                        });
+                        };
+                        gtAnnotsForSlot(slotIdx).push(ann);
                         if (m.redraw) m.redraw();
+                        // ─── Multi-painel: replica texto para painéis travados ───
+                        try { gtReplicateAnnotation(slotIdx, ann); } catch (e) { console.warn('replicate text:', e); }
                     }
                     return;
                 }
@@ -8527,7 +9473,16 @@
                             const onProg = prog
                                 ? (i, total, t, v) => prog.update(i, total, '+' + (i) + '/' + total, '')
                                 : null;
-                            const gj = await gtSampleTimeSeriesToGeoJson(slotIdx, latlon[0], latlon[1], onProg);
+                            // Le intervalo de horas do UI (vazio = horizonte completo)
+                            const tsStartEl = document.getElementById('gtTsStart');
+                            const tsEndEl   = document.getElementById('gtTsEnd');
+                            const _vS = tsStartEl && tsStartEl.value ? parseInt(tsStartEl.value, 10) : null;
+                            const _vE = tsEndEl   && tsEndEl.value   ? parseInt(tsEndEl.value,   10) : null;
+                            const tsOpts = {
+                                passoMin: (_vS != null && isFinite(_vS) && _vS > 0) ? _vS : null,
+                                passoMax: (_vE != null && isFinite(_vE) && _vE > 0) ? _vE : null
+                            };
+                            const gj = await gtSampleTimeSeriesToGeoJson(slotIdx, latlon[0], latlon[1], onProg, tsOpts);
                             const slatlon = latlon[0].toFixed(2) + '_' + latlon[1].toFixed(2);
                             const fn = 'gisele_timeseries_' + slatlon + '.geojson';
                             gtDownloadGeoJson(gj, fn);
@@ -8991,6 +9946,44 @@
     let gtPrimaryName = '';   // nome do arquivo da camada base (file picker ou último segmento da URL)
     let gtActivePanel = 0;    // índice do painel Mi sendo controlado pelo painel direito
     const gtSlotDecoded = []; // cache do decoded por slot Mi (para painel direito refletir)
+    // ─── Multi-painel: travamento por slot ───
+    // gtLockedPanels: Set de slots que recebem replicação das ações do painel ativo.
+    // Ações replicadas: medir distância, desenhar linha, anotação de texto, perfil (combinado).
+    const gtLockedPanels = new Set();
+    function gtIsPanelLocked(idx) { return gtLockedPanels.has(idx); }
+    function gtToggleLockPanel(idx) {
+        if (gtLockedPanels.has(idx)) gtLockedPanels.delete(idx);
+        else gtLockedPanels.add(idx);
+        try { gtRenderPanelPins(); } catch (_) {}
+    }
+    function gtTargetSlots(sourceIdx) {
+        // Painéis-alvo de replicação: source (sempre) + locked (dentro do layout atual).
+        const set = new Set();
+        set.add(sourceIdx);
+        for (const i of gtLockedPanels) {
+            if (typeof state !== 'undefined' && i < state.layout && i !== sourceIdx) set.add(i);
+        }
+        return Array.from(set).sort((a, b) => a - b);
+    }
+    function _gtCloneAnn(ann) {
+        const c = JSON.parse(JSON.stringify(ann));
+        c.id = 'ann_' + (++_gtAnnotSeq);
+        return c;
+    }
+    function gtReplicateAnnotation(sourceIdx, ann) {
+        // Replica anotação para todos os slots TRAVADOS (não para o source — já recebeu)
+        const targets = gtTargetSlots(sourceIdx);
+        for (const i of targets) {
+            if (i === sourceIdx) continue;
+            try {
+                const copy = _gtCloneAnn(ann);
+                gtAnnotsForSlot(i).push(copy);
+                const m = _gtSlotMap[i];
+                if (m && m.redraw) m.redraw();
+            } catch (e) { console.warn('replicate ann ->', i, e); }
+        }
+    }
+
     function gtRenderPanelPins() {
         document.querySelectorAll('.map-box').forEach((box, idx) => {
             // só painéis dentro de mainPNG
@@ -9011,6 +10004,26 @@
             }
             pin.textContent = 'Painel M' + (idx + 1);
             box.classList.toggle('gt-active', idx === gtActivePanel);
+            // ─── Botão de travamento (logo após o pin) ───
+            let lock = body.querySelector(':scope > .gt-panel-lock');
+            if (!lock) {
+                lock = document.createElement('button');
+                lock.type = 'button';
+                lock.className = 'gt-panel-lock';
+                lock.addEventListener('click', (e) => { e.stopPropagation(); gtToggleLockPanel(idx); });
+                body.appendChild(lock);
+            }
+            const locked = gtIsPanelLocked(idx);
+            lock.textContent = locked ? '🔒' : '🔓';
+            lock.title = locked
+                ? 'Painel travado — recebe ações replicadas do painel ativo (clique para destravar)'
+                : 'Painel destravado — clique para travar e receber replicação de ações (distância, texto, linha, perfil)';
+            lock.classList.toggle('gt-locked', locked);
+            // Posiciona o lock à direita do pin (ajusta dinamicamente)
+            try {
+                const pinW = pin.offsetWidth || 90;
+                lock.style.left = (8 + pinW + 4) + 'px';
+            } catch (_) { lock.style.left = '110px'; }
         });
     }
     function gtSelectPanel(idx) {
@@ -10003,6 +11016,30 @@
             return self.vp[2] - (y / r.height) * (self.vp[2] - self.vp[0]);
         }
 
+        // ─── Hook de sincronização de viewport (multi-painel) ───
+        // Quando setado, é chamado APÓS qualquer mutação de self.vp causada por
+        // interação do usuário (pan, zoom, wheel) ou por resize/fitTo. Permite
+        // propagar o mesmo bbox para outros mapas (sync entre Mi 1, Mi 2, …).
+        // Não dispara dentro de applyViewportRaw (evita loop).
+        let _vpListener = null;
+        let _vpSilent = false;
+        function _fireVp() {
+            if (_vpSilent) return;
+            if (typeof _vpListener === 'function') {
+                try { _vpListener(self.vp.slice()); } catch (_) {}
+            }
+        }
+        function setViewportChangeListener(cb) { _vpListener = (typeof cb === 'function') ? cb : null; }
+        function getViewport() { return self.vp.slice(); }
+        function applyViewportRaw(vp) {
+            if (!vp || vp.length < 4) return;
+            _vpSilent = true;
+            try {
+                self.vp = [+vp[0], +vp[1], +vp[2], +vp[3]];
+                draw();
+            } finally { _vpSilent = false; }
+        }
+
         function adjustViewportToAspect() {
             const r = rectPx();
             if (r.width < 4 || r.height < 4) return;
@@ -10040,6 +11077,7 @@
             self.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             adjustViewportToAspect();
             draw();
+            _fireVp();
         }
 
         /* ───── Tiles ───── */
@@ -10508,6 +11546,7 @@
                 }
             }
             draw();
+            _fireVp();
         }
         async function setRasterOverlay(imageDataOrBitmap, bbox, opacity) {
             let bmp = imageDataOrBitmap;
@@ -10628,6 +11667,7 @@
             }
             self.vp[1] -= dx * lonPerPx; self.vp[3] -= dx * lonPerPx;
             draw();
+            _fireVp();
         });
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
@@ -10656,6 +11696,7 @@
                 self.vp[2] = lat0 + fy * latH; self.vp[0] = self.vp[2] - latH;
             }
             draw();
+            _fireVp();
         }, { passive: false });
 
         const ro = new ResizeObserver(resize);
@@ -10680,6 +11721,7 @@
             }
             adjustViewportToAspect();
             draw();
+            _fireVp();
         }
         return {
             setViewport, fitTo, setRasterOverlay, clearOverlay, setOpacity,
@@ -10690,6 +11732,7 @@
             setTileProvider, setProjection, setAttributionElement,
             redraw: draw,
             resize,
+            getViewport, applyViewportRaw, setViewportChangeListener,
             // Diagnóstico: dimensões atuais do canvas
             getCanvasRect() { return rectPx(); },
             setStyle(s) { Object.assign(self.style, s); draw(); },
@@ -11273,6 +12316,7 @@
         gtRenderTreeBackground();
         gtRenderTreeMisc();
         gtRenderTreeLayers();
+        try { gtRenderTreeUserPoly(); } catch (_) {}
     }
     function gtRenderTreeBackground() {
         const ul = document.getElementById('gtTreeBackground');
@@ -11342,7 +12386,8 @@
         if (!items.length) {
             const li = document.createElement('li'); li.className = 'gt-tree-empty';
             li.textContent = '— manifest não carregado —';
-            ul.appendChild(li); return;
+            ul.appendChild(li);
+            return;
         }
         for (const it of items) {
             const li = document.createElement('li');
@@ -11367,6 +12412,163 @@
             li.appendChild(lbl);
             ul.appendChild(li);
         }
+    }
+
+    // ─── Render do submenu "Polígonos do usuário" em Ferramentas ───
+    // Lista os polígonos salvos com checkbox de visualização + ações (Desenhar, Gerenciar, Exportar, Importar)
+    function gtRenderTreeUserPoly() {
+        const body = document.getElementById('gtTreeUserPolyBody');
+        if (!body) return;
+        const saved = (typeof gtSavedPolygons !== 'undefined') ? gtSavedPolygons.list() : [];
+        body.innerHTML = '';
+        // Ações no topo
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px';
+        const mkBtn = (label, title, handler, full) => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'gt-tree-action';
+            b.textContent = label; b.title = title;
+            b.style.cssText = (full ? 'flex:1 0 100%;' : 'flex:1 1 auto;') + 'font-size:11px;padding:3px 6px;min-width:0;text-align:left';
+            b.addEventListener('click', handler);
+            return b;
+        };
+        actions.appendChild(mkBtn('✏️ Desenhar e salvar', 'Desenha um polígono no mapa e salva direto na lista (sem extrair)', () => {
+            const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+            _gtDrawIntent = 'save-only';
+            gtSetSlotTool(slotIdx, 'export-polygon');
+            try { gtExpSetStatus('Desenhe o polígono — duplo-clique finaliza e abre o diálogo de salvar. ESC cancela.'); } catch (_) {}
+        }, true));
+        actions.appendChild(mkBtn('📥 Exportar', 'Salvar todos os polígonos num arquivo GeoJSON', () => {
+            try {
+                const ok = gtExportAllUserPolygonsToFile();
+                if (ok) gtExpSetStatus('Arquivo GeoJSON gerado com sucesso.');
+            } catch (e) { gtExpSetStatus('Erro ao exportar: ' + e.message, true); }
+        }));
+        actions.appendChild(mkBtn('📤 Importar', 'Carregar um GeoJSON com polígonos para a lista', () => {
+            const inp = document.createElement('input');
+            inp.type = 'file'; inp.accept = '.geojson,.json,application/geo+json,application/json';
+            inp.addEventListener('change', async () => {
+                const f = inp.files && inp.files[0];
+                if (!f) return;
+                try {
+                    const res = await gtImportUserPolygonsFromFile(f);
+                    gtExpSetStatus('Importados: ' + res.imported + ' polígonos' + (res.skipped ? ' (' + res.skipped + ' ignorados)' : '') + '.');
+                    gtRenderTreeUserPoly();
+                } catch (e) {
+                    gtExpSetStatus('Erro ao importar: ' + e.message, true);
+                }
+            });
+            inp.click();
+        }));
+        body.appendChild(actions);
+        // ─── Estado vazio ───
+        if (!saved.length) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'font-size:11px;color:var(--text-muted,#8aa);font-style:italic;padding:4px 0';
+            empty.textContent = '— nenhum polígono salvo. Use "Desenhar e salvar" acima. —';
+            body.appendChild(empty);
+            return;
+        }
+        // ─── Lista colapsável ───
+        const listDetails = document.createElement('details');
+        listDetails.className = 'gt-userpoly-list';
+        // Memoriza estado open/closed entre re-renders dentro da mesma sessão
+        listDetails.open = !!gtRenderTreeUserPoly._listOpen;
+        listDetails.addEventListener('toggle', () => { gtRenderTreeUserPoly._listOpen = listDetails.open; });
+        const listSummary = document.createElement('summary');
+        listSummary.style.cssText = 'cursor:pointer;font-size:11px;color:var(--text-muted,#8aa);padding:2px 0;margin-top:2px';
+        listSummary.textContent = '📋 Lista de salvos (' + saved.length + ')';
+        listDetails.appendChild(listSummary);
+        const list = document.createElement('div');
+        list.style.cssText = 'display:flex;flex-direction:column;gap:3px;max-height:38vh;overflow-y:auto;padding-top:4px';
+        for (const rec of saved) {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;min-width:0;padding:2px 0';
+            const cb2 = document.createElement('input');
+            cb2.type = 'checkbox';
+            const existsLayer = gtFindUserPolyLayer(rec.id);
+            cb2.checked = !!(existsLayer && existsLayer.visible !== false);
+            cb2.title = 'Sobrepor "' + (rec.nome || rec.id) + '" ao campo atual';
+            cb2.addEventListener('change', async () => {
+                if (cb2.checked) {
+                    try { await gtAddUserPolyLayer(rec.id); } catch (e) { console.warn('add userpoly:', e); }
+                } else {
+                    try { gtRemoveUserPolyLayer(rec.id); } catch (_) {}
+                }
+                try { gtRenderTreeUserPoly(); } catch (_) {}
+                try { gtRenderTreeLayers(); } catch (_) {}
+            });
+            row.appendChild(cb2);
+            const nm = document.createElement('span');
+            nm.style.cssText = 'flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+            const kindIcon = (rec.kind === 'rect') ? '▭' : '▦';
+            nm.textContent = kindIcon + ' ' + (rec.nome || '(sem nome)');
+            nm.title = nm.textContent + ' — ' + (rec.coords ? rec.coords.length : 0) + ' vértices';
+            row.appendChild(nm);
+            // ─── Botão de gerenciamento (⚙) — abre dialog com renomear + info ───
+            const gearBtn = document.createElement('button');
+            gearBtn.type = 'button';
+            gearBtn.textContent = '⚙';
+            gearBtn.title = 'Gerenciar: renomear, ver perímetro e detalhes';
+            gearBtn.style.cssText = 'flex:0 0 auto;width:22px;height:20px;padding:0;border:1px solid var(--border-soft,#475569);background:transparent;color:var(--text,#dbe2ec);cursor:pointer;border-radius:3px;font-size:12px;line-height:1';
+            gearBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                try {
+                    const changed = await gtOpenUserPolyDetailDialog(rec);
+                    if (changed) {
+                        try { gtRenderTreeUserPoly(); } catch (_) {}
+                        try { gtRenderTreeLayers(); } catch (_) {}
+                    }
+                } catch (err) { console.warn('detail dlg:', err); }
+            });
+            row.appendChild(gearBtn);
+            // ─── Color picker para o contorno do polígono ───
+            const colorIn = document.createElement('input');
+            colorIn.type = 'color';
+            // Cor: rec.color (persistida) > layer.color (se ativo) > magenta default
+            let currentColor = '#e91e63';
+            if (rec.color && /^#[0-9a-f]{6}$/i.test(rec.color)) currentColor = rec.color;
+            else if (existsLayer && existsLayer.color && /^#[0-9a-f]{6}$/i.test(existsLayer.color)) currentColor = existsLayer.color;
+            colorIn.value = currentColor;
+            colorIn.title = 'Cor do contorno do polígono';
+            colorIn.style.cssText = 'flex:0 0 auto;width:22px;height:18px;padding:0;border:1px solid var(--border-soft,#475569);background:transparent;cursor:pointer;border-radius:3px';
+            colorIn.addEventListener('click', (e) => e.stopPropagation());
+            colorIn.addEventListener('input', (e) => {
+                const c = e.target.value;
+                // Persiste no registro salvo
+                try { gtSavedPolygons.setColor(rec.id, c); } catch (err) { console.warn('setColor:', err); }
+                // Atualiza camada visualizada (se ativa) — usa o helper unificado
+                const lay = gtFindUserPolyLayer(rec.id);
+                if (lay) {
+                    try { gtSetMiscLayerColor(lay.id, c); } catch (_) {}
+                }
+            });
+            row.appendChild(colorIn);
+            // ─── Botão remover (🗑) ───
+            const rmBtn = document.createElement('button');
+            rmBtn.type = 'button';
+            rmBtn.textContent = '🗑';
+            rmBtn.title = 'Excluir "' + (rec.nome || rec.id) + '"';
+            rmBtn.style.cssText = 'flex:0 0 auto;width:22px;height:20px;padding:0;border:1px solid var(--border-soft,#475569);background:transparent;color:#b9472a;cursor:pointer;border-radius:3px;font-size:12px;line-height:1';
+            rmBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!confirm('Excluir o polígono "' + (rec.nome || rec.id) + '"? Esta ação não pode ser desfeita.')) return;
+                // Remove camada visualizada (se houver) antes do registro
+                try { gtRemoveUserPolyLayer(rec.id); } catch (_) {}
+                try { gtSavedPolygons.remove(rec.id); } catch (err) {
+                    console.warn('[remove userpoly]', err);
+                    alert('Erro ao remover: ' + (err && err.message ? err.message : err));
+                    return;
+                }
+                try { gtRenderTreeUserPoly(); } catch (_) {}
+                try { gtRenderTreeLayers(); } catch (_) {}
+                try { gtExpSetStatus('Polígono "' + (rec.nome || rec.id) + '" excluído.'); } catch (_) {}
+            });
+            row.appendChild(rmBtn);
+            list.appendChild(row);
+        }
+        listDetails.appendChild(list);
+        body.appendChild(listDetails);
     }
     function gtRenderTreeLayers() {
         const ul = document.getElementById('gtTreeLayers');
@@ -11430,10 +12632,45 @@
                 });
                 row.appendChild(cIn);
             }
-            // Remover (× pra não-primaries)
+            // ─── Botão ⚙ Configuração da camada (inline, abre painel embaixo) ───
+            // Disponível para GeoTIFF/primary/contour (GeoJSON usa só o color picker, não tem subconfig)
+            const hasCfg = (l.type === 'geotiff' || l.type === 'contour' || (l.id === 'primary'));
+            if (hasCfg) {
+                const gear = document.createElement('button');
+                gear.type = 'button';
+                gear.textContent = '⚙';
+                gear.title = 'Configuração da camada (paleta, min/max, clip, contornos)';
+                const isOpen = (_gtCfgExpandedLayerId === l.id);
+                gear.style.cssText = 'border:1px solid var(--border-soft,#475569);background:' + (isOpen ? 'rgba(77,208,225,0.18)' : 'transparent') + ';color:' + (isOpen ? 'var(--accent-cyan,#4dd0e1)' : 'var(--text,#dbe2ec)') + ';width:22px;height:20px;padding:0;border-radius:3px;cursor:pointer;font-size:12px;line-height:1;flex:0 0 auto';
+                gear.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const wasOpen = (_gtCfgExpandedLayerId === l.id);
+                    if (wasOpen) {
+                        _gtCfgExpandedLayerId = null;
+                        gtMoveCfgPanelHome();
+                        gtRenderTreeLayers();
+                        return;
+                    }
+                    if (_gtCfgExpandedLayerId && _gtCfgExpandedLayerId !== l.id) {
+                        gtMoveCfgPanelHome();
+                    }
+                    _gtCfgExpandedLayerId = l.id;
+                    try {
+                        if (l.type === 'contour' && l.source) {
+                            if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.source.id);
+                        } else if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.id);
+                    } catch (_) {}
+                    gtMoveCfgPanelToLayer(l.id);
+                    gtRenderTreeLayers();
+                });
+                row.appendChild(gear);
+            }
+            // ─── Remover (🗑 — não disponível para primary) ───
             if (l.id !== 'primary') {
                 const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'gt-tree-rm';
-                rm.textContent = '×'; rm.title = 'Remover';
+                rm.textContent = '🗑'; rm.title = 'Remover';
+                rm.style.cssText = 'border:1px solid var(--border-soft,#475569);background:transparent;color:#b9472a;width:22px;height:20px;padding:0;border-radius:3px;cursor:pointer;font-size:12px;line-height:1;flex:0 0 auto';
                 rm.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (l.type === 'contour') { if (typeof gtDisableContour === 'function') gtDisableContour(l.source); }
@@ -11442,55 +12679,12 @@
                 row.appendChild(rm);
             }
             li.appendChild(row);
-            // Sub-menu "Configuração da Camada" — só pra GeoTIFF (primary/extra) e contour.
-            // GeoJSON tem só cor (já no chip), então não tem subconfig.
-            if (l.type === 'geotiff' || l.type === 'contour' || (l.id === 'primary')) {
-                const sub = document.createElement('details');
-                sub.className = 'gt-tree-config';
-                if (_gtCfgExpandedLayerId === l.id) sub.open = true;
-                const smr = document.createElement('summary');
-                smr.textContent = '🛠 Ferramentas';
-                sub.appendChild(smr);
+            // ─── Host inline do painel de configuração — só presente quando expandido ───
+            if (hasCfg) {
                 const host = document.createElement('div');
                 host.className = 'gt-tree-config-host';
-                sub.appendChild(host);
-                // IMPORTANTE: NÃO usar `toggle` event. O `gtSetActiveLayer` lá
-                // dentro re-renderiza a árvore → cria novo <details> com open=true →
-                // dispara novo toggle → loop infinito. Em vez disso, interceptamos
-                // o click no summary, calculamos o novo estado manualmente, e
-                // aplicamos. `preventDefault` impede o toggle nativo.
-                smr.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const wasOpen = sub.open;
-                    if (wasOpen) {
-                        // Fechar este
-                        sub.open = false;
-                        _gtCfgExpandedLayerId = null;
-                        gtMoveCfgPanelHome();
-                        return;
-                    }
-                    // Abrir este — fecha qualquer outro aberto antes
-                    if (_gtCfgExpandedLayerId && _gtCfgExpandedLayerId !== l.id) {
-                        const other = document.querySelector('[data-tree-layer-id="' + CSS.escape(_gtCfgExpandedLayerId) + '"] details.gt-tree-config');
-                        if (other) other.open = false;
-                        gtMoveCfgPanelHome();
-                    }
-                    sub.open = true;
-                    _gtCfgExpandedLayerId = l.id;
-                    // Ativa a camada (vai re-renderizar a árvore via gtRenderLayerChips
-                    // → gtRenderTree). DEPOIS do re-render, gtRenderTreeLayers
-                    // procura `_gtCfgExpandedLayerId` e move o painel para o novo host.
-                    try {
-                        if (l.type === 'contour' && l.source) {
-                            if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.source.id);
-                        } else if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(l.id);
-                    } catch (_) {}
-                    // Caso o gtSetActiveLayer não tenha disparado re-render (camada já ativa),
-                    // move o painel síncrono pro host atual.
-                    gtMoveCfgPanelToLayer(l.id);
-                });
-                li.appendChild(sub);
+                if (_gtCfgExpandedLayerId !== l.id) host.style.display = 'none';
+                li.appendChild(host);
             }
             ul.appendChild(li);
         });
@@ -12325,6 +13519,463 @@
         const m = _gtSlotMap[slotIdx];
         if (m && m.redraw) m.redraw();
     }
+    // ─── Polígonos salvos: storage local (localStorage) ───
+    // Cada polígono: { id, nome, coords:[[lat,lon],...], kind:'poly'|'rect', bbox, savedAt, source }
+    // coords: lista de [lat,lon] (mesma convenção das ferramentas de desenho — fechado opcional)
+    const gtSavedPolygons = (function() {
+        const KEY = 'gisele.savedPolygons.v1';
+        function _read() {
+            try {
+                const raw = localStorage.getItem(KEY);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                console.warn('[gtSavedPolygons] read falhou:', e);
+                return [];
+            }
+        }
+        function _write(arr) {
+            try {
+                localStorage.setItem(KEY, JSON.stringify(arr));
+                return true;
+            } catch (e) {
+                console.error('[gtSavedPolygons] write falhou (quota?):', e);
+                return false;
+            }
+        }
+        function list() { return _read().slice().sort((a,b) => (b.savedAt||0) - (a.savedAt||0)); }
+        function getById(id) { return _read().find(p => p.id === id) || null; }
+        function exists(nome) {
+            const n = String(nome || '').trim().toLowerCase();
+            return _read().some(p => String(p.nome || '').trim().toLowerCase() === n);
+        }
+        function save(nome, coords, kind, opts) {
+            opts = opts || {};
+            const nm = String(nome || '').trim();
+            if (!nm) throw new Error('nome vazio');
+            if (!Array.isArray(coords) || coords.length < 3) throw new Error('coords inválidas (mínimo 3 vértices)');
+            const arr = _read();
+            // Se já existe com mesmo nome, sobrescreve
+            const idx = arr.findIndex(p => String(p.nome || '').trim().toLowerCase() === nm.toLowerCase());
+            const id = (idx >= 0) ? arr[idx].id : ('savedpoly_' + Date.now() + '_' + Math.random().toString(36).slice(2,8));
+            // Bbox: latMin/latMax/lonMin/lonMax
+            let latMin = +Infinity, latMax = -Infinity, lonMin = +Infinity, lonMax = -Infinity;
+            for (const c of coords) {
+                if (!Array.isArray(c) || c.length < 2) continue;
+                const lat = +c[0], lon = +c[1];
+                if (!isFinite(lat) || !isFinite(lon)) continue;
+                if (lat < latMin) latMin = lat;
+                if (lat > latMax) latMax = lat;
+                if (lon < lonMin) lonMin = lon;
+                if (lon > lonMax) lonMax = lon;
+            }
+            const rec = {
+                id, nome: nm,
+                coords: coords.map(c => [+c[0], +c[1]]),
+                kind: (kind === 'rect') ? 'rect' : 'poly',
+                bbox: { latMin, latMax, lonMin, lonMax },
+                savedAt: Date.now(),
+                source: opts.source || 'draw'
+            };
+            if (idx >= 0) arr[idx] = rec; else arr.push(rec);
+            if (!_write(arr)) throw new Error('falha ao gravar (quota do localStorage?)');
+            return rec;
+        }
+        function remove(id) {
+            const arr = _read().filter(p => p.id !== id);
+            return _write(arr);
+        }
+        function rename(id, novoNome) {
+            const nm = String(novoNome || '').trim();
+            if (!nm) throw new Error('nome vazio');
+            const arr = _read();
+            const i = arr.findIndex(p => p.id === id);
+            if (i < 0) throw new Error('polígono não encontrado');
+            // Evita colisão com outro registro
+            const dup = arr.find(p => p.id !== id && String(p.nome).trim().toLowerCase() === nm.toLowerCase());
+            if (dup) throw new Error('já existe outro polígono com esse nome');
+            arr[i].nome = nm;
+            return _write(arr);
+        }
+        function clearAll() { return _write([]); }
+        function setColor(id, color) {
+            if (!/^#[0-9a-f]{6}$/i.test(String(color || ''))) throw new Error('cor inválida (esperado #RRGGBB)');
+            const arr = _read();
+            const i = arr.findIndex(p => p.id === id);
+            if (i < 0) throw new Error('polígono não encontrado');
+            arr[i].color = color;
+            return _write(arr);
+        }
+        return { list, getById, exists, save, remove, rename, clearAll, setColor };
+    })();
+
+    // Dialog "Confirmar e/ou salvar polígono desenhado".
+    // Promise resolves { action:'cancel' } | { action:'export', save:false } | { action:'export', save:true, nome:'...' }
+    function gtAskSaveAndExportDialog(opts) {
+        opts = opts || {};
+        const nVert = opts.nVert || 0;
+        const bbox = opts.bbox || null;
+        const areaKm2 = opts.areaKm2;
+        const kind = opts.kind || 'poly';
+        const kindLabel = (kind === 'rect') ? 'Retângulo' : 'Polígono';
+        return new Promise((resolve) => {
+            try { const old = document.getElementById('gtSavePolyDlg'); if (old) old.remove(); } catch (_) {}
+            const ov = document.createElement('div');
+            ov.id = 'gtSavePolyDlg';
+            ov.style.cssText = 'position:fixed;top:14px;right:14px;z-index:100001;font-family:ui-sans-serif,system-ui,sans-serif;pointer-events:none';
+            const card = document.createElement('div');
+            card.style.cssText = 'background:#ffffff;color:#1f2937;border:1px solid #d4dbe6;border-radius:8px;padding:14px 18px;width:400px;max-width:90vw;box-shadow:0 12px 32px rgba(0,0,0,0.35);pointer-events:auto';
+            let html = ''
+                + '<div style="font-weight:600;font-size:14px;margin-bottom:8px;color:#0b1e3a">📤 Confirmar extração</div>'
+                + '<div style="font-size:12px;color:#384858;margin-bottom:6px">' + kindLabel + ' com <b>' + nVert + ' vértice' + (nVert !== 1 ? 's' : '') + '</b>'
+                + (isFinite(areaKm2) ? ' · área ≈ <b>' + (areaKm2 < 100 ? areaKm2.toFixed(2) : areaKm2.toFixed(0)) + ' km²</b>' : '') + '.</div>';
+            if (bbox && isFinite(bbox.latMin)) {
+                html += '<div style="font-size:11px;color:#6a7c8e;margin-bottom:10px;font-family:ui-monospace,Menlo,monospace">bbox: lat [' + bbox.latMin.toFixed(3) + ', ' + bbox.latMax.toFixed(3) + ']  ·  lon [' + bbox.lonMin.toFixed(3) + ', ' + bbox.lonMax.toFixed(3) + ']</div>';
+            }
+            html += ''
+                + '<div style="font-size:12px;color:#384858;margin:10px 0 4px 0">'
+                + '<label style="display:flex;align-items:center;gap:6px;cursor:pointer">'
+                + '<input type="checkbox" id="gtSavePolyChk"> Salvar este ' + kindLabel.toLowerCase() + ' para reutilizar'
+                + '</label></div>'
+                + '<div id="gtSavePolyNomeWrap" style="display:none;margin:6px 0 4px 0">'
+                + '<label style="font-size:11px;color:#6a7c8e;display:block;margin-bottom:2px">Nome:</label>'
+                + '<input type="text" id="gtSavePolyNome" placeholder="ex.: Bacia Amazônica, AOI Sul, Foz do Itajaí…" maxlength="80" '
+                + 'style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;background:#fafbfc;color:#1f2937">'
+                + '<div id="gtSavePolyNomeErr" style="font-size:11px;color:#b9472a;margin-top:3px;min-height:1em"></div>'
+                + '</div>'
+                + '<div style="text-align:right;margin-top:14px;display:flex;gap:8px;justify-content:flex-end">'
+                + '<button type="button" id="btnGtSavePolyCancel" style="padding:6px 14px;font-size:12px;background:#e6ecf2;color:#0b1e3a;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer">Cancelar</button>'
+                + '<button type="button" id="btnGtSavePolyOK" style="padding:6px 14px;font-size:12px;background:#0a6e8a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600">Confirmar extração</button>'
+                + '</div>';
+            card.innerHTML = html;
+            ov.appendChild(card);
+            document.body.appendChild(ov);
+            const chk = document.getElementById('gtSavePolyChk');
+            const wrap = document.getElementById('gtSavePolyNomeWrap');
+            const nome = document.getElementById('gtSavePolyNome');
+            const err  = document.getElementById('gtSavePolyNomeErr');
+            chk.addEventListener('change', () => {
+                wrap.style.display = chk.checked ? 'block' : 'none';
+                if (chk.checked) setTimeout(() => nome.focus(), 0);
+            });
+            const close = (result) => {
+                try { document.removeEventListener('keydown', keyHandler); } catch (_) {}
+                try { ov.remove(); } catch (_) {}
+                resolve(result);
+            };
+            const tryOK = () => {
+                if (chk.checked) {
+                    const nm = String(nome.value || '').trim();
+                    if (!nm) { err.textContent = 'Digite um nome ou desmarque a opção.'; nome.focus(); return; }
+                    if (gtSavedPolygons.exists(nm)) {
+                        // Confirma sobrescrita
+                        if (!confirm('Já existe um polígono com o nome "' + nm + '". Deseja sobrescrever?')) {
+                            nome.focus();
+                            return;
+                        }
+                    }
+                    close({ action: 'export', save: true, nome: nm });
+                } else {
+                    close({ action: 'export', save: false });
+                }
+            };
+            document.getElementById('btnGtSavePolyCancel').addEventListener('click', () => close({ action: 'cancel' }));
+            document.getElementById('btnGtSavePolyOK').addEventListener('click', tryOK);
+            const keyHandler = (e) => {
+                if (e.key === 'Escape') close({ action: 'cancel' });
+                else if (e.key === 'Enter' && document.activeElement && document.activeElement.tagName !== 'BUTTON') tryOK();
+            };
+            document.addEventListener('keydown', keyHandler);
+        });
+    }
+
+    // Dialog "Salvar polígono (sem extrair)". Promise resolves o nome ou null se cancelado.
+    function gtAskSaveOnlyDialog(opts) {
+        opts = opts || {};
+        const nVert = opts.nVert || 0;
+        const bbox = opts.bbox || null;
+        const areaKm2 = opts.areaKm2;
+        const kind = opts.kind || 'poly';
+        const kindLabel = (kind === 'rect') ? 'Retângulo' : 'Polígono';
+        return new Promise((resolve) => {
+            try { const old = document.getElementById('gtSavePolyOnlyDlg'); if (old) old.remove(); } catch (_) {}
+            const ov = document.createElement('div');
+            ov.id = 'gtSavePolyOnlyDlg';
+            ov.style.cssText = 'position:fixed;top:14px;right:14px;z-index:100001;font-family:ui-sans-serif,system-ui,sans-serif;pointer-events:none';
+            const card = document.createElement('div');
+            card.style.cssText = 'background:#ffffff;color:#1f2937;border:1px solid #d4dbe6;border-radius:8px;padding:14px 18px;width:380px;max-width:90vw;box-shadow:0 12px 32px rgba(0,0,0,0.35);pointer-events:auto';
+            let html = ''
+                + '<div style="font-weight:600;font-size:14px;margin-bottom:8px;color:#0b1e3a">💾 Salvar polígono</div>'
+                + '<div style="font-size:12px;color:#384858;margin-bottom:6px">' + kindLabel + ' com <b>' + nVert + ' vértice' + (nVert !== 1 ? 's' : '') + '</b>'
+                + (isFinite(areaKm2) ? ' · área ≈ <b>' + (areaKm2 < 100 ? areaKm2.toFixed(2) : areaKm2.toFixed(0)) + ' km²</b>' : '') + '.</div>';
+            if (bbox && isFinite(bbox.latMin)) {
+                html += '<div style="font-size:11px;color:#6a7c8e;margin-bottom:10px;font-family:ui-monospace,Menlo,monospace">bbox: lat [' + bbox.latMin.toFixed(3) + ', ' + bbox.latMax.toFixed(3) + ']  ·  lon [' + bbox.lonMin.toFixed(3) + ', ' + bbox.lonMax.toFixed(3) + ']</div>';
+            }
+            html += ''
+                + '<label style="font-size:12px;color:#384858;display:block;margin-bottom:4px">Nome do polígono:</label>'
+                + '<input type="text" id="gtSavePolyOnlyNome" placeholder="ex.: Bacia Amazônica, AOI Sul, Foz do Itajaí…" maxlength="80" '
+                + 'style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;background:#fafbfc;color:#1f2937;box-sizing:border-box">'
+                + '<div id="gtSavePolyOnlyErr" style="font-size:11px;color:#b9472a;margin-top:3px;min-height:1em"></div>'
+                + '<div style="text-align:right;margin-top:10px;display:flex;gap:8px;justify-content:flex-end">'
+                + '<button type="button" id="btnGtSavePolyOnlyCancel" style="padding:6px 14px;font-size:12px;background:#e6ecf2;color:#0b1e3a;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer">Cancelar</button>'
+                + '<button type="button" id="btnGtSavePolyOnlyOK" style="padding:6px 14px;font-size:12px;background:#0a6e8a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600">Salvar</button>'
+                + '</div>';
+            card.innerHTML = html;
+            ov.appendChild(card);
+            document.body.appendChild(ov);
+            const nome = document.getElementById('gtSavePolyOnlyNome');
+            const err  = document.getElementById('gtSavePolyOnlyErr');
+            setTimeout(() => nome && nome.focus(), 0);
+            const close = (result) => {
+                try { document.removeEventListener('keydown', keyHandler); } catch (_) {}
+                try { ov.remove(); } catch (_) {}
+                resolve(result);
+            };
+            const tryOK = () => {
+                const nm = String(nome.value || '').trim();
+                if (!nm) { err.textContent = 'Digite um nome.'; nome.focus(); return; }
+                if (gtSavedPolygons.exists(nm)) {
+                    if (!confirm('Já existe um polígono com o nome "' + nm + '". Deseja sobrescrever?')) {
+                        nome.focus();
+                        return;
+                    }
+                }
+                close(nm);
+            };
+            document.getElementById('btnGtSavePolyOnlyCancel').addEventListener('click', () => close(null));
+            document.getElementById('btnGtSavePolyOnlyOK').addEventListener('click', tryOK);
+            const keyHandler = (e) => {
+                if (e.key === 'Escape') close(null);
+                else if (e.key === 'Enter') tryOK();
+            };
+            document.addEventListener('keydown', keyHandler);
+        });
+    }
+
+    // Dialog "Polígonos salvos" — lista, escolher para extração, renomear, excluir.
+    // Promise resolves { action:'extract', record } | { action:'close' }
+    function gtOpenSavedPolygonsDialog() {
+        return new Promise((resolve) => {
+            try { const old = document.getElementById('gtSavedListDlg'); if (old) old.remove(); } catch (_) {}
+            const ov = document.createElement('div');
+            ov.id = 'gtSavedListDlg';
+            ov.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100001;font-family:ui-sans-serif,system-ui,sans-serif';
+            const card = document.createElement('div');
+            card.style.cssText = 'background:#ffffff;color:#1f2937;border:1px solid #d4dbe6;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,0.35);padding:16px 18px;width:480px;max-width:92vw;max-height:78vh;overflow:auto';
+            function render() {
+                const items = gtSavedPolygons.list();
+                let html = '<div style="font-weight:600;font-size:14px;margin-bottom:8px;color:#0b1e3a">💾 Polígonos salvos</div>';
+                html += '<div style="font-size:11px;color:#6a7c8e;margin-bottom:10px">Selecione um polígono para usar como máscara de extração. Renomear: ✎. Excluir: 🗑.</div>';
+                if (!items.length) {
+                    html += '<div style="padding:24px 0;text-align:center;color:#8aa;font-size:12px;font-style:italic">Nenhum polígono salvo ainda. Desenhe um polígono (▦ Por polígono) e marque "Salvar" no diálogo de extração.</div>';
+                } else {
+                    html += '<div style="max-height:46vh;overflow-y:auto;border:1px solid #e2e8f0;border-radius:4px">';
+                    items.forEach((it) => {
+                        const dt = new Date(it.savedAt || 0);
+                        const dts = dt.toLocaleString('pt-BR');
+                        const bb = it.bbox || {};
+                        const bbStr = (isFinite(bb.latMin) ? ('lat [' + bb.latMin.toFixed(2) + ', ' + bb.latMax.toFixed(2) + ']  lon [' + bb.lonMin.toFixed(2) + ', ' + bb.lonMax.toFixed(2) + ']') : '—');
+                        const kindIcon = (it.kind === 'rect') ? '▭' : '▦';
+                        html += '<div data-savedid="' + it.id + '" style="padding:8px 10px;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;cursor:pointer" class="gt-savedrow">'
+                              + '<div style="flex:0 0 auto;font-size:14px">' + kindIcon + '</div>'
+                              + '<div style="flex:1 1 auto;min-width:0">'
+                              + '<div style="font-weight:600;font-size:12px;color:#0b1e3a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (it.nome || '(sem nome)').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>'
+                              + '<div style="font-size:10.5px;color:#6a7c8e;font-family:ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (it.coords ? it.coords.length : 0) + ' vértices · ' + bbStr + '</div>'
+                              + '<div style="font-size:10px;color:#94a3b8">Salvo em ' + dts + '</div>'
+                              + '</div>'
+                              + '<button type="button" data-act="rename" data-id="' + it.id + '" title="Renomear" style="border:none;background:transparent;cursor:pointer;font-size:14px;padding:4px 6px">✎</button>'
+                              + '<button type="button" data-act="delete" data-id="' + it.id + '" title="Excluir" style="border:none;background:transparent;cursor:pointer;font-size:14px;padding:4px 6px;color:#b9472a">🗑</button>'
+                              + '</div>';
+                    });
+                    html += '</div>';
+                }
+                html += '<div style="text-align:right;margin-top:12px;display:flex;gap:8px;justify-content:flex-end">'
+                      + '<button type="button" id="btnGtSavedClose" style="padding:6px 12px;font-size:12px;background:#e6ecf2;color:#0b1e3a;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer">Fechar</button>'
+                      + '</div>';
+                card.innerHTML = html;
+                // Wire handlers
+                card.querySelectorAll('.gt-savedrow').forEach(row => {
+                    row.addEventListener('click', (e) => {
+                        if (e.target.closest('button')) return;
+                        const id = row.dataset.savedid;
+                        const rec = gtSavedPolygons.getById(id);
+                        if (rec) close({ action: 'extract', record: rec });
+                    });
+                });
+                card.querySelectorAll('button[data-act="rename"]').forEach(b => {
+                    b.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = b.dataset.id;
+                        const rec = gtSavedPolygons.getById(id);
+                        if (!rec) return;
+                        const nm = prompt('Novo nome para "' + rec.nome + '":', rec.nome);
+                        if (nm == null) return;
+                        try { gtSavedPolygons.rename(id, nm); render(); try { gtRenderTreeUserPoly(); } catch (_) {} } catch (err) { alert('Erro: ' + err.message); }
+                    });
+                });
+                card.querySelectorAll('button[data-act="delete"]').forEach(b => {
+                    b.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = b.dataset.id;
+                        const rec = gtSavedPolygons.getById(id);
+                        if (!rec) return;
+                        if (confirm('Excluir o polígono "' + rec.nome + '"? Esta ação não pode ser desfeita.')) {
+                            // Remove camada visualizada (se houver) antes de remover o registro
+                            try { gtRemoveUserPolyLayer(id); } catch (_) {}
+                            gtSavedPolygons.remove(id);
+                            render();
+                            try { gtRenderTreeUserPoly(); } catch (_) {}
+                        }
+                    });
+                });
+                const btClose = card.querySelector('#btnGtSavedClose');
+                if (btClose) btClose.addEventListener('click', () => close({ action: 'close' }));
+            }
+            const close = (result) => {
+                try { document.removeEventListener('keydown', keyHandler); } catch (_) {}
+                try { ov.remove(); } catch (_) {}
+                resolve(result);
+            };
+            const keyHandler = (e) => { if (e.key === 'Escape') close({ action: 'close' }); };
+            document.addEventListener('keydown', keyHandler);
+            ov.appendChild(card);
+            document.body.appendChild(ov);
+            render();
+        });
+    }
+
+    // Dialog "Detalhes do polígono" — renomear + ver perímetro/área/bbox/vértices.
+    // Promise resolve(true) se alterou algo (precisa re-renderizar), false caso contrário.
+    function gtOpenUserPolyDetailDialog(rec) {
+        return new Promise((resolve) => {
+            try { const old = document.getElementById('gtUPDetailDlg'); if (old) old.remove(); } catch (_) {}
+            const ov = document.createElement('div');
+            ov.id = 'gtUPDetailDlg';
+            ov.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100002;font-family:ui-sans-serif,system-ui,sans-serif';
+            const card = document.createElement('div');
+            card.style.cssText = 'background:#ffffff;color:#1f2937;border:1px solid #d4dbe6;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,0.35);padding:16px 18px;width:440px;max-width:92vw';
+            // ─── Calcula métricas geométricas ───
+            const coords = (rec.coords || []).slice();
+            const nVert = coords.length;
+            // Para retângulo (2 coords) → expande pra 4 cantos
+            let polyCoords = coords;
+            if (rec.kind === 'rect' && coords.length >= 2) {
+                const [lat1, lon1] = coords[0];
+                const [lat2, lon2] = coords[1];
+                const latA = Math.min(lat1, lat2), latB = Math.max(lat1, lat2);
+                const lonA = Math.min(lon1, lon2), lonB = Math.max(lon1, lon2);
+                polyCoords = [[latA, lonA], [latA, lonB], [latB, lonB], [latB, lonA]];
+            }
+            // Perímetro: polilinha fechada (vai e volta ao ponto 0)
+            let perimKm = 0;
+            try {
+                if (polyCoords.length >= 2) {
+                    const closed = polyCoords.slice();
+                    const first = closed[0], last = closed[closed.length - 1];
+                    if (first[0] !== last[0] || first[1] !== last[1]) closed.push([first[0], first[1]]);
+                    perimKm = gtPolylineLenKm(closed);
+                }
+            } catch (_) {}
+            // Área esférica (km²)
+            let areaKm2 = NaN;
+            try {
+                if (rec.kind === 'rect' && coords.length >= 2) {
+                    const [lat1, lon1] = coords[0], [lat2, lon2] = coords[1];
+                    const _R = 6371.0088, _D2R = Math.PI / 180;
+                    const dx = Math.abs(lon2 - lon1);
+                    areaKm2 = _R * _R * (dx * _D2R) * Math.abs(Math.sin(lat2 * _D2R) - Math.sin(lat1 * _D2R));
+                } else if (polyCoords.length >= 3 && typeof gtSphericalPolygonAreaKm2 === 'function') {
+                    areaKm2 = gtSphericalPolygonAreaKm2(polyCoords);
+                }
+            } catch (_) {}
+            const bb = rec.bbox || {};
+            const dt = rec.savedAt ? new Date(rec.savedAt).toLocaleString('pt-BR') : '—';
+            const fmtKm = (km) => {
+                if (!isFinite(km)) return '—';
+                if (km < 1) return (km * 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' m';
+                if (km < 100) return km.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) + ' km';
+                return km.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' km';
+            };
+            const fmtArea = (km2) => {
+                if (!isFinite(km2)) return '—';
+                if (km2 < 1) return (km2 * 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' m²';
+                if (km2 < 1000) return km2.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' km²';
+                return km2.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' km²';
+            };
+            const fmtBbox = (k) => isFinite(bb[k]) ? bb[k].toFixed(4) : '—';
+            const kindLabel = (rec.kind === 'rect') ? 'Retângulo' : 'Polígono';
+            const kindIcon = (rec.kind === 'rect') ? '▭' : '▦';
+            const escapeHtml = (s) => String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+            const currentColor = (rec.color && /^#[0-9a-f]{6}$/i.test(rec.color)) ? rec.color : '#e91e63';
+            card.innerHTML = ''
+                + '<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:#0b1e3a">'
+                + '⚙ Gerenciar polígono ' + kindIcon + '</div>'
+                + '<label style="font-size:11px;color:#6a7c8e;display:block;margin-bottom:3px">Nome</label>'
+                + '<div style="display:flex;gap:6px;margin-bottom:14px">'
+                + '<input type="text" id="gtUPDName" value="' + escapeHtml(rec.nome) + '" maxlength="80" '
+                + 'style="flex:1 1 auto;padding:6px 8px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;background:#fafbfc;color:#1f2937;box-sizing:border-box">'
+                + '<button type="button" id="btnGtUPDRename" style="padding:6px 12px;font-size:12px;background:#0a6e8a;color:#fff;border:none;border-radius:4px;cursor:pointer">Salvar nome</button>'
+                + '</div>'
+                + '<div id="gtUPDRenameMsg" style="font-size:11px;color:#6a7c8e;min-height:1em;margin-top:-10px;margin-bottom:8px"></div>'
+                + '<div style="font-size:12px;color:#6a7c8e;margin-bottom:4px;font-weight:600">📐 Informações geométricas</div>'
+                + '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px">'
+                + '<tbody>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e;width:140px">Tipo</td><td style="font-family:ui-monospace,Menlo,monospace"><b>' + kindLabel + '</b></td></tr>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e">Vértices</td><td style="font-family:ui-monospace,Menlo,monospace"><b>' + nVert + '</b></td></tr>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e">Perímetro</td><td style="font-family:ui-monospace,Menlo,monospace"><b>' + fmtKm(perimKm) + '</b></td></tr>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e">Área</td><td style="font-family:ui-monospace,Menlo,monospace"><b>' + fmtArea(areaKm2) + '</b></td></tr>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e">Bbox (lat)</td><td style="font-family:ui-monospace,Menlo,monospace">[' + fmtBbox('latMin') + ', ' + fmtBbox('latMax') + ']</td></tr>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e">Bbox (lon)</td><td style="font-family:ui-monospace,Menlo,monospace">[' + fmtBbox('lonMin') + ', ' + fmtBbox('lonMax') + ']</td></tr>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e">Cor do contorno</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:' + currentColor + ';border:1px solid #d4dbe6;vertical-align:middle;margin-right:6px"></span><code style="font-size:11px">' + currentColor + '</code></td></tr>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e">Origem</td><td style="font-family:ui-monospace,Menlo,monospace;font-size:11px">' + escapeHtml(rec.source || 'draw') + '</td></tr>'
+                + '<tr><td style="padding:3px 0;color:#6a7c8e">Salvo em</td><td style="font-size:11px">' + dt + '</td></tr>'
+                + '</tbody></table>'
+                + '<div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">'
+                + '<button type="button" id="btnGtUPDClose" style="padding:6px 14px;font-size:12px;background:#e6ecf2;color:#0b1e3a;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer">Fechar</button>'
+                + '</div>';
+            ov.appendChild(card);
+            document.body.appendChild(ov);
+            let changed = false;
+            const close = () => {
+                try { document.removeEventListener('keydown', keyHandler); } catch (_) {}
+                try { ov.remove(); } catch (_) {}
+                resolve(changed);
+            };
+            const nameInput = document.getElementById('gtUPDName');
+            const msg = document.getElementById('gtUPDRenameMsg');
+            document.getElementById('btnGtUPDRename').addEventListener('click', () => {
+                const nm = String(nameInput.value || '').trim();
+                if (!nm) { msg.textContent = 'Digite um nome.'; msg.style.color = '#b9472a'; return; }
+                if (nm === rec.nome) { msg.textContent = 'Nome não alterado.'; msg.style.color = '#6a7c8e'; return; }
+                try {
+                    gtSavedPolygons.rename(rec.id, nm);
+                    rec.nome = nm;
+                    changed = true;
+                    msg.textContent = '✓ Salvo';
+                    msg.style.color = '#0a6e3a';
+                    // Atualiza nome da camada visualizada (se ativa) — opcional
+                    try {
+                        const lay = gtFindUserPolyLayer(rec.id);
+                        if (lay) { lay.name = '👤 ' + nm; try { gtRenderTreeLayers(); } catch (_) {} }
+                    } catch (_) {}
+                } catch (err) {
+                    msg.textContent = 'Erro: ' + err.message;
+                    msg.style.color = '#b9472a';
+                }
+            });
+            document.getElementById('btnGtUPDClose').addEventListener('click', close);
+            const keyHandler = (e) => {
+                if (e.key === 'Escape') close();
+                else if (e.key === 'Enter' && document.activeElement === nameInput) {
+                    document.getElementById('btnGtUPDRename').click();
+                }
+            };
+            document.addEventListener('keydown', keyHandler);
+            setTimeout(() => nameInput && nameInput.select(), 0);
+        });
+    }
+
     // Modal "Confirmar extração". Promise-based: resolve(true) ou resolve(false)
     function gtOpenConfirmExtractDialog(opts) {
         opts = opts || {};
@@ -12509,8 +14160,8 @@
         setTimeout(() => URL.revokeObjectURL(url), 200);
     }
     // Exporta série temporal num ponto como FeatureCollection (N Features Point).
-    async function gtSampleTimeSeriesToGeoJson(slotIdx, lat, lon, onProgress) {
-        const ts = await gtSampleTimeSeries(slotIdx, lat, lon, onProgress);
+    async function gtSampleTimeSeriesToGeoJson(slotIdx, lat, lon, onProgress, opts) {
+        const ts = await gtSampleTimeSeries(slotIdx, lat, lon, onProgress, opts);
         if (!ts || !ts.samples) throw new Error('amostragem retornou vazia');
         const features = ts.samples.map((s, idx) => ({
             type: 'Feature',
@@ -12935,12 +14586,119 @@
         // Atualiza estado visual dos <details> na árvore
         try { gtRenderTree(); } catch (_) {}
     }
+    // ─── Reorder das Ferramentas: drag-and-drop + persistência em localStorage ───
+    const gtToolsOrder = {
+        KEY: 'gisele.tools.order.v1',
+        save() {
+            const ul = document.getElementById('gtToolsList');
+            if (!ul) return;
+            const ids = Array.from(ul.querySelectorAll(':scope > li[data-tool-id]')).map(li => li.dataset.toolId);
+            try { localStorage.setItem(this.KEY, JSON.stringify(ids)); } catch (_) {}
+        },
+        load() {
+            try {
+                const raw = localStorage.getItem(this.KEY);
+                if (!raw) return null;
+                const arr = JSON.parse(raw);
+                return Array.isArray(arr) ? arr : null;
+            } catch (_) { return null; }
+        },
+        clear() { try { localStorage.removeItem(this.KEY); } catch (_) {} },
+        // Aplica a ordem salva ao DOM (itens não-listados ficam ao final, na ordem natural)
+        apply() {
+            const ul = document.getElementById('gtToolsList');
+            if (!ul) return;
+            const order = this.load();
+            if (!order || !order.length) return;
+            const lookup = {};
+            Array.from(ul.querySelectorAll(':scope > li[data-tool-id]')).forEach(li => {
+                lookup[li.dataset.toolId] = li;
+            });
+            for (const id of order) {
+                const li = lookup[id];
+                if (li) ul.appendChild(li);   // appendChild move se já tem pai
+            }
+        }
+    };
+    function _gtAttachToolsReorder() {
+        const ul = document.getElementById('gtToolsList');
+        if (!ul) return;
+        const items = ul.querySelectorAll(':scope > li[data-tool-id]');
+        items.forEach(li => {
+            if (li._gtReorderWired) return;
+            li._gtReorderWired = true;
+            // ─── Insere grip "⋮⋮" no início da linha ───
+            let grip = li.querySelector(':scope > .gt-tool-grip');
+            if (!grip) {
+                grip = document.createElement('span');
+                grip.className = 'gt-tool-grip';
+                grip.textContent = '⋮⋮';
+                grip.title = 'Arraste para reordenar';
+                grip.setAttribute('draggable', 'true');
+                grip.style.cssText = 'cursor:grab;font-size:12px;color:var(--text-muted,#8aa);padding:0 4px;user-select:none;flex:0 0 auto;letter-spacing:-1px;line-height:1;display:inline-block;align-self:center';
+                // Hover/active feedback
+                grip.addEventListener('mouseenter', () => { grip.style.color = 'var(--accent-cyan,#4dd0e1)'; });
+                grip.addEventListener('mouseleave', () => { grip.style.color = 'var(--text-muted,#8aa)'; });
+                li.insertBefore(grip, li.firstChild);
+            }
+            // ─── dragstart no grip → marca o li source ───
+            grip.addEventListener('dragstart', (e) => {
+                try {
+                    e.dataTransfer.setData('text/plain', li.dataset.toolId);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setDragImage(li, 10, 10);
+                } catch (_) {}
+                li.classList.add('gt-tool-dragging');
+                grip.style.cursor = 'grabbing';
+            });
+            grip.addEventListener('dragend', () => {
+                li.classList.remove('gt-tool-dragging');
+                grip.style.cursor = 'grab';
+                // Limpa todos os indicadores de drop
+                items.forEach(x => { x.classList.remove('gt-tool-drop-before'); x.classList.remove('gt-tool-drop-after'); });
+            });
+            // ─── dragover/leave/drop no li target ───
+            li.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+                const rect = li.getBoundingClientRect();
+                const after = (e.clientY - rect.top) > rect.height / 2;
+                li.classList.toggle('gt-tool-drop-after', after);
+                li.classList.toggle('gt-tool-drop-before', !after);
+            });
+            li.addEventListener('dragleave', () => {
+                li.classList.remove('gt-tool-drop-after');
+                li.classList.remove('gt-tool-drop-before');
+            });
+            li.addEventListener('drop', (e) => {
+                e.preventDefault();
+                li.classList.remove('gt-tool-drop-after');
+                li.classList.remove('gt-tool-drop-before');
+                let srcId = '';
+                try { srcId = e.dataTransfer.getData('text/plain'); } catch (_) {}
+                if (!srcId || srcId === li.dataset.toolId) return;
+                const src = ul.querySelector(':scope > li[data-tool-id="' + srcId + '"]');
+                if (!src) return;
+                const rect = li.getBoundingClientRect();
+                const after = (e.clientY - rect.top) > rect.height / 2;
+                if (after) li.parentNode.insertBefore(src, li.nextSibling);
+                else li.parentNode.insertBefore(src, li);
+                gtToolsOrder.save();
+            });
+        });
+    }
+
     function gtWireTreeOnce() {
         // Roda uma vez: liga os botões da seção "Ferramentas".
         if (gtWireTreeOnce._done) return;
         gtWireTreeOnce._done = true;
         // Constrói o painel agora (precisa esperar o DOM estar pronto com todos os IDs)
         try { gtBuildLayerConfigPanel(); } catch (e) { console.error('build cfg panel', e); }
+        // Render inicial do submenu "Polígonos do usuário" (Ferramentas)
+        try { gtRenderTreeUserPoly(); } catch (_) {}
+        // Aplica a ordem salva das Ferramentas, então liga drag-and-drop
+        try { gtToolsOrder.apply(); } catch (_) {}
+        try { _gtAttachToolsReorder(); } catch (e) { console.warn('reorder wire:', e); }
         // Botão Collapse/Expand folders (toggle): se algum aberto → fecha todos;
         // se todos fechados → abre todos. Atualiza label conforme estado.
         // ─── Toggle HUD lat/lon/valor na toolbar da árvore (espelha gtShowNavHud legacy) ───
@@ -12963,7 +14721,6 @@
         (function _wireExportUI() {
             const btFull = document.getElementById('btnGtExpFull');
             const btPoly = document.getElementById('btnGtExpPoly');
-            const btRect = document.getElementById('btnGtExpRect');
             const btMisc = document.getElementById('btnGtExpMisc');
             const btTS   = document.getElementById('btnGtExpTimeseries');
             if (btFull) btFull.addEventListener('click', () => {
@@ -12972,13 +14729,9 @@
             });
             if (btPoly) btPoly.addEventListener('click', () => {
                 const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+                _gtDrawIntent = 'export';
                 gtSetSlotTool(slotIdx, 'export-polygon');
                 gtExpSetStatus('Desenhe o polígono — duplo-clique finaliza e exporta. ESC cancela.');
-            });
-            if (btRect) btRect.addEventListener('click', () => {
-                const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
-                gtSetSlotTool(slotIdx, 'export-rect');
-                gtExpSetStatus('Clique e arraste para definir o retângulo — soltar finaliza e exporta. ESC cancela.');
             });
 
             if (btTS) btTS.addEventListener('click', () => {
@@ -13007,9 +14760,10 @@
                 html += '<div style="font-size:11px;color:#384858;margin-bottom:10px">Escolha uma ou mais camadas (Miscelânea, Shapefile, GeoJSON) carregadas. O raster da camada ativa é recortado pelos polígonos selecionados.</div>';
                 miscs.forEach((lx, idx) => {
                     const featCount = (lx.data && lx.data.features) ? lx.data.features.length : 0;
-                    // Rótulo de origem: Miscelânea / Shapefile / GeoJSON
+                    // Rótulo de origem: Miscelânea / Polígono do usuário / Shapefile / GeoJSON
                     let origin = 'GeoJSON';
-                    if (lx.isMisc) origin = 'Miscelânea';
+                    if (lx.isUserPoly) origin = 'Polígono do usuário';
+                    else if (lx.isMisc) origin = 'Miscelânea';
                     else {
                         const nm = (lx.name || '').toLowerCase();
                         if (nm.endsWith('.shp') || nm.endsWith('.zip')) origin = 'Shapefile';
@@ -13209,7 +14963,7 @@
             }
             if (isContour || l.id !== 'primary') {
                 const rm = document.createElement('button');
-                rm.type = 'button'; rm.title = 'Remover'; rm.textContent = '×';
+                rm.type = 'button'; rm.title = 'Remover'; rm.textContent = '🗑';
                 rm.className = 'gl-rm';
                 rm.addEventListener('click', (e) => {
                     e.stopPropagation();

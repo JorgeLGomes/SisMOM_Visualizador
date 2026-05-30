@@ -1,7 +1,7 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.8.0 — Build marker `20260529-7000-highlight`
+**Versão atual:** v2.9.0 — Build marker `20260530-9600-clip`
 **Arquivos críticos (sempre em lockstep):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
@@ -16,6 +16,18 @@
 > **Mudanças v2.6 → v2.7:** (1) **Python helper opcional** (FastAPI + rasterio + httpx) embedado no Electron como subprocess — acelera extração temporal, calculadora temporal e perfil de linha com fetches paralelos (~10× speedup esperado). Frontend tem **fallback transparente** para JS quando o helper está offline. Badge UI no canto inferior direito mostra status `⚡ Python` ou `JS only`. (2) Sub-menu da árvore ERMA renomeado de `⚙ Configuração da Camada` → `🛠 Ferramentas`. (3) **Slider de opacidade** adicionado no painel (sincroniza com a camada ativa ao expandir nós). (4) Widget de calculadora escalar per-layer (op + escalar + Aplicar) removido — coberto pelo textarea de Tempos. (5) **Marching squares otimizado** (single-pass + máscara pré-computada Uint8Array + early-skip por cellMin/cellMax + zero closures no hot loop): ~8-15× mais rápido. (6) **Cache de contornos** com fingerprint dos dados (URL do TIF para primary) + LRU true (touch on hit) + cap 100 — animações com contornos ligados ficam quase instantâneas após primeira passagem.
 
 > **Mudanças v2.7 → v2.8:** (1) **Estatísticas no GeoJSON exportado**: `metadata.stats` inclui min, max, soma, média, média ponderada pela área (Soma / Área km²) e área total em m². (2) **Popup de resultado** após Polígono/Retângulo/Por camada/Área total — não auto-salva mais; usuário vê tabela com stats e decide via botão **💾 Salvar GeoJSON**. (3) **Reorganização da árvore Exportar GeoJSON** — 5 opções top-level: ⏱ Série temporal em ponto, ▦ Por polígono, ▭ Por retângulo, 🗂️ Por camada vetorial, 🌐 Área total da camada. (4) **Ícone "?" com popup de help** em cada seção (Calculadora, Exportar, Tempos) substituindo descrições inline; gtShowHelpPopup com auto-posicionamento. (5) **Highlight visual da opção selecionada** em Exportar GeoJSON — borda + background cyan + bullet `●` enquanto a ferramenta está ativa; flash animado na Área total.
+
+> **Mudanças v2.8 → v2.9 (release atual):**
+>
+> **Python helper estendido:** (1) **Cache decoded em memória** (`OrderedDict` LRU 256 entradas) + **endpoint `/v1/render/png`** que aplica paleta server-side via matplotlib (viridis/plasma/RdBu_r/terrain/...) + Pillow, com hierarquia de 4 níveis (png cache → decoded cache → disk cache → FTP). Auto vmin/vmax por percentil 5-95 quando não passado; NoData → alpha=0. `/health` reporta stats dos dois caches. (2) **Bridge JS `gtPyHelper.renderTilePNG(url, opts)`** retorna `ImageBitmap` pronto para `drawImage` (fallback `HTMLImageElement` quando `createImageBitmap` indisponível). Opt-in, não altera caminho principal de animação.
+>
+> **Polígonos do usuário (novo módulo completo):** (1) Storage `gtSavedPolygons` em `localStorage` (chave `gisele.savedPolygons.v1`) com `save/list/getById/exists/remove/rename/setColor/clearAll`. Em Electron, persiste em disco (`%APPDATA%\GISELE\Local Storage`). (2) **Submenu "👤 Polígonos do usuário"** dentro de Ferramentas com lista colapsável `📋 Lista de salvos (N)`, ações `✏️ Desenhar e salvar` / `📥 Exportar` / `📤 Importar`. Cada linha: checkbox de visualização (toggle on/off no mapa, cor magenta default) + nome + **⚙ gerenciar** (renomeia + mostra perímetro/área/bbox/data) + **color picker** (contorno) + **🗑 excluir**. (3) `gtAddUserPolyLayer(savedId)` converte registro salvo em `gtExtraLayer` `isUserPoly=true` (geojson FeatureCollection com 1 Polygon). Toggled-on layers aparecem automaticamente em **🗂️ Por camada vetorial** do Exportar GeoJSON com origem "Polígono do usuário". (4) **Drawing flow**: novo intent `_gtDrawIntent='save-only'` salva o polígono sem extração; `'export'` (default) abre dialog com opção de salvar + extrair. Após salvar, ativa visualização automática. (5) Export/Import via arquivo `.geojson` (FeatureCollection com metadados `# M1=…`).
+>
+> **Reorganização UI massiva:** (1) **Lat/Lon/Valor** movido da toolbar para `<li>` dentro de Ferramentas (título capitalizado). (2) **Polígonos do usuário** dentro de Ferramentas (não mais em Miscelânea). (3) **Drag-and-drop reorder** das ferramentas via grip `⋮⋮` à esquerda de cada `<li>` — ordem persistida em `localStorage` chave `gisele.tools.order.v1`. Implementação via HTML5 DnD com `data-tool-id`. (4) **Boot sempre colapsado**: todas as 4 seções top-level (Background/Miscelânea/Camadas/Ferramentas) sem atributo `open`; botão Collapse folders → "Expand folders". (5) **Camadas: gear ⚙ inline + 🗑 trash** substituem `<details>` "🛠 Ferramentas" e botão `×`. Gear abre painel de Configuração inline embaixo da linha; estado ativo destaca em cyan. (6) **Polígonos do usuário no `gtRenderTreeUserPoly`** com lista colapsável memorizada entre re-renders.
+>
+> **Multi-painel: bbox sync + travamento + replicação:** (1) `SisMOM_Map` ganhou API `getViewport`/`applyViewportRaw(vp)`/`setViewportChangeListener(cb)`. `_fireVp()` dispara após pan/wheel/zoomBy/fitTo/resize. Flag `_vpSilent` em `applyViewportRaw` evita loop. (2) `_gtMakeViewportPropagator(srcIdx)` copia vp do slot fonte para todos os outros via `applyViewportRaw`; guard `_gtSyncingVp` previne recursão. Novo slot copia vp do painel 1 ao ser criado. (3) **`_gtApplyMapView` lock no painel 1**: para slots ≠ 0, copia `_gtSlotMap[0].getViewport()` em vez de `fitTo(bbox)` do layer — preserva área do painel 1 ao trocar modelo em Mi 2/3/4. (4) Ao **trocar modelo em slot ≠ 0** para um diferente do painel 1, `s.data = s0.data` (alinha condição inicial; valid time alinha via `getEffectivePasso`). (5) **Lock por painel** (🔒/🔓 botão ao lado do pin): `gtLockedPanels: Set<number>`. Ações replicadas para travados: distância, linha, texto, perfil, **limpar anotações**. (6) **Perfil combinado**: amostra todos painéis-alvo, plota curvas coloridas por painel (paleta fixa azul/vermelho/verde/roxo), tooltip multi-série, CSV combinado `value_M1/M2/...`. (7) **Série temporal multi-painel**: amostragem **paralela** via `Promise.all` com progress agregado `M1:48/48✓ · M2:24/48 · M3:✗`, drawing incremental, sort por `slotIdx`, CSV combinado.
+>
+> **Gráficos interativos (TS + Perfil):** (1) **Toggle on/off por chip da legenda** — click no chip alterna `ts.visible`; chip OFF tem `⊘` + strikethrough + opacity 0.4. Y range auto-zooma sobre só os visíveis. (2) **Ícone 👁** nos chips ajuda a descobrir a affordance. (3) **Zoom por click-and-drag** (rubber-band) sobre a área do plot; mouseup aplica zoom; double-click ou botão "↻ zoom" reseta. Hint "arraste para zoom · duplo-clique reseta" no canto. CSS `.gt-chart-zoom-rect` / `.gt-chart-zoom-reset`. (4) **Clipping** (`ctx.save()` + `rect(margin.l, margin.t, plotW, plotH)` + `ctx.clip()` + `ctx.restore()`) ao redor das curvas — quando zoomado, valores fora do range não extrapolam para os eixos/labels.
 
 ---
 
@@ -266,24 +278,28 @@
 | `Glob` | Listar diretórios | Quando o nome do arquivo é parcialmente conhecido |
 | `mcp__workspace__bash` (Python) | Operações pesadas (decode shapefile, regex global, JSON manipulation, copy bicópia, build marker bump) | Edit tool trunca; Python lê/escreve sem problema |
 | `node --check` | Validar JS após cada edit | Detecta truncamento ou regressão sintática |
-| `md5sum` + `diff` | Garantir bicópia idêntica | Critério de aceitação |
-| `TaskCreate / TaskUpdate` | Rastrear progresso | Visível no widget do Cowork |
-| `mcp__cowork__present_files` | Compartilhar PDF e .bat finais | Botões para o usuário abrir |
-| Snapshot restore (Python regex) | Reconstruir tail truncado | A partir do `gt-misc-data-corais_br` anchor + GeoJSON do disco |
+| `md5sum` + `diff` | Garantir bicópia raiz ↔ electron-app idêntica | Build do Electron quebra se HTMLs divergem |
+| `ResizeObserver`, `requestAnimationFrame` | Render canvas | Forçar passes diferidos pra pegar layout final do flexbox |
 
 ---
 
-## 4. Padrões críticos a respeitar (heurísticas duramente aprendidas)
+## 4. Padrões críticos (NÃO mexer sem entender)
 
-1. **Bicópia obrigatória.** Toda mudança em `figuras_SisMOM_v23.html` deve ser replicada em `electron-app/figuras_SisMOM_v23.html`. Validar com `md5sum`. O usuário usa Electron como produto final.
+1. **Bicópia obrigatória.** Toda mudança em `figuras_SisMOM_v23.html` (raiz) precisa ir também para `electron-app/figuras_SisMOM_v23.html`. Validar com `md5sum` antes de declarar pronto:
+   ```bash
+   md5sum figuras_SisMOM_v23.html electron-app/figuras_SisMOM_v23.html
+   # devem casar
+   ```
+   Para Miscelâneas, `manifest.json` e os `.geojson` também precisam estar em ambas as pastas `miscelaneas/`.
 
-2. **Edit tool trunca o tail.** Após qualquer Edit grande no HTML (>200 KB), checar:
+2. **Tail truncado pelo Edit.** O Edit tool tem tendência a comer os últimos 50-200 bytes em arquivos grandes (>1MB). SEMPRE checar:
    ```python
+   html = open('figuras_SisMOM_v23.html').read()
    html.rstrip().endswith('</html>')
    ```
    Se não, reconstruir do anchor `<script type="application/json" id="gt-misc-data-corais_br">\n` + corais_brasil.geojson do disco + `\n</script>\n</body>\n</html>\n`.
 
-3. **Build marker.** Atualizar `20260529-XXXX-name` em **dois lugares** (console.log + data-build attr). Serve de check pro usuário detectar cache stale.
+3. **Build marker.** Atualizar `YYYYMMDD-XXXX-name` em **dois lugares** (console.log + data-build attr). Serve de check pro usuário detectar cache stale.
 
 4. **node --check obrigatório.** Antes de declarar "feito", rodar:
    ```python
@@ -298,7 +314,9 @@
 
 7. **Snap state.passoAtual.** Ao trocar de modelo (ou de aba), SEMPRE rodar `atualizarMaxPassos()` para recomputar `stepFreq/maxPassos` e clampar `state.passoAtual` ao grid. Modelos legacy têm `m.maxPassos` desatualizado — `v.horizonte` da variável é a verdade.
 
-8. **Lock do git.** Existe um `.git/index.lock` órfão que o sandbox do Cowork não consegue remover (`rm` retorna Operation not permitted). Para commits, gerar `.bat` no Windows que executa: `del .git\index.lock` + `git read-tree HEAD` + `git add -A` + `git commit -m ...`. O arquivo `commit-changes.bat` já existe pronto.
+8. **Multipainel: viewport sync via guard.** Em qualquer mutação de `self.vp` (pan/wheel/zoomBy/fitTo/resize), `_fireVp()` chama o listener registrado. Para evitar loop quando propagar para outros slots, usar `applyViewportRaw(vp)` que ativa `_vpSilent = true` antes de mexer no vp. Flag global `_gtSyncingVp` previne re-entrada da camada superior.
+
+9. **Lock do git.** Existe um `.git/index.lock` órfão que o sandbox do Cowork não consegue remover. Para commits, gerar `.bat` no Windows que executa: `del .git\index.lock` + `git read-tree HEAD` + `git add -A` + `git commit -m ...`. O arquivo `commit-changes.bat` já existe pronto para v2.9.0.
 
 ---
 
@@ -312,6 +330,8 @@
 | `captureStream(fps)` assume frame rate fixo | Falso. Só emite quando o canvas muda. Para vídeo fluido: forçar redraw em RAF + pixel anti-dedup. |
 | Switch "Liga/Desliga" no dropdown de Miscelâneas | Redundante — o chip da camada já tem olho/×. Removido após user reclamar. |
 | `<input crossorigin="anonymous">` direto nos `<img>` do FTP | FTP do CPTEC não envia headers CORS → imagem nem carrega. Cross-origin handling deve ser no fetch (Electron CORS handler ou servidor local). |
+| Expand-only em `adjustViewportToAspect` | Causa crescimento sem limite ao adicionar painéis. Revertido para manter lonSpan e ajustar latSpan (v2.9). Sync de viewport entre painéis é o caminho correto. |
+| `fitTo(layer.bbox)` em slots != 0 ao trocar modelo | Sobrescreve o viewport navegado pelo usuário. Em multi-painel, copiar `_gtSlotMap[0].getViewport()` do painel 1. |
 
 ---
 
@@ -328,14 +348,17 @@ C:\Projetos\Visualizador\
 │   ├── figuras_SisMOM_v23.html    # CÓPIA exata da raiz
 │   ├── miscelaneas/               # CÓPIA dos GeoJSONs
 │   ├── main.js                    # Electron main process
-│   ├── package.json               # electron-builder config (Win/Mac/Linux)
+│   ├── package.json               # electron-builder config — v2.9.0
+│   ├── python-helper/             # FastAPI subprocess
 │   └── dist/                      # Saídas dos builds (.exe, .dmg, .AppImage)
-├── vendor/leaflet.css             # Embed do Leaflet (mas usamos SisMOM_Map próprio)
+├── vendor/leaflet.css             # Embed do Leaflet
 ├── tools/servir_dados/            # Servidor HTTP local (Python + Node)
-│   ├── servir_dados.py
-│   ├── servir_dados.js
-│   ├── servir_dados.sh
-│   └── servir_dados.bat
 ├── docs/
-│   ├── GISELE_Manual_Uso.pdf      # Manual gerado por gerar_manual_uso.py (24p)
-│   └─
+│   ├── GISELE_Manual_Uso.pdf      # Manual gerado por gerar_manual_uso.py
+│   ├── HANDOVER_GISELE.pdf        # Este documento em PDF
+│   └── ESPECIFICACOES_GISELE.pdf  # Specs técnicas
+└── dev/
+    ├── gerar_manual_uso.py
+    ├── gerar_pdf_documentacao.py
+    └── patch_*.py                 # Histórico de patches aplicados
+```
