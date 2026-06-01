@@ -260,6 +260,27 @@
                                    cursor: pointer; display: none; backdrop-filter: blur(8px); }
         body.gt-mode-active .map-body .gt-panel-lock { display: inline-block; }
         .map-body .gt-panel-lock.gt-locked { background: rgba(220,180,40,0.92); color: #2a1f00; border-color: rgba(0,0,0,0.2); }
+        /* ===== Desenho no modo PNG/GIF (linha/area/texto por painel) ===== */
+        .png-anno { position:absolute; inset:0; width:100%; height:100%; z-index:6; pointer-events:none; }
+        body.gt-mode-active .png-anno, .map-box.gt-map-active .png-anno { display:none !important; }
+        .map-body .png-toolbar { position:absolute; top:8px; left:8px; z-index:9;
+                                 display:none; flex-direction:column; gap:3px; align-items:center; padding:3px;
+                                 background:rgba(15,22,34,0.85); border:1px solid rgba(255,255,255,0.14);
+                                 border-radius:8px; backdrop-filter:blur(8px); }
+        .png-toolbar .png-tools-handle { width:26px; height:26px; font-size:14px; }
+        .png-toolbar.open .png-tools-handle { background:var(--accent-cyan,#4dd0e1); color:#0b1220; }
+        .png-toolbar .png-tools-body { display:none; flex-direction:column; align-items:center; gap:3px; margin-top:3px; }
+        .png-toolbar.open .png-tools-body { display:flex; }
+        body.gt-mode-active .map-body .png-toolbar { display:none !important; }
+        .png-toolbar button { width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;
+                              font-size:13px; line-height:1; background:transparent; color:var(--text,#dbe2ec);
+                              border:1px solid transparent; border-radius:5px; cursor:pointer; padding:0; }
+        .png-toolbar button[data-pt="pin"] { width:auto; padding:0 7px; font-size:11px; font-weight:700; }
+        .png-toolbar button:hover { background:rgba(255,255,255,0.12); color:#fff; }
+        .png-toolbar button.active { background:var(--accent-cyan,#4dd0e1); color:#0b1220; border-color:rgba(0,0,0,0.2); }
+        .png-toolbar button[data-pt="lock"].active { background:rgba(220,180,40,0.92); color:#2a1f00; }
+        .png-toolbar input[type="color"] { width:22px; height:22px; padding:0; border:1px solid rgba(255,255,255,0.14); border-radius:4px; background:transparent; cursor:pointer; }
+        .png-toolbar .png-sep { width:16px; height:1px; background:rgba(255,255,255,0.18); margin:1px 0; }
         /* Chip de legenda clicável (multipainel: liga/desliga curva) */
         .gt-mp-legend-chip { cursor: pointer; padding: 2px 5px; border-radius: 3px; user-select: none; transition: background 120ms; }
         .gt-mp-legend-chip:hover { background: rgba(15, 23, 42, 0.06); }
@@ -2415,6 +2436,7 @@
                 <canvas class="map-canvas-gt" data-buf="map" style="display:none"></canvas>
                 <img class="map-img" data-buf="a" alt="Mapa" loading="eager" decoding="async">
                 <img class="map-img" data-buf="b" alt="" aria-hidden="true" loading="eager" decoding="async">
+                <canvas class="png-anno" data-buf="anno"></canvas>
             </div>
             <div class="zoom-controls" aria-hidden="true">
                 <button data-action="zoom-in" title="Aumentar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
@@ -3342,10 +3364,19 @@
             const elI = slotEl(i);
             const inp = elI ? elI.querySelector('[data-cfg="data"]') : null;
             if (isAna && Tftp) {
-                s.data = Tftp;
+                // Alvo de alinhamento = tempo de validade do M1. Se o alvo mudou,
+                // reseta a data do painel p/ o alvo e limpa o recuo automatico. Se NAO
+                // mudou, preserva a data ja resolvida (possivel recuo p/ dado disponivel).
+                if (s._anaAlignTarget !== Tftp) {
+                    s._anaAlignTarget = Tftp;
+                    s.data = Tftp;
+                    s._anaResolved = false;
+                    s._anaCache = null;
+                }
                 if (inp) { inp.value = dataFTPtoISO(s.data); inp.disabled = true; }
-            } else if (inp && !s.sync) {
-                inp.disabled = false;
+            } else {
+                if (s._anaAlignTarget != null) { s._anaAlignTarget = null; s._anaResolved = false; s._anaCache = null; }
+                if (inp && !s.sync) inp.disabled = false;
             }
         }
     }
@@ -3803,12 +3834,90 @@
             loadingEl.classList.remove('visible');
             errorEl.classList.remove('visible');
             lastLoadedURL[slotIdx] = url;
+            try { pngRedraw(slotIdx); } catch (_) {}
         }).catch(() => {
             if (reqId !== activeRequests[slotIdx]) return;
             loadingEl.classList.remove('visible');
             errorEl.classList.add('visible');
             lastLoadedURL[slotIdx] = null;
         });
+    }
+
+    /* Carrega painel de ANALISE/observacao (Freq=0) com RECUO AUTOMATICO de data:
+       parte da data alinhada ao M1 (alvo de validade) e, se a imagem nao existir no
+       FTP, recua de freq_rodadas em freq_rodadas horas (1 dia p/ MERGE diario) ate
+       achar a mais recente disponivel. Nao afeta animacao nem fluxo GeoTIFF. */
+    const ANA_FALLBACK_MAX = 14;
+    function carregarAnaliseComFallback(slotIdx, passo) {
+        const s = state.slots[slotIdx];
+        const m = modelos[s.modelo] || {};
+        const _isNativeGt = (typeof SisMOM_GeoTIFF !== 'undefined') && SisMOM_GeoTIFF.isGeoTiffModel(m);
+        const _isGtMode = (typeof appMode !== 'undefined' && appMode === 'gtiff');
+        const target = s._anaAlignTarget || s.data;
+        if (_isGtMode || _isNativeGt || !target || target.length < 10) {
+            return carregarImagem(slotIdx, montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo }));
+        }
+        const inpEl = () => (slotEl(slotIdx) ? slotEl(slotIdx).querySelector('[data-cfg="data"]') : null);
+        // Cache por alvo: evita re-probing em re-renders com o mesmo alvo de validade.
+        if (s._anaCache && s._anaCache.t === target) {
+            if (s._anaCache.r) {
+                s.data = s._anaCache.r;
+                s._anaResolved = (s._anaCache.r !== target);
+                const ic = inpEl(); if (ic) ic.value = dataFTPtoISO(s.data);
+                return carregarImagem(slotIdx, montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo }));
+            }
+            const le = slotLoading(slotIdx), ee = slotError(slotIdx);
+            if (le) le.classList.remove('visible');
+            if (ee) ee.classList.add('visible');
+            lastLoadedURL[slotIdx] = null;
+            return;
+        }
+        const stepH = Math.max(1, Number(m.freq_rodadas) || 24);
+        const reqId = ++activeRequests[slotIdx];
+        const loadingEl = slotLoading(slotIdx);
+        const errorEl = slotError(slotIdx);
+        const buf = buffers[slotIdx];
+        const front = slotBuf(slotIdx, buf.active);
+        const hasVisible = front && front.classList.contains('active');
+        if (!hasVisible && loadingEl) loadingEl.classList.add('visible');
+        if (errorEl) errorEl.classList.remove('visible');
+        let baseDate = dataFTPtoDate(target);
+        let attempt = 0;
+        const tryNext = () => {
+            if (reqId !== activeRequests[slotIdx]) return;
+            const curFtp = formatarFTPfromDate(baseDate);
+            const url = montarURL({ modelo: s.modelo, data: curFtp, variavel: s.variavel, passo });
+            if (!url) {
+                if (loadingEl) loadingEl.classList.remove('visible');
+                if (errorEl) errorEl.classList.add('visible');
+                return;
+            }
+            const probe = new Image();
+            probe.onload = () => {
+                if (reqId !== activeRequests[slotIdx]) return;
+                s.data = curFtp;
+                s._anaResolved = (curFtp !== target);
+                s._anaCache = { t: target, r: curFtp };
+                const ip = inpEl(); if (ip) ip.value = dataFTPtoISO(curFtp);
+                carregarImagem(slotIdx, url);
+                try { atualizarInfoSummary(); } catch (_) {}
+            };
+            probe.onerror = () => {
+                if (reqId !== activeRequests[slotIdx]) return;
+                attempt++;
+                if (attempt > ANA_FALLBACK_MAX) {
+                    s._anaCache = { t: target, r: null };
+                    if (loadingEl) loadingEl.classList.remove('visible');
+                    if (errorEl) errorEl.classList.add('visible');
+                    lastLoadedURL[slotIdx] = null;
+                    return;
+                }
+                baseDate = new Date(baseDate.getTime() - stepH * 3600000);
+                tryNext();
+            };
+            probe.src = url;
+        };
+        tryNext();
     }
 
     function preCarregarProximos() {
@@ -3867,10 +3976,16 @@
         // Restore default error message for this slot in case it was overridden
         const errMsg = slotError(i).querySelector('span');
         if (errMsg) errMsg.textContent = 'Imagem não disponível no servidor.';
-        carregarImagem(i, montarURL({
-            modelo: s.modelo,
-            data: s.data, variavel: s.variavel, passo
-        }));
+        if (isAnalise && i > 0 && !state.animando) {
+            // Analise/observacao (ex.: MERGE) em M2..M4: tenta a data alinhada ao M1
+            // e, se a imagem nao existir no FTP, recua ate a mais recente disponivel.
+            carregarAnaliseComFallback(i, passo);
+        } else {
+            carregarImagem(i, montarURL({
+                modelo: s.modelo,
+                data: s.data, variavel: s.variavel, passo
+            }));
+        }
     }
     function atualizarRunReadout() {
         const btn = $('btnRunToday');
@@ -3893,6 +4008,7 @@
         }
         setTimeout(preCarregarProximos, 50);
         scheduleSavePrefs();
+        try { pngRedrawAll(); } catch (_) {}
     }
     function atualizarInfoSummary() {
         DOM.layoutTag.textContent = `${state.layout} MAPA${state.layout > 1 ? 'S' : ''}`;
@@ -3905,7 +4021,8 @@
             const adjusted = (!isAna && i > 0 && ep !== state.passoAtual);
             const modeloLabel = (modelos[s.modelo].nome || s.modelo).split(' ')[0];
             const passoTxt = isAna ? '<span class="pill">análise</span>' : `+<span class="pill">${pad(ep)}h</span>`;
-            parts.push(`<strong>M${i+1}</strong> ${escAttr(modeloLabel)} · ${escAttr(variavelLabelOf(s.modelo, s.variavel))} <span class="pill">${formatarDataCurta(s.data)}</span>${passoTxt}${adjusted ? ' <span style="color:var(--accent-cyan);font-size:10px;font-weight:700">ALINHADO</span>' : ''}`);
+            const recuoTxt = (isAna && s._anaResolved && s._anaAlignTarget) ? ` <span style="color:#f0a020;font-size:10px;font-weight:700" title="Validade do M1 (${escAttr(formatarDataCurta(s._anaAlignTarget))}) indisponivel — exibindo a mais recente">↩ RECUADO</span>` : '';
+            parts.push(`<strong>M${i+1}</strong> ${escAttr(modeloLabel)} · ${escAttr(variavelLabelOf(s.modelo, s.variavel))} <span class="pill">${formatarDataCurta(s.data)}</span>${passoTxt}${recuoTxt}${adjusted ? ' <span style="color:var(--accent-cyan);font-size:10px;font-weight:700">ALINHADO</span>' : ''}`);
         }
         // Tempo de validade comum (baseado no Mapa 1). Se o Mapa 1 for análise
         // (Freq=0), a validade é a própria rodada (sem deslocamento de previsão).
@@ -3938,6 +4055,7 @@
         saveUIPrefs();
         announce(`${n} mapa${n>1?'s':''} ativo${n>1?'s':''}`);
         renderTudo();
+        try { pngRenderPanelTools(); } catch (_) {}
     }
     /* Compute the global step grid in hours:
        - state.maxPassos = MAX horizonte across active variables (longest horizon)
@@ -5432,7 +5550,7 @@
             else if (action === 'download') downloadImage(idx);
             else if (action === 'fullscreen') toggleFullscreen(idx);
             else if (action === 'copy') copyImageURL(idx);
-            else if (action === 'retry') renderSlot(idx);
+            else if (action === 'retry') { try { const _rs = state.slots[idx]; if (_rs) _rs._anaCache = null; } catch (_) {} renderSlot(idx); }
             else if (action === 'info') toggleInfoPanel(idx);
         });
 
@@ -5997,9 +6115,10 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260601-12000-cidades'); document.documentElement.setAttribute('data-build', '20260601-12000-cidades'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260601-12300-pngmenu'); document.documentElement.setAttribute('data-build', '20260601-12300-pngmenu'); } catch (_) {}
         loadModelos();
         buildSlots();
+        try { pngInit(); } catch (_) {}
         const restored = loadUIPrefs();
         state.passoAtual = 1;   // sempre abre no início da rodada (1º passo)
         // O Mapa 1 SEMPRE inicia na data do dia corrente (posteriores em cascata).
@@ -10931,6 +11050,173 @@
         }
     }
 
+    /* ============================================================
+       Desenho no modo PNG/GIF: linha, area e texto por painel, com
+       selecao de painel ativo, travamento (lock) e replicacao entre
+       painéis travados. Anotacoes em coords NORMALIZADAS ao conteudo
+       da imagem (object-fit:contain), num <canvas.png-anno> dentro do
+       .map-viewport (acompanha zoom/pan via transform CSS do viewport).
+       Sistema paralelo ao do GeoTIFF (que opera em lat/lon).
+       ============================================================ */
+    let pngActivePanel = 0;
+    const pngLockedPanels = new Set();
+    const pngAnnots = [[], [], [], []];
+    let pngTool = 'pan';
+    let pngColor = '#ff3b30';
+    let pngDraft = null;
+    let _pngSeq = 0;
+    const _pngRO = [];
+    function pngIsMode() { return (typeof appMode === 'undefined') || appMode !== 'gtiff'; }
+    function pngAnnsOf(i) { return pngAnnots[i] || (pngAnnots[i] = []); }
+    function pngCanvas(i) { const vp = slotViewport(i); return vp ? vp.querySelector('canvas.png-anno') : null; }
+    function pngActiveImg(i) { try { return slotBuf(i, buffers[i].active); } catch (_) { return null; } }
+    function pngHexRgba(hex, a) { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 'rgba(255,59,48,' + a + ')'; const n = parseInt(m[1], 16); return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + a + ')'; }
+    function pngContentRect(i, cv) {
+        const W = cv.width, H = cv.height, img = pngActiveImg(i);
+        const iw = img && img.naturalWidth, ih = img && img.naturalHeight;
+        if (!iw || !ih) return { x: 0, y: 0, w: W, h: H };
+        const s = Math.min(W / iw, H / ih), w = iw * s, h = ih * s;
+        return { x: (W - w) / 2, y: (H - h) / 2, w: w, h: h };
+    }
+    function pngN2P(i, cv, nx, ny) { const r = pngContentRect(i, cv); return [r.x + nx * r.w, r.y + ny * r.h]; }
+    function pngP2N(i, cv, px, py) { const r = pngContentRect(i, cv); return [r.w ? (px - r.x) / r.w : 0, r.h ? (py - r.y) / r.h : 0]; }
+    function pngEvtPx(cv, e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * cv.width, (e.clientY - r.top) / r.height * cv.height]; }
+    function pngResize(i) { const cv = pngCanvas(i), vp = slotViewport(i); if (!cv || !vp) return false; const w = vp.clientWidth, h = vp.clientHeight; if (w && h && (cv.width !== w || cv.height !== h)) { cv.width = w; cv.height = h; } return !!(cv.width && cv.height); }
+    function pngD2Seg(px, py, ax, ay, bx, by) { const dx = bx - ax, dy = by - ay, l2 = dx*dx + dy*dy; if (!l2) return (px-ax)*(px-ax) + (py-ay)*(py-ay); let t = ((px-ax)*dx + (py-ay)*dy) / l2; t = Math.max(0, Math.min(1, t)); const x = ax + t*dx, y = ay + t*dy; return (px-x)*(px-x) + (py-y)*(py-y); }
+    function pngDrawAnn(ctx, i, cv, ann, draft) {
+        const pts = ann.pts || []; if (!pts.length) return;
+        const col = ann.color || pngColor;
+        ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        if (ann.type === 'text') {
+            const p = pngN2P(i, cv, pts[0][0], pts[0][1]);
+            ctx.font = '600 14px ui-sans-serif,system-ui,sans-serif'; ctx.textBaseline = 'middle';
+            const txt = ann.text || '', tw = ctx.measureText(txt).width;
+            ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(p[0] - 4, p[1] - 11, tw + 8, 22);
+            ctx.fillStyle = col; ctx.fillText(txt, p[0], p[1]); return;
+        }
+        ctx.beginPath();
+        for (let k = 0; k < pts.length; k++) { const p = pngN2P(i, cv, pts[k][0], pts[k][1]); if (k === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]); }
+        if (draft && ann.cursor) { const c = pngN2P(i, cv, ann.cursor[0], ann.cursor[1]); ctx.lineTo(c[0], c[1]); }
+        if (ann.type === 'area') { if (!draft) ctx.closePath(); ctx.fillStyle = pngHexRgba(col, 0.22); ctx.fill(); }
+        ctx.stroke();
+        ctx.fillStyle = col;
+        for (let k = 0; k < pts.length; k++) { const p = pngN2P(i, cv, pts[k][0], pts[k][1]); ctx.beginPath(); ctx.arc(p[0], p[1], 3, 0, 6.2832); ctx.fill(); }
+    }
+    function pngRedraw(i) {
+        const cv = pngCanvas(i); if (!cv) return; pngResize(i);
+        const ctx = cv.getContext('2d'); if (!ctx) return;
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (!pngIsMode()) return;
+        const arr = pngAnnsOf(i); for (let k = 0; k < arr.length; k++) pngDrawAnn(ctx, i, cv, arr[k], false);
+        if (pngDraft && pngDraft.slot === i) pngDrawAnn(ctx, i, cv, pngDraft, true);
+    }
+    function pngRedrawAll() { for (let i = 0; i < NUM_SLOTS; i++) pngRedraw(i); }
+    function pngTargets(src) { const set = new Set([src]); if (pngLockedPanels.has(src)) { for (const k of pngLockedPanels) if (k < state.layout) set.add(k); } return Array.from(set); }
+    function pngCommit(src, ann) {
+        const targets = pngTargets(src);
+        for (let j = 0; j < targets.length; j++) { const t = targets[j]; const a = (t === src) ? ann : JSON.parse(JSON.stringify(ann)); a.id = 'pann_' + (++_pngSeq); pngAnnsOf(t).push(a); pngRedraw(t); }
+    }
+    function pngClearPanel(i) { const targets = pngTargets(i); for (let j = 0; j < targets.length; j++) { pngAnnots[targets[j]] = []; pngRedraw(targets[j]); } }
+    function pngEraseAt(i, nx, ny) {
+        const cv = pngCanvas(i); if (!cv) return;
+        const c = pngN2P(i, cv, nx, ny), arr = pngAnnsOf(i);
+        let best = -1, bestD = 144;
+        for (let k = arr.length - 1; k >= 0; k--) {
+            const pts = arr[k].pts || []; let dmin = Infinity;
+            for (let s = 0; s < pts.length; s++) {
+                const p = pngN2P(i, cv, pts[s][0], pts[s][1]);
+                const dv = (p[0]-c[0])*(p[0]-c[0]) + (p[1]-c[1])*(p[1]-c[1]); if (dv < dmin) dmin = dv;
+                if (s > 0) { const q = pngN2P(i, cv, pts[s-1][0], pts[s-1][1]); const ds = pngD2Seg(c[0], c[1], q[0], q[1], p[0], p[1]); if (ds < dmin) dmin = ds; }
+            }
+            if (dmin < bestD) { bestD = dmin; best = k; }
+        }
+        if (best >= 0) { arr.splice(best, 1); pngRedraw(i); }
+    }
+    function pngFinishDraft() {
+        if (!pngDraft) return; const d = pngDraft; pngDraft = null;
+        if ((d.type === 'line' && d.pts.length >= 2) || (d.type === 'area' && d.pts.length >= 3)) pngCommit(d.slot, { type: d.type, pts: d.pts, color: d.color });
+        else pngRedraw(d.slot);
+    }
+    function pngWireCanvas(i) {
+        const cv = pngCanvas(i); if (!cv || cv._pngWired) return; cv._pngWired = true;
+        cv.addEventListener('mousedown', function (e) {
+            if (pngTool === 'pan' || i !== pngActivePanel || !pngIsMode()) return;
+            e.preventDefault(); e.stopPropagation();
+            const px = pngEvtPx(cv, e), n = pngP2N(i, cv, px[0], px[1]);
+            if (pngTool === 'erase') { pngEraseAt(i, n[0], n[1]); return; }
+            if (pngTool === 'text') { const t = window.prompt('Texto da anotação:'); if (t) pngCommit(i, { type: 'text', pts: [[n[0], n[1]]], text: t, color: pngColor }); return; }
+            if (!pngDraft || pngDraft.slot !== i || pngDraft.type !== pngTool) pngDraft = { slot: i, type: pngTool, pts: [], color: pngColor, cursor: null };
+            pngDraft.pts.push([n[0], n[1]]); pngDraft.cursor = [n[0], n[1]]; pngRedraw(i);
+        });
+        cv.addEventListener('mousemove', function (e) {
+            if (!pngDraft || pngDraft.slot !== i) return;
+            const px = pngEvtPx(cv, e); pngDraft.cursor = pngP2N(i, cv, px[0], px[1]); pngRedraw(i);
+        });
+        cv.addEventListener('dblclick', function (e) { if (!pngDraft || pngDraft.slot !== i) return; e.preventDefault(); e.stopPropagation(); pngFinishDraft(); });
+    }
+    function pngApplyToolUI() {
+        for (let i = 0; i < NUM_SLOTS; i++) {
+            const cv = pngCanvas(i); if (!cv) continue;
+            const draw = (i === pngActivePanel) && pngTool !== 'pan' && pngIsMode();
+            cv.style.pointerEvents = draw ? 'auto' : 'none';
+            const box = slotEl(i); if (box) box.classList.toggle('tool-active', draw);
+        }
+    }
+    function pngSetTool(i, tool) { pngActivePanel = i; pngTool = (pngTool === tool && tool !== 'pan') ? 'pan' : tool; pngDraft = null; pngRenderPanelTools(); pngApplyToolUI(); pngRedrawAll(); }
+    function pngSelectPanel(i) { pngActivePanel = i; pngRenderPanelTools(); pngApplyToolUI(); }
+    function pngToggleLock(i) { if (pngLockedPanels.has(i)) pngLockedPanels.delete(i); else pngLockedPanels.add(i); pngRenderPanelTools(); }
+    function pngToolbarHTML(i) {
+        return '<button type="button" class="png-tools-handle" data-pt="handle" title="Ferramentas de desenho (abrir/fechar)">✎</button>'
+            + '<div class="png-tools-body">'
+            + '<button type="button" data-pt="pin" title="Selecionar este painel como ativo">M' + (i+1) + '</button>'
+            + '<button type="button" data-pt="lock" title="Travar painel — replica anotações entre travados">🔓</button>'
+            + '<span class="png-sep"></span>'
+            + '<button type="button" data-tool="pan" title="Mover/zoom (sem desenhar)">✋</button>'
+            + '<button type="button" data-tool="line" title="Linha (clique vértices · duplo-clique finaliza)">╱</button>'
+            + '<button type="button" data-tool="area" title="Área (clique vértices · duplo-clique fecha)">▭</button>'
+            + '<button type="button" data-tool="text" title="Inserir texto">T</button>'
+            + '<button type="button" data-tool="erase" title="Apagar anotação (clique sobre ela)">⌫</button>'
+            + '<input type="color" data-pt="color" title="Cor das anotações" value="' + pngColor + '">'
+            + '<button type="button" data-pt="clear" title="Limpar anotações do painel">🗑</button>'
+            + '</div>';
+    }
+    function pngWireToolbar(bar, i) {
+        const hd = bar.querySelector('[data-pt="handle"]'); if (hd) hd.addEventListener('click', function (e) { e.stopPropagation(); bar.classList.toggle('open'); });
+        bar.querySelector('[data-pt="pin"]').addEventListener('click', function (e) { e.stopPropagation(); pngSelectPanel(i); });
+        bar.querySelector('[data-pt="lock"]').addEventListener('click', function (e) { e.stopPropagation(); pngToggleLock(i); });
+        bar.querySelector('[data-pt="clear"]').addEventListener('click', function (e) { e.stopPropagation(); pngClearPanel(i); });
+        const tools = bar.querySelectorAll('[data-tool]');
+        for (let k = 0; k < tools.length; k++) tools[k].addEventListener('click', function (e) { e.stopPropagation(); pngSetTool(i, this.dataset.tool); });
+        const ci = bar.querySelector('[data-pt="color"]'); if (ci) ci.addEventListener('input', function (e) { e.stopPropagation(); pngColor = e.target.value; });
+    }
+    function pngRenderPanelTools() {
+        const show = pngIsMode();
+        for (let i = 0; i < NUM_SLOTS; i++) {
+            const body = slotBody(i); if (!body) continue;
+            let bar = body.querySelector(':scope > .png-toolbar');
+            if (!bar) { bar = document.createElement('div'); bar.className = 'png-toolbar'; bar.innerHTML = pngToolbarHTML(i); body.appendChild(bar); pngWireToolbar(bar, i); }
+            bar.style.display = show ? 'flex' : 'none';
+            const pin = bar.querySelector('[data-pt="pin"]'); if (pin) pin.classList.toggle('active', i === pngActivePanel);
+            const lk = bar.querySelector('[data-pt="lock"]'); if (lk) { const L = pngLockedPanels.has(i); lk.textContent = L ? '🔒' : '🔓'; lk.classList.toggle('active', L); }
+            const tools = bar.querySelectorAll('[data-tool]');
+            for (let k = 0; k < tools.length; k++) tools[k].classList.toggle('active', (i === pngActivePanel) && tools[k].dataset.tool === pngTool && pngTool !== 'pan');
+            const ci = bar.querySelector('[data-pt="color"]'); if (ci && document.activeElement !== ci) ci.value = pngColor;
+            if (show) pngWireCanvas(i);
+        }
+        pngApplyToolUI();
+    }
+    function pngInit() {
+        for (let i = 0; i < NUM_SLOTS; i++) {
+            const vp = slotViewport(i); if (!vp) continue;
+            try { const ro = new ResizeObserver(function () { pngRedraw(i); }); ro.observe(vp); _pngRO.push(ro); } catch (_) {}
+        }
+        document.addEventListener('keydown', function (e) {
+            if (!pngDraft) return;
+            if (e.key === 'Escape') { pngDraft = null; pngRedraw(pngActivePanel); }
+            else if (e.key === 'Enter') { pngFinishDraft(); }
+        });
+        pngRenderPanelTools();
+    }
     function gtRenderPanelPins() {
         document.querySelectorAll('.map-box').forEach((box, idx) => {
             // só painéis dentro de mainPNG
@@ -17574,6 +17860,7 @@
         if (mainPNG) mainPNG.style.display = '';
         if (mainGT)  mainGT.style.display  = 'none';
         document.body.classList.toggle('gt-mode-active', mode === 'gtiff');
+        try { pngRenderPanelTools(); pngRedrawAll(); } catch (_) {}
         // Sempre repopular os selects (modelo/variavel) com filtro da nova aba.
         // Sem isso, modelos com tem_tif=false ainda apareceriam no GeoTIFF e
         // vice-versa quando não há snapshot salvo da aba destino.

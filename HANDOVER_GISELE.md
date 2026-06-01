@@ -1,7 +1,7 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.10.0 — Build marker `20260601-12000-cidades`
+**Versão atual:** v2.11.0 — Build marker `20260601-12300-pngmenu`
 **Arquivos críticos (sempre em lockstep):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
@@ -29,13 +29,21 @@
 >
 > **Gráficos interativos (TS + Perfil):** (1) **Toggle on/off por chip da legenda** — click no chip alterna `ts.visible`; chip OFF tem `⊘` + strikethrough + opacity 0.4. Y range auto-zooma sobre só os visíveis. (2) **Ícone 👁** nos chips ajuda a descobrir a affordance. (3) **Zoom por click-and-drag** (rubber-band) sobre a área do plot; mouseup aplica zoom; double-click ou botão "↻ zoom" reseta. Hint "arraste para zoom · duplo-clique reseta" no canto. CSS `.gt-chart-zoom-rect` / `.gt-chart-zoom-reset`. (4) **Clipping** (`ctx.save()` + `rect(margin.l, margin.t, plotW, plotH)` + `ctx.clip()` + `ctx.restore()`) ao redor das curvas — quando zoomado, valores fora do range não extrapolam para os eixos/labels.
 
-> **Mudanças v2.9 → v2.10 (release atual):**
+> **Mudanças v2.9 → v2.10:**
 >
 > **Cidades brasileiras (nova miscelânea agrupada por UF):** (1) Novo item `cidades_br` no `manifest.json` — 240 cidades (capitais + principais), props `nome/uf/regiao/populacao/capital`, com dois campos novos de manifesto: `groupByProp` (agrupa por UF) + `groupOrder` (ordem por região, N→S). (2) Novo render hierárquico `_gtRenderMiscGroupedItem`: `<details>` por item → `<details>` por UF (lazy-load no `toggle`); cada UF vira camada própria com id `cidades_br::SP` (checkbox liga/desliga TODAS as cidades do estado de uma vez). (3) Cabeçalho com contador (`240 em 27 grupos`) + ações globais `✓ Todos` / `👁 Limpar`; dentro de cada estado, filtro de texto `🔍 Filtrar cidades…` + ações locais `☑ Todas` / `👁 Nenhuma`. (4) GeoJSON embarcado inline (`<script id="gt-misc-data-cidades_br">`) para `file://`. (5) Script gerador `dev/baixar_cidades_brasil.py`. Bicópia raiz↔electron sincronizada (manifest + geojson, md5 confere).
 >
 > **Cliente Python `gisele_ts` (`api-client/`):** módulo standalone que envelopa o endpoint `/v1/timeseries/point` do helper Python — extração de série temporal num ponto (lat, lon) a partir de scripts/notebooks/pipelines. Componentes: `gisele_ts/client.py` + `models.py` + CLI (`__main__.py`) + `examples/extract_ts.py` + `setup.py` (`pip install -e .`). README com instruções de uso standalone (`python server.py --port 8000`).
 >
 > **Infra/versão:** `.gitignore` ganhou patterns Python (`__pycache__/`, `*.pyc`, `*.egg-info/`). `package.json` + `package-lock.json` 2.9.0 → 2.10.0. Build marker `20260531-11500-collapsed` → `20260601-12000-cidades`.
+>
+> **Mudanças v2.10.0 → v2.11.0 (release atual):**
+>
+> **Correção multipainel — MERGE/análise com recuo automático de data:** painéis de análise (`frequencia=0`, ex.: MERGE) em M2–M4 continuam alinhados à data de **validade do M1**, mas quando não há imagem no FTP nessa data (ex.: MERGE do dia ainda não publicado) agora **recuam automaticamente** dia a dia (passo = `freq_rodadas`, 1 dia p/ MERGE) até a observação mais recente disponível (até `ANA_FALLBACK_MAX = 14` tentativas). Nova `carregarAnaliseComFallback` (probe via `new Image()` + cache por alvo `s._anaCache`); `applyAnalysisDates` ficou **idempotente** (`s._anaAlignTarget` impede resetar a data já resolvida em re-renders); badge **↩ RECUADO** no resumo do topo quando a data exibida difere da validade do M1; "Tentar novamente" limpa o cache. Não afeta animação (cai no caminho simples de carga) nem o fluxo GeoTIFF.
+>
+> **Desenho no modo PNG/GIF (linha, área, texto) + seleção/lock/replicação por painel:** novo módulo paralelo ao do GeoTIFF. (1) Cada painel ganha uma **toolbar no topo** (`.png-toolbar`, só em modo PNG): seletor de painel ativo (M1..M4), 🔒 lock, ✋ pan, ╱ linha, ▭ área, T texto, ⌫ borracha, seletor de cor e 🗑 limpar. (2) Anotações num `<canvas class="png-anno">` dentro do `.map-viewport`, em **coords normalizadas ao conteúdo da imagem** (`object-fit:contain` via `pngContentRect`), acompanhando zoom/pan pelo `transform` CSS do viewport — PNG é imagem estática, sem georreferência. (3) Linha/área multi-vértice (clique adiciona, duplo-clique/Enter finaliza, Esc cancela), texto via prompt, borracha por hit-test (vértice/segmento). (4) **Lock + replicação**: desenhar num painel travado replica a anotação clonada para todos os travados na mesma posição relativa (`pngTargets`/`pngCommit`). (5) Redesenho em load de imagem (anima também), `ResizeObserver` por viewport, troca de modo/layout. Estado em memória (`pngAnnots`/`pngLockedPanels`/`pngActivePanel`/`pngColor`). Isolado: não toca no GeoTIFF (lat/lon) nem na animação. Hooks via try/catch.
+>
+> **Versão:** `package.json` + `package-lock.json` 2.10.0 → 2.11.0. Build marker `20260601-12000-cidades` → `20260601-12300-pngmenu`. (v2.11.0 agrupa o fix do MERGE + o desenho no PNG num único release.)
 
 ---
 
@@ -333,40 +341,4 @@
 | Comportamento | Por que NÃO |
 |---|---|
 | `Math.min(v.horizonte, m.maxPassos)` no cálculo de fileMax | `m.maxPassos` é legacy do slider antigo. BESM Global tinha 30 (cap), mas a variável PREC tem horizonte 720. Cortava série temporal em 1 ponto. Usar apenas `v.horizonte || m.maxPassos`. |
-| Default `keepFill = false` nos contornos | Escondia o shaded sempre que isolinhas eram ativadas. Padrão deve ser preservar o preenchimento. |
-| `drawImage(img cross-origin)` em canvas de gravação | Tainta → MediaRecorder emite frames pretos. Sempre re-fetch via blob. |
-| `captureStream(fps)` assume frame rate fixo | Falso. Só emite quando o canvas muda. Para vídeo fluido: forçar redraw em RAF + pixel anti-dedup. |
-| Switch "Liga/Desliga" no dropdown de Miscelâneas | Redundante — o chip da camada já tem olho/×. Removido após user reclamar. |
-| `<input crossorigin="anonymous">` direto nos `<img>` do FTP | FTP do CPTEC não envia headers CORS → imagem nem carrega. Cross-origin handling deve ser no fetch (Electron CORS handler ou servidor local). |
-| Expand-only em `adjustViewportToAspect` | Causa crescimento sem limite ao adicionar painéis. Revertido para manter lonSpan e ajustar latSpan (v2.9). Sync de viewport entre painéis é o caminho correto. |
-| `fitTo(layer.bbox)` em slots != 0 ao trocar modelo | Sobrescreve o viewport navegado pelo usuário. Em multi-painel, copiar `_gtSlotMap[0].getViewport()` do painel 1. |
-
----
-
-## 6. Estrutura do repositório (paths importantes)
-
-```
-C:\Projetos\Visualizador\
-├── figuras_SisMOM_v23.html        # HTML principal (raiz)
-├── miscelaneas/
-│   ├── manifest.json               # [plataformas_br, corais_br]
-│   ├── plataformas_offshore_brasil.geojson   # 107 features, ~87 KB
-│   └── corais_brasil.geojson       # 11 polígonos, ~410 KB
-├── electron-app/
-│   ├── figuras_SisMOM_v23.html    # CÓPIA exata da raiz
-│   ├── miscelaneas/               # CÓPIA dos GeoJSONs
-│   ├── main.js                    # Electron main process
-│   ├── package.json               # electron-builder config — v2.9.0
-│   ├── python-helper/             # FastAPI subprocess
-│   └── dist/                      # Saídas dos builds (.exe, .dmg, .AppImage)
-├── vendor/leaflet.css             # Embed do Leaflet
-├── tools/servir_dados/            # Servidor HTTP local (Python + Node)
-├── docs/
-│   ├── GISELE_Manual_Uso.pdf      # Manual gerado por gerar_manual_uso.py
-│   ├── HANDOVER_GISELE.pdf        # Este documento em PDF
-│   └── ESPECIFICACOES_GISELE.pdf  # Specs técnicas
-└── dev/
-    ├── gerar_manual_uso.py
-    ├── gerar_pdf_documentacao.py
-    └── patch_*.py                 # Histórico de patches aplicados
-```
+| Default `keepF
