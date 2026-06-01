@@ -1,32 +1,25 @@
 @echo off
-REM Reconstroi os instaladores Electron limpando processos travados.
-REM Resolve o erro "output file is locked for writing".
+REM Reconstroi os instaladores Electron do GISELE.
+REM - Limpa processos/handles que travam os EXEs ("output file is locked for writing")
+REM - Decide SUCESSO pela existencia do artefato em dist\ (e nao apenas pelo errorlevel,
+REM   que pode vir != 0 por avisos benignos, ex.: extraResource python-helper\dist ausente)
 REM
-REM Causas comuns do lock:
-REM   - GISELE.exe ainda rodando (instalado ou portatil)
-REM   - Windows Defender / antivirus segurando o arquivo
-REM   - Pasta dist\ aberta no Windows Explorer
-REM   - Processo nodejs/electron-builder anterior nao morreu
+REM Causas comuns do lock: GISELE.exe rodando, antivirus, dist\ aberta no Explorer,
+REM ou node/electron-builder anterior que nao morreu.
 
 setlocal
 cd /d "%~dp0"
 
 echo.
 echo =========================================================
-echo  REBUILD DO ELECTRON GISELE - v2.4.0
+echo  REBUILD DO ELECTRON GISELE
 echo =========================================================
 echo.
 
-echo [1/6] Encerrando processos GISELE/Electron que podem estar travando os EXEs...
+echo [1/6] Encerrando processos GISELE/Electron que travam os EXEs...
 taskkill /F /IM "GISELE.exe" /T 2>nul
-taskkill /F /IM "GISELE Setup 2.0.0.exe" /T 2>nul
-taskkill /F /IM "GISELE Setup 2.4.0.exe" /T 2>nul
-taskkill /F /IM "GISELE-2.0.0-portable.exe" /T 2>nul
-taskkill /F /IM "GISELE-2.4.0-portable.exe" /T 2>nul
-taskkill /F /IM "electron-builder.exe" /T 2>nul
 taskkill /F /IM "electron.exe" /T 2>nul
-
-REM Tambem mata qualquer node que possa estar rodando o builder
+taskkill /F /IM "electron-builder.exe" /T 2>nul
 echo Procurando processos node do electron-builder...
 wmic process where "name='node.exe' and commandline like '%%electron-builder%%'" call terminate 2>nul
 
@@ -41,8 +34,7 @@ if exist dist (
     rmdir /S /Q dist
     if exist dist (
         echo AVISO: nao foi possivel remover dist\ completamente.
-        echo Tente fechar o Windows Explorer e qualquer programa que aceda dist\,
-        echo depois rode este script novamente.
+        echo Feche o Windows Explorer e qualquer EXE do GISELE e rode de novo.
         pause
         exit /b 1
     )
@@ -52,48 +44,39 @@ if exist dist (
 )
 
 echo.
-echo [4/6] Conferindo versao do package.json ...
-findstr /C:"\"version\":" package.json | findstr /C:"2.4.0" >nul
-if errorlevel 1 (
-    echo AVISO: package.json nao esta em v2.4.0.
-    echo Edite manualmente o campo "version" se preciso.
-) else (
-    echo OK: package.json esta em v2.4.0.
-)
+echo [4/6] Versao do package.json ...
+set "PKGVER="
+for /f "delims=" %%v in ('node -p "require('./package.json').version" 2^>nul') do set "PKGVER=%%v"
+if defined PKGVER (echo   versao atual = %PKGVER%) else (echo   (nao foi possivel ler a versao via node))
 
 echo.
 echo [5/6] Reinstalando dependencias (npm install)...
 call npm install
-if errorlevel 1 (
-    echo ERRO em npm install.
-    pause
-    exit /b 1
-)
+if errorlevel 1 (echo ERRO em npm install. & pause & exit /b 1)
 
 echo.
-echo [6/6] Gerando instaladores Windows (NSIS + portavel)...
+echo [6/6] Gerando instaladores Windows (NSIS + portavel + standalone)...
 call npm run dist:win
-if errorlevel 1 (
-    echo.
-    echo ERRO durante o build.
-    echo.
-    echo Possiveis causas:
-    echo   - Antivirus bloqueando ainda (pausar temporariamente)
-    echo   - Falta de permissao de escrita em dist\
-    echo   - Processo travado em segundo plano (reiniciar Windows ajuda)
-    echo.
-    pause
-    exit /b 1
-)
 
 echo.
-echo =========================================================
-echo  BUILD CONCLUIDO COM SUCESSO
-echo =========================================================
-echo.
-echo Saidas em electron-app\dist\:
-dir /b electron-app\dist\*.exe 2>nul
-dir /b electron-app\dist\GISELE-standalone.html 2>nul
-echo.
+echo === Verificando artefatos gerados em dist\ ===
+set "BUILT="
+if exist "dist\*.exe" set "BUILT=1"
 
-pause
+if defined BUILT (
+    echo.
+    echo =========================================================
+    echo  BUILD CONCLUIDO COM SUCESSO  ^(v%PKGVER%^)
+    echo =========================================================
+    echo Instaladores em electron-app\dist\:
+    for %%f in (dist\*.exe) do echo   %%~nxf
+    for %%f in (dist\*.zip) do echo   %%~nxf
+    echo.
+    echo Nota: o aviso "file source doesn't exist ... python-helper\dist" e ESPERADO
+    echo quando o helper Python nao foi compilado. O app funciona com fallback JS.
+    echo Para empacotar o helper, rode antes: python-helper\build-helper.bat
+) else (
+    echo.
+    echo =========================================================
+    echo  ERRO: nenhum instalador .exe foi gerado em dist\
+    echo =========================================================
