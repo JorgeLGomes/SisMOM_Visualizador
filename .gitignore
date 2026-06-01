@@ -42,3 +42,8 @@ electron-app/dist.tar
 electron-app/dist*.tar
 electron-app/dist*.zip
 *.tar
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.egg-info/

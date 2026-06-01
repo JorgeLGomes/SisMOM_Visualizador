@@ -1,7 +1,7 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.9.0 — Build marker `20260530-9600-clip`
+**Versão atual:** v2.10.0 — Build marker `20260601-12000-cidades`
 **Arquivos críticos (sempre em lockstep):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
@@ -17,7 +17,7 @@
 
 > **Mudanças v2.7 → v2.8:** (1) **Estatísticas no GeoJSON exportado**: `metadata.stats` inclui min, max, soma, média, média ponderada pela área (Soma / Área km²) e área total em m². (2) **Popup de resultado** após Polígono/Retângulo/Por camada/Área total — não auto-salva mais; usuário vê tabela com stats e decide via botão **💾 Salvar GeoJSON**. (3) **Reorganização da árvore Exportar GeoJSON** — 5 opções top-level: ⏱ Série temporal em ponto, ▦ Por polígono, ▭ Por retângulo, 🗂️ Por camada vetorial, 🌐 Área total da camada. (4) **Ícone "?" com popup de help** em cada seção (Calculadora, Exportar, Tempos) substituindo descrições inline; gtShowHelpPopup com auto-posicionamento. (5) **Highlight visual da opção selecionada** em Exportar GeoJSON — borda + background cyan + bullet `●` enquanto a ferramenta está ativa; flash animado na Área total.
 
-> **Mudanças v2.8 → v2.9 (release atual):**
+> **Mudanças v2.8 → v2.9:**
 >
 > **Python helper estendido:** (1) **Cache decoded em memória** (`OrderedDict` LRU 256 entradas) + **endpoint `/v1/render/png`** que aplica paleta server-side via matplotlib (viridis/plasma/RdBu_r/terrain/...) + Pillow, com hierarquia de 4 níveis (png cache → decoded cache → disk cache → FTP). Auto vmin/vmax por percentil 5-95 quando não passado; NoData → alpha=0. `/health` reporta stats dos dois caches. (2) **Bridge JS `gtPyHelper.renderTilePNG(url, opts)`** retorna `ImageBitmap` pronto para `drawImage` (fallback `HTMLImageElement` quando `createImageBitmap` indisponível). Opt-in, não altera caminho principal de animação.
 >
@@ -28,6 +28,14 @@
 > **Multi-painel: bbox sync + travamento + replicação:** (1) `SisMOM_Map` ganhou API `getViewport`/`applyViewportRaw(vp)`/`setViewportChangeListener(cb)`. `_fireVp()` dispara após pan/wheel/zoomBy/fitTo/resize. Flag `_vpSilent` em `applyViewportRaw` evita loop. (2) `_gtMakeViewportPropagator(srcIdx)` copia vp do slot fonte para todos os outros via `applyViewportRaw`; guard `_gtSyncingVp` previne recursão. Novo slot copia vp do painel 1 ao ser criado. (3) **`_gtApplyMapView` lock no painel 1**: para slots ≠ 0, copia `_gtSlotMap[0].getViewport()` em vez de `fitTo(bbox)` do layer — preserva área do painel 1 ao trocar modelo em Mi 2/3/4. (4) Ao **trocar modelo em slot ≠ 0** para um diferente do painel 1, `s.data = s0.data` (alinha condição inicial; valid time alinha via `getEffectivePasso`). (5) **Lock por painel** (🔒/🔓 botão ao lado do pin): `gtLockedPanels: Set<number>`. Ações replicadas para travados: distância, linha, texto, perfil, **limpar anotações**. (6) **Perfil combinado**: amostra todos painéis-alvo, plota curvas coloridas por painel (paleta fixa azul/vermelho/verde/roxo), tooltip multi-série, CSV combinado `value_M1/M2/...`. (7) **Série temporal multi-painel**: amostragem **paralela** via `Promise.all` com progress agregado `M1:48/48✓ · M2:24/48 · M3:✗`, drawing incremental, sort por `slotIdx`, CSV combinado.
 >
 > **Gráficos interativos (TS + Perfil):** (1) **Toggle on/off por chip da legenda** — click no chip alterna `ts.visible`; chip OFF tem `⊘` + strikethrough + opacity 0.4. Y range auto-zooma sobre só os visíveis. (2) **Ícone 👁** nos chips ajuda a descobrir a affordance. (3) **Zoom por click-and-drag** (rubber-band) sobre a área do plot; mouseup aplica zoom; double-click ou botão "↻ zoom" reseta. Hint "arraste para zoom · duplo-clique reseta" no canto. CSS `.gt-chart-zoom-rect` / `.gt-chart-zoom-reset`. (4) **Clipping** (`ctx.save()` + `rect(margin.l, margin.t, plotW, plotH)` + `ctx.clip()` + `ctx.restore()`) ao redor das curvas — quando zoomado, valores fora do range não extrapolam para os eixos/labels.
+
+> **Mudanças v2.9 → v2.10 (release atual):**
+>
+> **Cidades brasileiras (nova miscelânea agrupada por UF):** (1) Novo item `cidades_br` no `manifest.json` — 240 cidades (capitais + principais), props `nome/uf/regiao/populacao/capital`, com dois campos novos de manifesto: `groupByProp` (agrupa por UF) + `groupOrder` (ordem por região, N→S). (2) Novo render hierárquico `_gtRenderMiscGroupedItem`: `<details>` por item → `<details>` por UF (lazy-load no `toggle`); cada UF vira camada própria com id `cidades_br::SP` (checkbox liga/desliga TODAS as cidades do estado de uma vez). (3) Cabeçalho com contador (`240 em 27 grupos`) + ações globais `✓ Todos` / `👁 Limpar`; dentro de cada estado, filtro de texto `🔍 Filtrar cidades…` + ações locais `☑ Todas` / `👁 Nenhuma`. (4) GeoJSON embarcado inline (`<script id="gt-misc-data-cidades_br">`) para `file://`. (5) Script gerador `dev/baixar_cidades_brasil.py`. Bicópia raiz↔electron sincronizada (manifest + geojson, md5 confere).
+>
+> **Cliente Python `gisele_ts` (`api-client/`):** módulo standalone que envelopa o endpoint `/v1/timeseries/point` do helper Python — extração de série temporal num ponto (lat, lon) a partir de scripts/notebooks/pipelines. Componentes: `gisele_ts/client.py` + `models.py` + CLI (`__main__.py`) + `examples/extract_ts.py` + `setup.py` (`pip install -e .`). README com instruções de uso standalone (`python server.py --port 8000`).
+>
+> **Infra/versão:** `.gitignore` ganhou patterns Python (`__pycache__/`, `*.pyc`, `*.egg-info/`). `package.json` + `package-lock.json` 2.9.0 → 2.10.0. Build marker `20260531-11500-collapsed` → `20260601-12000-cidades`.
 
 ---
 

@@ -7,6 +7,8 @@
       "nome": "Plataformas offshore (Brasil)",
       "arquivo": "plataformas_offshore_brasil.geojson",
       "tipo": "geojson",
+      "icon": "🛢",
+      "listIndividual": true,
       "labelProp": "nome",
       "infoProps": [
         "nome",
@@ -56,6 +58,24 @@
         "hatchLineWidth": 1
       },
       "fonte": "UNEP-WCMC, WorldFish Centre, WRI, TNC (2018) Global distribution of warm-water coral reefs"
+    },
+    {
+      "id": "cidades_br",
+      "nome": "Cidades brasileiras",
+      "arquivo": "cidades_brasil.geojson",
+      "tipo": "geojson",
+      "icon": "🏘",
+      "labelProp": "nome",
+      "groupByProp": "uf",
+      "groupOrder": ["AC","AM","AP","PA","RO","RR","TO","AL","BA","CE","MA","PB","PE","PI","RN","SE","DF","GO","MT","MS","ES","MG","RJ","SP","PR","RS","SC"],
+      "infoProps": ["nome","uf","regiao","capital","populacao"],
+      "style": {
+        "stroke": "#0b67d1",
+        "fillColor": "#1d8bff",
+        "pointRadius": 3,
+        "lineWidth": 1
+      },
+      "fonte": "IBGE 2022 + dataset curado (capitais + cidades principais)"
     }
   ]
 }
