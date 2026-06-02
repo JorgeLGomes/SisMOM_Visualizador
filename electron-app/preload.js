@@ -21,3 +21,11 @@ contextBridge.exposeInMainWorld('GISELE_PYTHON', {
     return () => ipcRenderer.removeListener('gisele-python:status', listener);
   },
 });
+
+// Bridge de configuração em arquivo (pasta configuração/ em userData).
+contextBridge.exposeInMainWorld('GISELE_CONFIG', {
+  save: (text) => ipcRenderer.invoke('gisele-config:save', text),
+  load: () => ipcRenderer.invoke('gisele-config:load'),
+  dir: () => ipcRenderer.invoke('gisele-config:dir'),
+  open: () => ipcRenderer.invoke('gisele-config:open'),
+});

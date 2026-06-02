@@ -1723,6 +1723,27 @@
         .auth-details summary { cursor: pointer; padding: 6px 0; }
         .auth-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
         .auth-modes label { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; color: var(--text-secondary); }
+        /* ===== Anotacao livre sobre a TELA (caneta) ===== */
+        .scrdraw-canvas { position:fixed; inset:0; z-index:100050; pointer-events:none; }
+        .icon-btn.active { background:rgba(77,208,225,0.20); color:var(--accent-cyan,#4dd0e1); }
+        .scrdraw-bar { position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:100051;
+                       display:none; gap:6px; align-items:center; padding:6px 10px;
+                       background:rgba(15,22,34,0.96); border:1px solid rgba(255,255,255,0.16);
+                       border-radius:10px; box-shadow:0 10px 34px rgba(0,0,0,0.45); backdrop-filter:blur(8px);
+                       font-family:ui-sans-serif,system-ui,sans-serif; }
+        .scrdraw-bar button { height:30px; min-width:30px; display:inline-flex; align-items:center; justify-content:center;
+                              font-size:14px; background:transparent; color:#dbe2ec; border:1px solid transparent;
+                              border-radius:6px; cursor:pointer; padding:0 6px; }
+        .scrdraw-bar button:hover { background:rgba(255,255,255,0.12); color:#fff; }
+        .scrdraw-bar button.active { background:var(--accent-cyan,#4dd0e1); color:#0b1220; }
+        .scrdraw-bar button[data-scra="done"] { background:#2ea043; color:#fff; font-size:12px; font-weight:600; }
+        .scrdraw-bar .scrdraw-sep { width:1px; height:20px; background:rgba(255,255,255,0.18); margin:0 2px; }
+        .scrdraw-bar .scrdraw-sw { display:inline-flex; gap:3px; align-items:center; }
+        .scrdraw-bar .sw { width:18px; height:18px; border-radius:50%; border:2px solid rgba(255,255,255,0.25); cursor:pointer; padding:0; }
+        .scrdraw-bar .sw.active { border-color:#fff; box-shadow:0 0 0 2px var(--accent-cyan,#4dd0e1); }
+        .scrdraw-bar input[type="color"].scrdraw-pick { width:26px; height:24px; padding:0; border:1px solid rgba(255,255,255,0.22); border-radius:5px; background:transparent; cursor:pointer; }
+        .scrdraw-bar input[type="range"].scrdraw-w { width:90px; accent-color:var(--accent-cyan,#4dd0e1); }
+        .scrdraw-bar .scrdraw-wlbl { font-size:11px; color:#aab; min-width:34px; }
     </style>
 </head>
 <body>
@@ -1759,6 +1780,9 @@
             <button class="icon-btn" id="btnTheme" title="Alternar tema (T)" aria-label="Alternar tema">
                 <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                 <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </button>
+            <button class="icon-btn" id="btnScreenDraw" title="Desenhar na tela (anotacao livre)" aria-label="Desenhar na tela" aria-pressed="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
             </button>
             <button class="icon-btn" id="btnToggleSidebar" title="Ocultar/exibir painel (S)" aria-label="Painel lateral" aria-pressed="false">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
@@ -1901,7 +1925,7 @@
 <div class="modal-backdrop" id="modalConfig" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal">
         <header class="modal-header">
-            <h2 id="modalTitle">Configurar modelos e variáveis</h2>
+            <h2 id="modalTitle">Configurações</h2>
             <div style="display:flex; align-items:center; gap:8px;">
                 <button class="btn btn-ghost" id="btnConfigEdit" type="button" aria-pressed="false" title="Habilitar edição (somente leitura por padrão)">
                     <svg id="iconLockClosed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -1913,6 +1937,16 @@
                 </button>
             </div>
         </header>
+        <div class="modal-toptabs" id="modalTopTabs">
+            <button type="button" class="modal-toptab active" data-top="modelos">Configurar modelos e variáveis</button>
+            <button type="button" class="modal-toptab" data-top="bases">🗄 Base de dados</button>
+        </div>
+        <style>
+          #modalTopTabs{display:flex;gap:6px;padding:10px 16px 0;flex-wrap:wrap}
+          #modalTopTabs .modal-toptab{appearance:none;-webkit-appearance:none;border:1px solid var(--border-subtle,#2a3850);border-bottom:none;background:transparent;color:var(--text-secondary,#9fb0c8);padding:8px 16px;font-size:13px;font-weight:600;border-radius:8px 8px 0 0;cursor:pointer;line-height:1.2}
+          #modalTopTabs .modal-toptab:hover{color:var(--text,#dbe2ec);background:rgba(255,255,255,0.04)}
+          #modalTopTabs .modal-toptab.active{color:var(--accent-cyan,#4dd0e1);background:var(--bg-elev-1,#0e1622);border-color:var(--border-soft,#475569)}
+        </style>
         <div class="modal-tabs" id="modalTabs" role="tablist"></div>
         <div class="modal-body" id="modalBody">
             <div class="form-grid">
@@ -2015,6 +2049,17 @@
                     </thead>
                     <tbody id="varTableBody"></tbody>
                 </table>
+            </div>
+            <!-- ===== PAINEL: BASE DE DADOS (rotas genericas / Monitoramento) ===== -->
+            <div id="cfgBasesPane" style="display:none">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+                    <div style="font-size:12px;color:var(--text-secondary,#9fb0c8);max-width:640px;line-height:1.5">
+                        Rotas de dados genéricos (KML/GeoJSON) — ex.: focos de queimadas, boias, estações.
+                        Cada base aparece no menu <b>Monitoramento</b> da árvore e é re-buscada ao ser ligada.
+                    </div>
+                    <button type="button" class="btn btn-primary" id="btnAddBase" style="flex:0 0 auto">+ Nova base de dados</button>
+                </div>
+                <div id="cfgBasesList"></div>
             </div>
         </div>
         <footer class="modal-footer">
@@ -2192,6 +2237,9 @@
                 <details data-section-id="misc"><summary><span class="gt-tree-icon">📌</span> Miscelânea</summary>
                     <ul id="gtTreeMisc" class="gt-tree-list"></ul>
                 </details>
+                <details data-section-id="monitoramento"><summary><span class="gt-tree-icon">📡</span> Monitoramento</summary>
+                    <ul id="gtTreeMonit" class="gt-tree-list"></ul>
+                </details>
                 <details data-section-id="layers"><summary><span class="gt-tree-icon">🗂️</span> Camadas</summary>
                     <ul id="gtTreeLayers" class="gt-tree-list">
                         <li class="gt-tree-empty">— nenhuma camada carregada —</li>
@@ -2239,14 +2287,7 @@
                                 <summary style="cursor:pointer;font-size:12px;padding:4px 0">📤 Exportar GeoJSON (camada ativa)<span class="gt-help-icon" data-help="Calcula estatísticas (min, máx, soma, média, média ponderada pela área) e mostra em popup com opção de salvar como GeoJSON.">?</span></summary>
                                 <div class="gt-tree-calc-body">
                                     <div style="display:flex;flex-direction:column;gap:4px">
-                                        <button type="button" id="btnGtExpTimeseries" class="gt-tree-action" style="text-align:left">⏱ Série temporal em ponto (clicar no mapa)</button>
-                                        <button type="button" id="btnGtExpTsActivePts" class="gt-tree-action" style="text-align:left">📍 TS nos pontos ativos do viewport<span class="gt-help-icon" data-help="Extrai a série temporal da camada ativa em CADA ponto visível das camadas misc (Plataformas/Cidades) que estão dentro da área plotada. Cada ponto vira uma curva no gráfico.">?</span></button>
-                                        <div style="display:flex;gap:6px;align-items:center;padding:2px 4px 0 4px;font-size:10.5px;color:var(--text-muted,#8aa)">
-                                            <span>Intervalo (h):</span>
-                                            <input type="number" id="gtTsStart" min="0" step="1" placeholder="de" style="width:50px;font-size:11px;padding:1px 4px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:3px">
-                                            <input type="number" id="gtTsEnd"   min="0" step="1" placeholder="até" style="width:50px;font-size:11px;padding:1px 4px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:3px">
-                                            <span class="gt-help-icon" data-help="Intervalo opcional de passos para varrer. Valores em HORAS de previsão (ex.: de=6, até=72 amostra passos entre +6h e +72h da rodada). Deixe vazio para usar o horizonte completo da variável.">?</span>
-                                        </div>
+                                        <button type="button" id="btnGtExpTimeseries" class="gt-tree-action" style="text-align:left">⏱ Série temporal por ponto</button>
                                         <button type="button" id="btnGtExpPoly" class="gt-tree-action" style="text-align:left">▦ Por polígono (desenhar — duplo-clique finaliza)</button>
                                         <button type="button" id="btnGtExpMisc" class="gt-tree-action" style="text-align:left">🗂️ Por camada vetorial (shape, geojson)</button>
                                         <button type="button" id="btnGtExpFull" class="gt-tree-action" style="text-align:left">🌐 Área total da camada</button>
@@ -3699,20 +3740,34 @@
         const modalAberto = document.getElementById('modalConfig').classList.contains('open');
         if (modalAberto && configDraft) { try { syncCurrentPaneToDraft(); } catch (_) {} }
         const modelsOut = (modalAberto && configDraft) ? configDraft : modelos;
+        const basesOut = (modalAberto && configBasesDraft) ? configBasesDraft : basesDados;
         const payload = {
             app: 'SisMOM', kind: 'sismom-config', version: 'v23',
             exportedAt: new Date().toISOString(),
             models: modelsOut,
+            bases: basesOut,
             ui: buildUIPrefs()
         };
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const text = JSON.stringify(payload, null, 2);
+        // Electron: por padrão grava na pasta configuração/ (%APPDATA%/GISELE). Browser: download.
+        if (window.GISELE_CONFIG && typeof window.GISELE_CONFIG.save === 'function') {
+            window.GISELE_CONFIG.save(text).then(function (r) {
+                if (r && r.ok) { showToast('Salvo em: ' + (r.path || 'configuração/gisele-config.json')); try { console.log('[GISELE] config salva em', r.path); } catch (_) {} }
+                else { showToast('Não consegui gravar o arquivo; baixando…'); _downloadConfigJson(text); }
+            }).catch(function () { _downloadConfigJson(text); });
+        } else {
+            _downloadConfigJson(text);
+        }
+    }
+    function _downloadConfigJson(text) {
+        const blob = new Blob([text], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const d = new Date();
-        const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+        const stamp = '' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
         const a = document.createElement('a');
-        a.href = url; a.download = `sismom-config-${stamp}.json`;
+        a.href = url; a.download = 'sismom-config-' + stamp + '.json';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
         showToast('Configuração exportada');
     }
     async function importConfigFile(file) {
@@ -3722,25 +3777,49 @@
             let data;
             try { data = JSON.parse(reader.result); }
             catch (_) { showToast('Falha ao importar: JSON inválido'); return; }
-            const mdl = data && (data.models || data.modelos);
-            if (!mdl || typeof mdl !== 'object' || !Object.keys(mdl).length) {
-                showToast('Arquivo inválido: sem modelos'); return;
-            }
-            modelos = mdl;
-            saveModelos();
-            applyUIPrefs(data.ui);
-            validateSlots();
-            atualizarSlotsControles();
-            syncVelocidadeUI();
-            setLayout(state.layout, true);   // respeita os painéis importados (sem cascata)
-            renderizarPassos();
-            setStepIndicatorUI();
-            renderTudo();
-            saveUIPrefs();
-            if (document.getElementById('modalConfig').classList.contains('open')) closeConfigModal();
-            showToast('Configuração importada');
+            applyImportedConfig(data, {});
         };
         reader.readAsText(file);
+    }
+    // Aplica um payload de configuração (models + bases + ui). Compartilhado entre o
+    // botão Importar e o auto-import do arquivo no início (Electron).
+    function applyImportedConfig(data, opts) {
+        opts = opts || {};
+        const mdl = data && (data.models || data.modelos);
+        if (!mdl || typeof mdl !== 'object' || !Object.keys(mdl).length) {
+            if (!opts.silent) showToast('Arquivo inválido: sem modelos');
+            return false;
+        }
+        modelos = mdl;
+        saveModelos();
+        if (data && Array.isArray(data.bases)) {
+            try { basesDados = data.bases; saveBases(); } catch (_) {}
+        }
+        applyUIPrefs(data.ui);
+        validateSlots();
+        atualizarSlotsControles();
+        syncVelocidadeUI();
+        setLayout(state.layout, true);
+        renderizarPassos();
+        setStepIndicatorUI();
+        renderTudo();
+        saveUIPrefs();
+        try { gtRenderTree(); } catch (_) {}
+        try { gtRenderTreeMonit(); } catch (_) {}
+        if (document.getElementById('modalConfig').classList.contains('open')) closeConfigModal();
+        if (!opts.silent) showToast('Configuração importada');
+        return true;
+    }
+    // Auto-import do arquivo no início (Electron). "Arquivo manda": toda inicialização
+    // aplica o que estiver em configuração/ (se houver).
+    function gtBootstrapConfigFromFile() {
+        if (!(window.GISELE_CONFIG && typeof window.GISELE_CONFIG.load === 'function')) return;
+        window.GISELE_CONFIG.load().then(function (r) {
+            if (!r || !r.ok || !r.found || !r.text) return;
+            let data; try { data = JSON.parse(r.text); } catch (_) { return; }
+            const ok = applyImportedConfig(data, { silent: true });
+            if (ok) { try { showToast('Configuração carregada da pasta configuração/'); } catch (_) {} }
+        }).catch(function () {});
     }
 
     function buildSlots() {
@@ -5141,14 +5220,18 @@
     /* ===== Configuration modal ===== */
     let configDraft = null;
     let configActiveId = null;
+    let cfgTopSection = 'modelos';
 
     function openConfigModal() {
         _configEditing = false;   // abre sempre em modo somente leitura
         configDraft = JSON.parse(JSON.stringify(modelos));
         const ids = Object.keys(configDraft);
         configActiveId = ids[0] || null;
+        configBasesDraft = JSON.parse(JSON.stringify(basesDados));
+        cfgTopSection = 'modelos';
         renderConfigTabs();
         if (configActiveId) renderConfigPane(configActiveId);
+        showBasesPane(false);
         openModalA11y(document.getElementById('modalConfig'));
         applyConfigLock();
     }
@@ -5180,6 +5263,7 @@
         }
         const inner = modal.querySelector('.modal');
         if (inner) inner.classList.toggle('modo-leitura', locked);
+        if (cfgTopSection === 'bases') { try { renderBasesPane(); } catch (_) {} }
     }
     function setConfigEditing(on) { _configEditing = !!on; applyConfigLock(); }
     function closeConfigModal() {
@@ -5201,6 +5285,7 @@
             btn.addEventListener('click', () => {
                 if (configActiveId) syncCurrentPaneToDraft();
                 configActiveId = id;
+                showBasesPane(false);
                 renderConfigTabs();
                 renderConfigPane(id);
             });
@@ -5226,6 +5311,7 @@
                 variaveis: [{ id: 'VAR1', label: 'Variável 1', unidade: '', arquivo: 'var1', frequencia: 1, horizonte: 24, escopo1: '', escopo2: '' }]
             };
             configActiveId = newId;
+            showBasesPane(false);
             renderConfigTabs();
             renderConfigPane(newId);
         });
@@ -5325,7 +5411,7 @@
         return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
     function syncCurrentPaneToDraft() {
-        if (!configActiveId || !configDraft) return;
+        if (!configActiveId || configActiveId === '__bases__' || !configDraft) return;
         const newId = document.getElementById('cfgId').value.trim();
         const oldId = configActiveId;
         const m = configDraft[oldId];
@@ -5394,6 +5480,9 @@
         }
         modelos = configDraft;
         saveModelos();
+        if (configBasesDraft && Array.isArray(configBasesDraft)) { basesDados = configBasesDraft; saveBases(); }
+        try { for (const _b of basesDados) { for (const _l of gtMonitFindLayers(_b.id)) { _l.monitConfig = _b; _l.name = (_b.icon ? _b.icon + ' ' : '') + (_b.nome || _b.id); if (_b.color) _l.color = _b.color; } } gtRenderLayerChips(); } catch (_) {}
+        try { gtRenderTreeMonit(); } catch (_) {}
         for (let i = 0; i < NUM_SLOTS; i++) {
             const s = state.slots[i];
             if (!modelos[s.modelo]) {
@@ -5464,6 +5553,8 @@
         $('btnConfigEdit').addEventListener('click', () => setConfigEditing(!_configEditing));
         $('btnConfigCancel').addEventListener('click', closeConfigModal);
         $('btnConfigSave').addEventListener('click', saveConfig);
+        try { const _ab = document.getElementById('btnAddBase'); if (_ab) _ab.addEventListener('click', _gtAddBaseDraft); } catch (_) {}
+        try { document.querySelectorAll('#modalTopTabs .modal-toptab').forEach(function (b) { b.addEventListener('click', function () { setCfgTopSection(b.dataset.top); }); }); } catch (_) {}
         $('btnConfigReset').addEventListener('click', resetConfig);
         $('btnDelModel').addEventListener('click', delActiveModel);
         $('btnCloneModel').addEventListener('click', cloneActiveModel);
@@ -6115,10 +6206,11 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260601-12300-pngmenu'); document.documentElement.setAttribute('data-build', '20260601-12300-pngmenu'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260601-18500-cfgpath'); document.documentElement.setAttribute('data-build', '20260601-18500-cfgpath'); } catch (_) {}
         loadModelos();
         buildSlots();
         try { pngInit(); } catch (_) {}
+        try { scrInit(); } catch (_) {}
         const restored = loadUIPrefs();
         state.passoAtual = 1;   // sempre abre no início da rodada (1º passo)
         // O Mapa 1 SEMPRE inicia na data do dia corrente (posteriores em cascata).
@@ -8726,7 +8818,7 @@
         const passoMax = (opts.passoMax != null && isFinite(opts.passoMax) && opts.passoMax > 0) ? opts.passoMax : null;
         // ── Tenta Python helper primeiro (fallback transparente para JS) ──
         try {
-            if (gtPyHelper && gtPyHelper.available) {
+            if (!opts.source && gtPyHelper && gtPyHelper.available) {
                 const r = await gtPyHelper.sampleTimeSeries(slotIdx, lat, lon, onProgress, { passoMin, passoMax });
                 if (r && r.samples && r.samples.length > 0) {
                     // Filtra no cliente se o helper nao soube respeitar (versao antiga)
@@ -8739,7 +8831,7 @@
                 }
             }
         } catch (e) { console.warn('[gtSampleTimeSeries] Python helper falhou, fallback JS:', e); }
-        const s = state && state.slots && state.slots[slotIdx];
+        const s = opts.source ? { modelo: opts.source.modelo, variavel: opts.source.variavel, data: opts.source.data } : (state && state.slots && state.slots[slotIdx]);
         if (!s || !s.modelo || !s.data || !s.variavel) {
             throw new Error('slot ' + slotIdx + ' sem modelo/data/variável.');
         }
@@ -8758,7 +8850,7 @@
         if (fileMax < 1) throw new Error('horizonte zero — sem passos.');
         console.log('[GISELE/TS]', { modelo: s.modelo, variavel: s.variavel, freq, horizon, fileMax });
         // Nome de exibição da camada (modelo · variável)
-        const layerName = ((m.nome || s.modelo) + ' · ' + s.variavel);
+        const layerName = opts.layerName || ((m.nome || s.modelo) + ' · ' + s.variavel);
         // Decide se precisamos derivar URL .tif a partir do template png/gif
         const isNativeGt = (typeof SisMOM_GeoTIFF !== 'undefined') && SisMOM_GeoTIFF.isGeoTiffModel(m);
         const hasOwnTifRoute = !isNativeGt && ((m.url_path_tif && !m.same_url_for_tif) || (m.file_name_tif && !m.same_name_for_tif));
@@ -9179,7 +9271,7 @@
         const sugMinStr = sugMin ? _gtDateToLocalInputUTC(sugMin) : '';
         const sugMaxStr = sugMax ? _gtDateToLocalInputUTC(sugMax) : '';
         card.innerHTML = ''
-            + '<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:#0b1e3a">⏱ Série temporal em ponto</div>'
+            + '<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:#0b1e3a">⏱ Série temporal por ponto</div>'
             + panelsHtml
             + '<div style="font-size:11px;color:#6a7c8e;margin-bottom:4px;font-weight:600">⏰ Período de extração</div>'
             + '<div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:12px;color:#384858">'
@@ -9214,23 +9306,11 @@
             +   '</div>'
             +   '<div style="color:#94a3b8;font-size:11px">Cada painel converte para passos próprios (rodada + horas). Valores UTC.</div>'
             + '</div>'
-            + '<div style="font-size:11px;color:#6a7c8e;margin-bottom:4px;font-weight:600">📍 Coordenada</div>'
-            + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:12px;color:#384858">'
-            +   '<label style="display:flex;flex-direction:column;gap:2px">lat'
-            +     '<input type="number" id="gtTsCfgLat" step="0.0001" placeholder="(ex.: -20.0)"'
-            +     ' style="width:120px;padding:4px 6px;border:1px solid #d4dbe6;border-radius:3px;font-size:12px"></label>'
-            +   '<label style="display:flex;flex-direction:column;gap:2px">lon'
-            +     '<input type="number" id="gtTsCfgLon" step="0.0001" placeholder="(ex.: -45.0)"'
-            +     ' style="width:120px;padding:4px 6px;border:1px solid #d4dbe6;border-radius:3px;font-size:12px"></label>'
-            + '</div>'
             + '<div id="gtTsCfgErr" style="font-size:11px;color:#b9472a;min-height:1em;margin-bottom:8px"></div>'
             + '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center">'
             +   '<button type="button" id="btnGtTsCfgCancel" style="padding:6px 14px;font-size:12px;background:#e6ecf2;color:#0b1e3a;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer">Cancelar</button>'
             +   '<span style="flex:1 0 100%;height:0"></span>'
             +   '<button type="button" id="btnGtTsCfgClick"   style="padding:6px 12px;font-size:12px;background:#0a6e8a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600" title="Entra em modo de seleção — clique no mapa para escolher o ponto">📍 Clicar no mapa</button>'
-            +   '<button type="button" id="btnGtTsCfgActive" style="padding:6px 12px;font-size:12px;background:#0284c7;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600" title="Extrai TS de TODAS as plataformas/cidades atualmente marcadas no mapa (consolida tudo num GeoJSON)">📍 Pontos ativos</button>'
-            +   '<button type="button" id="btnGtTsCfgDb"     style="padding:6px 12px;font-size:12px;background:#7c3aed;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600" title="Lista todos os pontos disponíveis na base (cidades, plataformas, polígonos salvos) para você escolher um">🗂 Escolher da base</button>'
-            +   '<button type="button" id="btnGtTsCfgUse"    style="padding:6px 12px;font-size:12px;background:#16a34a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600" title="Usa os campos lat/lon abaixo">🎯 Extrair (lat/lon)</button>'
             + '</div>';
         ov.appendChild(card);
         document.body.appendChild(ov);
@@ -9297,60 +9377,6 @@
             gtSetSlotTool(slotIdx, 'timeseries');
             try { gtExpSetStatus('Clique em qualquer ponto do mapa para amostrar a série temporal.'); } catch (_) {}
             close();
-        });
-        document.getElementById('btnGtTsCfgUse').addEventListener('click', () => {
-            const r = _readOpts();
-            if (r.error) { errEl.textContent = r.error; return; }
-            const lat = parseFloat(document.getElementById('gtTsCfgLat').value);
-            const lon = parseFloat(document.getElementById('gtTsCfgLon').value);
-            if (!isFinite(lat) || lat < -90 || lat > 90)  { errEl.textContent = 'Latitude inválida (-90..90).'; return; }
-            if (!isFinite(lon) || lon < -180 || lon > 360) { errEl.textContent = 'Longitude inválida (-180..360).'; return; }
-            _gtTsPendingOpts = r.opts;
-            close();
-            // Marker visual no mapa (mesmo padrão do click)
-            try {
-                gtAnnotsForSlot(slotIdx).push({
-                    id: 'ann_' + (++_gtAnnotSeq),
-                    type: 'text', coords: [[lat, lon]], text: '●',
-                    style: { stroke: GT_TOOL_COLOR }
-                });
-                const mm = _gtSlotMap[slotIdx];
-                if (mm && mm.redraw) mm.redraw();
-            } catch (_) {}
-            try { gtOpenTimeSeriesPopup(slotIdx, lat, lon, r.opts); }
-            catch (err) { alert('Falha: ' + (err && err.message)); }
-        });
-        // ─── Botão: Pontos ativos (multi-point EXPORT consolidado) ───
-        document.getElementById('btnGtTsCfgActive').addEventListener('click', () => {
-            const r = _readOpts();
-            if (r.error) { errEl.textContent = r.error; return; }
-            const points = _gtCollectAllActivePoints();
-            if (!points.length) { errEl.textContent = 'Nenhum ponto ativo (marque plataformas/cidades em Miscelânea primeiro).'; return; }
-            close();
-            _gtRunTsExportMultiPoint(slotIdx, points, r.opts);
-        });
-        // ─── Botão: Escolher da base ───
-        document.getElementById('btnGtTsCfgDb').addEventListener('click', () => {
-            const r = _readOpts();
-            if (r.error) { errEl.textContent = r.error; return; }
-            close();
-            _gtOpenDbPointPicker((pt) => {
-                if (!pt) return;
-                const lat = pt.lat, lon = pt.lon;
-                // Marker visual no mapa
-                try {
-                    gtAnnotsForSlot(slotIdx).push({
-                        id: 'ann_' + (++_gtAnnotSeq),
-                        type: 'text', coords: [[lat, lon]], text: '●',
-                        style: { stroke: GT_TOOL_COLOR }
-                    });
-                    const mm = _gtSlotMap[slotIdx];
-                    if (mm && mm.redraw) mm.redraw();
-                } catch (_) {}
-                // Single-point export — usa o popup do gráfico para visualizar e baixar
-                try { gtOpenTimeSeriesPopup(slotIdx, lat, lon, r.opts); }
-                catch (err) { alert('Falha: ' + (err && err.message)); }
-            });
         });
         // Esc/Enter
         const keyHandler = (e) => {
@@ -9423,6 +9449,40 @@
         gtOpenTimeSeriesPopup(slotIdx, latC, lonC, opts);
     }
 
+    // ─── TS de camada de CÁLCULO: re-amostra cada token-fonte e reavalia a expressão por passo ───
+    async function gtSampleCalcTimeSeries(calcSpec, slotIdx, lat, lon, opts) {
+        opts = opts || {};
+        if (!calcSpec || !calcSpec.tokens || !calcSpec.ast) throw new Error('cálculo sem spec re-amostrável');
+        const tokens = Object.keys(calcSpec.tokens);
+        const tsByTok = {};
+        for (const tk of tokens) {
+            const spec = calcSpec.tokens[tk];
+            let ts;
+            if (spec.calcSpec) ts = await gtSampleCalcTimeSeries(spec.calcSpec, slotIdx, lat, lon, opts);
+            else ts = await gtSampleTimeSeries(slotIdx, lat, lon, null, { passoMin: opts.passoMin, passoMax: opts.passoMax, source: spec.source });
+            tsByTok[tk] = ts;
+        }
+        const ref = tsByTok[tokens[0]];
+        if (!ref || !ref.samples || !ref.samples.length) throw new Error('série fonte vazia');
+        const out = [];
+        for (let i = 0; i < ref.samples.length; i++) {
+            // Alinha as fontes por TEMPO DE VALIDADE (não por passo): rodadas diferentes têm o
+            // mesmo passo em validades distintas, então a média só faz sentido na mesma validade.
+            const _T = ref.samples[i].time ? ref.samples[i].time.getTime() : null;
+            const vars = {}; let bad = (_T == null);
+            for (const tk of tokens) {
+                if (bad) break;
+                const arr = tsByTok[tk].samples; let sv = null;
+                for (let j = 0; j < arr.length; j++) { if (arr[j].time && Math.abs(arr[j].time.getTime() - _T) < 60000) { sv = arr[j].value; break; } }
+                if (sv == null || !isFinite(sv)) { bad = true; break; }
+                vars[tk] = sv;
+            }
+            let val = null;
+            if (!bad) { try { const r = gtEvalAst(calcSpec.ast, vars); if (isFinite(r)) val = r; } catch (_) {} }
+            out.push({ passo_h: ref.samples[i].passo_h, time: ref.samples[i].time, value: val });
+        }
+        return { samples: out, layerName: calcSpec.layerName || 'cálculo' };
+    }
     function gtOpenTimeSeriesPopup(slotIdx, lat, lon, opts) {
         opts = opts || {};
         try { const old = document.getElementById('gtTSPopup'); if (old) old.remove(); } catch (_) {}
@@ -9766,6 +9826,26 @@
         // Painel ativo (source) + painéis travados (gtLockedPanels).
         const targets = (typeof gtTargetSlots === 'function') ? gtTargetSlots(slotIdx) : [slotIdx];
         const COLORS = (typeof _GT_PROFILE_COLORS !== 'undefined') ? _GT_PROFILE_COLORS : ['#0ea5e9'];
+        // ─── Camadas raster/cálculo ATIVAS → curvas extras, rotuladas CamadaN (igual à árvore/calc) ───
+        const _camadaList = (typeof gtAllLayers === 'function') ? gtAllLayers().filter(l => l && (l.type === 'geotiff' || l.id === 'primary')) : [];
+        const _primCamIdx = _camadaList.findIndex(l => l && l.id === 'primary');
+        const _extraLayerJobs = [];
+        try {
+            for (let _k = 0; _k < _camadaList.length; _k++) {
+                const _lyr = _camadaList[_k];
+                if (!_lyr || _lyr.id === 'primary') continue;
+                if (_lyr.visible === false) continue;
+                const _camLabel = 'Camada' + (_k + 1);
+                const _col = COLORS[_k % COLORS.length];
+                const _nm = _lyr.name || _lyr.id;
+                if (_lyr.source && _lyr.source.modeloId) {
+                    _extraLayerJobs.push({ kind: 'raster', sIdx: 1000 + _k, label: _camLabel, name: _nm, color: _col,
+                        source: { modelo: _lyr.source.modeloId, variavel: _lyr.source.variavelId, data: _lyr.source.data } });
+                } else if (_lyr.calcSpec) {
+                    _extraLayerJobs.push({ kind: 'calc', sIdx: 1000 + _k, label: _camLabel, name: _nm, color: _col, calcSpec: _lyr.calcSpec });
+                }
+            }
+        } catch (_) {}
         // Estado de progress por slot (todos rodam concorrentemente)
         const _progPerSlot = {};
         for (const ti of targets) _progPerSlot[ti] = { i: 0, total: 0, done: false, err: false };
@@ -9830,7 +9910,7 @@
                         if (state2.aborted) return null;
                         ts.slotIdx = ti;
                         ts.color = COLORS[ti % COLORS.length];
-                        ts.panelLabel = 'M' + (ti + 1);
+                        ts.panelLabel = (ti === slotIdx && _primCamIdx >= 0) ? ('Camada' + (_primCamIdx + 1)) : ('M' + (ti + 1));
                         _insertSortedTs(ts);
                         if (!state2.ts) state2.ts = ts;
                         _progPerSlot[ti].done = true;
@@ -9845,7 +9925,22 @@
                         return null;
                     });
                 });
-                await Promise.all(promises);
+                const extraPromises = _extraLayerJobs.map(job => {
+                    const _samp = (job.kind === 'calc')
+                        ? gtSampleCalcTimeSeries(job.calcSpec, slotIdx, lat, lon, { passoMin: opts.passoMin, passoMax: opts.passoMax })
+                        : gtSampleTimeSeries(slotIdx, lat, lon, null, { passoMin: opts.passoMin, passoMax: opts.passoMax, source: job.source, layerName: job.name });
+                    return _samp
+                        .then(ts => {
+                            if (state2.aborted) return null;
+                            ts.slotIdx = job.sIdx; ts.color = job.color; ts.panelLabel = job.label; ts.layerName = job.name;
+                            _insertSortedTs(ts);
+                            if (!state2.ts) state2.ts = ts;
+                            drawNow();
+                            return ts;
+                        })
+                        .catch(e => { console.warn('[TS camada]', job.name, e); return null; });
+                });
+                await Promise.all(promises.concat(extraPromises));
                 if (state2.aborted) return;
                 // Header final: legend + métricas
                 if (state2.tsList.length === 0) {
@@ -10258,7 +10353,7 @@
             + '<button type="button" class="schud-btn" data-tool="profile" title="Perfil ao longo de linha (clique p/ vértices, duplo-clique abre gráfico)">'
             +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20 8 10 13 15 21 4"/><path d="M3 20 21 20"/></svg>'
             + '</button>'
-            + '<button type="button" class="schud-btn" data-tool="timeseries" title="Série temporal em um ponto (clique no mapa para amostrar todos os passos)">'
+            + '<button type="button" class="schud-btn" data-tool="timeseries" title="Série temporal por ponto (clique no mapa para amostrar todos os passos)">'
             +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>'
             + '</button>'
             + '<button type="button" class="schud-btn" data-action="clear-annotations" title="Limpar anotações">'
@@ -10464,9 +10559,9 @@
                     // Procura nos miscs visíveis (do topo p/ baixo)
                     for (let i = gtExtraLayers.length - 1; i >= 0; i--) {
                         const lx = gtExtraLayers[i];
-                        if (!lx || !lx.isMisc || lx.visible === false) continue;
+                        if (!lx || !(lx.isMisc || lx.isMonit) || lx.visible === false) continue;
                         const feat = gtFindMiscFeatureAtLatLon(lx, ll.lat, gtWrapLon(ll.lon), tol);
-                        if (feat) { gtOpenMiscFeatureInfo(lx, feat); return; }
+                        if (feat) { if (lx.isMonit) gtOpenMonitFeatureInfo(lx, feat); else gtOpenMiscFeatureInfo(lx, feat); return; }
                     }
                 } catch (err) { console.error('misc click', err); }
             });
@@ -11216,6 +11311,93 @@
             else if (e.key === 'Enter') { pngFinishDraft(); }
         });
         pngRenderPanelTools();
+    }
+    /* ============================================================
+       Anotacao livre sobre a TELA inteira (estilo caneta): canvas fixo
+       cobrindo tudo + barra flutuante (caneta/borracha, cores, espessura,
+       desfazer, limpar, concluir). Independente de modo/painel.
+       ============================================================ */
+    const SCR_COLORS = ['#000000','#ffffff','#e02424','#f0820e','#f5c211','#2ea043','#1f6feb','#8957e5','#e6399b','#14b8a6'];
+    const _scr = { on:false, tool:'pen', color:'#e02424', width:4, strokes:[], cur:null, cv:null, ctx:null, bar:null };
+    function _scrResize() {
+        if (!_scr.cv) return;
+        const dpr = window.devicePixelRatio || 1;
+        _scr.cv.width = Math.max(1, Math.round(window.innerWidth * dpr));
+        _scr.cv.height = Math.max(1, Math.round(window.innerHeight * dpr));
+        _scr.cv.style.width = window.innerWidth + 'px';
+        _scr.cv.style.height = window.innerHeight + 'px';
+        _scr.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function _scrDrawStroke(ctx, st) {
+        const pts = st.pts || []; if (!pts.length) return;
+        ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        if (st.tool === 'eraser') { ctx.globalCompositeOperation = 'destination-out'; ctx.lineWidth = (st.width || 4) * 3; ctx.strokeStyle = 'rgba(0,0,0,1)'; }
+        else { ctx.globalCompositeOperation = 'source-over'; ctx.lineWidth = st.width || 4; ctx.strokeStyle = st.color || '#e02424'; }
+        ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+        if (pts.length === 1) ctx.lineTo(pts[0][0] + 0.1, pts[0][1] + 0.1);
+        ctx.stroke(); ctx.restore();
+    }
+    function _scrRedraw() {
+        const ctx = _scr.ctx; if (!ctx) return;
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        for (let i = 0; i < _scr.strokes.length; i++) _scrDrawStroke(ctx, _scr.strokes[i]);
+        if (_scr.cur) _scrDrawStroke(ctx, _scr.cur);
+    }
+    function _scrCursor() { if (_scr.cv) _scr.cv.style.cursor = (_scr.tool === 'eraser') ? 'cell' : 'crosshair'; }
+    function _scrUpdateSw() { if (!_scr.bar) return; _scr.bar.querySelectorAll('.sw').forEach(b => b.classList.toggle('active', (b.dataset.scrc || '').toLowerCase() === _scr.color.toLowerCase())); }
+    function _scrBarHTML() {
+        const sw = SCR_COLORS.map(c => '<button type="button" class="sw" data-scrc="' + c + '" style="background:' + c + '" title="' + c + '"></button>').join('');
+        return '<button type="button" data-scrt="pen" class="active" title="Caneta">✏️</button>'
+            + '<button type="button" data-scrt="eraser" title="Borracha">🧽</button>'
+            + '<span class="scrdraw-sep"></span>'
+            + '<span class="scrdraw-sw">' + sw + '</span>'
+            + '<input type="color" class="scrdraw-pick" value="' + _scr.color + '" title="Cor personalizada">'
+            + '<span class="scrdraw-sep"></span>'
+            + '<input type="range" class="scrdraw-w" min="1" max="30" value="' + _scr.width + '" title="Espessura da linha">'
+            + '<span class="scrdraw-wlbl">' + _scr.width + ' px</span>'
+            + '<span class="scrdraw-sep"></span>'
+            + '<button type="button" data-scra="undo" title="Desfazer">↶</button>'
+            + '<button type="button" data-scra="clear" title="Limpar tudo">🗑</button>'
+            + '<button type="button" data-scra="done" title="Concluir (sair do modo desenho)">✓ Concluir</button>';
+    }
+    function _scrWireBar(bar) {
+        bar.querySelectorAll('[data-scrt]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); _scr.tool = b.dataset.scrt; bar.querySelectorAll('[data-scrt]').forEach(x => x.classList.toggle('active', x === b)); _scrCursor(); }));
+        bar.querySelectorAll('.sw').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); _scr.color = b.dataset.scrc; _scr.tool = 'pen'; bar.querySelectorAll('[data-scrt]').forEach(x => x.classList.toggle('active', x.dataset.scrt === 'pen')); const pk = bar.querySelector('.scrdraw-pick'); if (pk) pk.value = _scr.color; _scrUpdateSw(); _scrCursor(); }));
+        const pick = bar.querySelector('.scrdraw-pick');
+        if (pick) pick.addEventListener('input', (e) => { e.stopPropagation(); _scr.color = pick.value; _scr.tool = 'pen'; bar.querySelectorAll('[data-scrt]').forEach(x => x.classList.toggle('active', x.dataset.scrt === 'pen')); _scrUpdateSw(); });
+        const wr = bar.querySelector('.scrdraw-w'); const wl = bar.querySelector('.scrdraw-wlbl');
+        if (wr) wr.addEventListener('input', (e) => { e.stopPropagation(); _scr.width = parseInt(wr.value, 10) || 4; if (wl) wl.textContent = _scr.width + ' px'; });
+        const u = bar.querySelector('[data-scra="undo"]'); if (u) u.addEventListener('click', (e) => { e.stopPropagation(); _scr.strokes.pop(); _scrRedraw(); });
+        const c = bar.querySelector('[data-scra="clear"]'); if (c) c.addEventListener('click', (e) => { e.stopPropagation(); _scr.strokes = []; _scr.cur = null; _scrRedraw(); });
+        const d = bar.querySelector('[data-scra="done"]'); if (d) d.addEventListener('click', (e) => { e.stopPropagation(); scrToggleDraw(false); });
+        _scrUpdateSw();
+    }
+    function _scrEnsure() {
+        if (_scr.cv) return;
+        const cv = document.createElement('canvas'); cv.className = 'scrdraw-canvas'; cv.id = 'scrDrawCanvas';
+        document.body.appendChild(cv); _scr.cv = cv; _scr.ctx = cv.getContext('2d'); _scrResize();
+        cv.addEventListener('mousedown', (e) => { if (!_scr.on || e.button !== 0) return; e.preventDefault(); _scr.cur = { tool: _scr.tool, color: _scr.color, width: _scr.width, pts: [[e.clientX, e.clientY]] }; _scrRedraw(); });
+        window.addEventListener('mousemove', (e) => { if (!_scr.on || !_scr.cur) return; _scr.cur.pts.push([e.clientX, e.clientY]); _scrRedraw(); });
+        window.addEventListener('mouseup', () => { if (!_scr.cur) return; if (_scr.cur.pts.length) _scr.strokes.push(_scr.cur); _scr.cur = null; _scrRedraw(); });
+        window.addEventListener('resize', () => { _scrResize(); _scrRedraw(); });
+        const bar = document.createElement('div'); bar.className = 'scrdraw-bar'; bar.id = 'scrDrawBar'; bar.innerHTML = _scrBarHTML(); document.body.appendChild(bar); _scr.bar = bar; _scrWireBar(bar);
+    }
+    function scrToggleDraw(on) {
+        _scrEnsure();
+        _scr.on = (on == null) ? !_scr.on : !!on;
+        _scr.cv.style.pointerEvents = _scr.on ? 'auto' : 'none';
+        _scr.bar.style.display = _scr.on ? 'flex' : 'none';
+        _scrCursor();
+        const btn = document.getElementById('btnScreenDraw');
+        if (btn) { btn.classList.toggle('active', _scr.on); btn.setAttribute('aria-pressed', _scr.on ? 'true' : 'false'); }
+        document.body.classList.toggle('scrdraw-on', _scr.on);
+        _scrResize(); _scrRedraw();
+    }
+    function scrInit() {
+        const btn = document.getElementById('btnScreenDraw');
+        if (btn && !btn._scrWired) { btn._scrWired = true; btn.addEventListener('click', (e) => { e.preventDefault(); scrToggleDraw(); }); }
+        document.addEventListener('keydown', (e) => { if (_scr.on && e.key === 'Escape') scrToggleDraw(false); });
     }
     function gtRenderPanelPins() {
         document.querySelectorAll('.map-box').forEach((box, idx) => {
@@ -12468,19 +12650,71 @@
             const labelProp = style.labelProp || null;
             const pointRadius = style.pointRadius || 4;
             const fillColor = style.fillColor || style.stroke || '#888';
-            function drawPoint(coords, label) {
+            const _lbls = [];
+            function _wantLabel(px, py) {
+                if (!style.labelDedup) return true;
+                for (let _i = 0; _i < _lbls.length; _i++) { if (Math.abs(_lbls[_i][0] - px) < 30 && Math.abs(_lbls[_i][1] - py) < 13) return false; }
+                _lbls.push([px, py]); return true;
+            }
+            function drawPolyLabel(ring, label) {
+                label = String(label == null ? '' : label); if (!ring || !ring.length || !label) return;
+                let sx = 0, sy = 0, nn = 0;
+                for (let _i = 0; _i < ring.length; _i++) { sx += ring[_i][0]; sy += ring[_i][1]; nn++; }
+                if (!nn) return;
+                const px = lonToX(sx / nn), py = latToY(sy / nn);
+                if (!_wantLabel(px, py)) return;
+                ctx.save();
+                ctx.font = 'bold 10px ui-sans-serif, system-ui, sans-serif';
+                const tw = ctx.measureText(label).width;
+                ctx.fillStyle = 'rgba(0,0,0,0.65)';
+                ctx.fillRect(px - tw / 2 - 3, py - 7, tw + 6, 13);
+                ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center';
+                ctx.fillText(label, px, py + 3);
+                ctx.restore();
+            }
+            function drawPoint(coords, label, active) {
                 const px = lonToX(coords[0]), py = latToY(coords[1]);
                 ctx.save();
-                ctx.fillStyle = fillColor; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2;
-                ctx.beginPath(); ctx.arc(px, py, pointRadius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                if (label) {
+                let half = pointRadius;
+                if (style.iconShape === 'flame') {
+                    const sz = style.iconSize || 18, R = sz * 0.45, tipH = sz; half = tipH;
+                    const flamePath = function (cx, cy, r, th) {
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, 0, Math.PI);
+                        ctx.quadraticCurveTo(cx - r, cy - th * 0.55, cx, cy - th);
+                        ctx.quadraticCurveTo(cx + r, cy - th * 0.55, cx + r, cy);
+                        ctx.closePath();
+                    };
+                    flamePath(px, py, R, tipH);
+                    ctx.fillStyle = style.iconColor || '#ff4d00';
+                    ctx.fill();
+                    ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(40,12,0,0.55)'; ctx.stroke();
+                    flamePath(px, py + R * 0.15, R * 0.5, tipH * 0.62);
+                    ctx.fillStyle = (active === false) ? (style.iconColorOff || '#80868c') : '#ffd54f';
+                    ctx.fill();
+                } else if (style.iconGlyph) {
+                    const sz = style.iconSize || 16; half = sz / 2;
+                    ctx.font = sz + 'px "Segoe UI Emoji","Noto Color Emoji",ui-sans-serif,system-ui,sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(style.iconGlyph, px, py);
+                } else {
+                    ctx.fillStyle = fillColor; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2;
+                    ctx.beginPath(); ctx.arc(px, py, pointRadius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                }
+                if (label && _wantLabel(px, py)) {
+                    const above = !!style.labelAbove;
+                    const lx = above ? px : (px + pointRadius + 3);
+                    const ly = above ? (py - half - 5) : (py + 4);
+                    const s = String(label);
                     ctx.font = 'bold 10px ui-sans-serif, system-ui, sans-serif';
-                    const tw = ctx.measureText(label).width;
-                    const lx = px + pointRadius + 3, ly = py + 4;
+                    ctx.textBaseline = 'alphabetic';
+                    ctx.textAlign = above ? 'center' : 'left';
+                    const tw = ctx.measureText(s).width;
+                    const bx = above ? (lx - tw / 2 - 2) : (lx - 2);
                     ctx.fillStyle = 'rgba(0,0,0,0.65)';
-                    ctx.fillRect(lx - 2, ly - 10, tw + 4, 12);
+                    ctx.fillRect(bx, ly - 10, tw + 4, 12);
                     ctx.fillStyle = '#ffffff';
-                    ctx.fillText(label, lx, ly);
+                    ctx.fillText(s, lx, ly);
                 }
                 ctx.restore();
             }
@@ -12488,17 +12722,17 @@
             for (const f of features) {
                 const g = f.geometry || f;
                 if (!g || !g.coordinates) continue;
-                if (g.type === 'Polygon') g.coordinates.forEach(drawRing);
-                else if (g.type === 'MultiPolygon') g.coordinates.forEach(p => p.forEach(drawRing));
+                if (g.type === 'Polygon') { g.coordinates.forEach(drawRing); if (style.labelPolygons && labelProp && f.properties && f.properties[labelProp]) drawPolyLabel(g.coordinates[0], f.properties[labelProp]); }
+                else if (g.type === 'MultiPolygon') { g.coordinates.forEach(p => p.forEach(drawRing)); if (style.labelPolygons && labelProp && f.properties && f.properties[labelProp]) { let big = null; for (const p of g.coordinates) { if (!big || (p[0] && p[0].length > big.length)) big = p[0]; } if (big) drawPolyLabel(big, f.properties[labelProp]); } }
                 else if (g.type === 'LineString') drawLine(g.coordinates);
                 else if (g.type === 'MultiLineString') g.coordinates.forEach(drawLine);
                 else if (g.type === 'Point') {
                     const label = (labelProp && f.properties) ? f.properties[labelProp] : null;
-                    drawPoint(g.coordinates, label);
+                    drawPoint(g.coordinates, label, f.properties && f.properties._ativo);
                 }
                 else if (g.type === 'MultiPoint') {
                     const label = (labelProp && f.properties) ? f.properties[labelProp] : null;
-                    g.coordinates.forEach(c => drawPoint(c, label));
+                    g.coordinates.forEach(c => drawPoint(c, label, f.properties && f.properties._ativo));
                 }
             }
         }
@@ -13497,6 +13731,7 @@
                 pointRadius: cs.pointRadius || 4,
                 labelProp: cfg.labelProp || null
             };
+            if (layer.isMonit) { style.labelProp = '_rotulo'; style.labelDedup = true; style.labelAbove = true; style.iconShape = 'flame'; style.iconColor = layer.color || '#ff5722'; style.iconSize = 18; style.pointRadius = cs.pointRadius || 6; style.fillColor = layer.color; }
             // Hachura: usa layer override (cor escolhida pelo usuário) ou cfg padrão
             if (cs.hatch || layer.hatchEnabled) {
                 style.hatch = true;
@@ -13579,9 +13814,472 @@
     // ─── Árvore ERMA-style (Background / Miscelânea / Camadas / Ferramentas) ───
     // Re-render dispara junto com gtRenderLayerChips, então qualquer alteração
     // nas listas de camadas/miscelâneas se reflete imediatamente.
+    /* BASE DE DADOS / MONITORAMENTO (v2.12.0)
+       Rotas de dados genericos (KML/GeoJSON) configuraveis na aba "Base de
+       dados" do modal de configuracao; expostas no menu "Monitoramento" da
+       arvore. Sempre que a base e ligada/acessada os dados sao re-buscados. */
+    const STORAGE_KEY_BASES = 'sismom_bases_v1';
+    const DEFAULT_BASES = [{
+        id: 'queimadas_ativas', nome: 'Queimadas recentes', icon: '\u{1F525}',
+        rota: 'https://dataserver-coids.inpe.br/queimadas/queimadas/eventos/ativos/',
+        template: 'eventos_ativos', sufixo: '.kml',
+        mapProvider: 'esri', alwaysFresh: true, color: '#ff5722'
+    }];
+    let basesDados = (function () {
+        try { const raw = localStorage.getItem(STORAGE_KEY_BASES); if (raw) { const a = JSON.parse(raw); if (Array.isArray(a)) return a; } } catch (_) {}
+        return JSON.parse(JSON.stringify(DEFAULT_BASES));
+    })();
+    try { for (const _b of basesDados) { if (_b && _b.id === 'queimadas_ativas' && _b.nome === 'Queimadas ativas') _b.nome = 'Queimadas recentes'; } saveBases(); } catch (_) {}
+    let configBasesDraft = null;
+    function saveBases() { try { localStorage.setItem(STORAGE_KEY_BASES, JSON.stringify(basesDados)); } catch (_) {} }
+    function gtBaseUrl(base) {
+        let r = String((base && base.rota) || '').trim();
+        if (/\.(kml|json|geojson)$/i.test(r)) return r;
+        if (r && !/\/$/.test(r)) r += '/';
+        return r + String((base && base.template) || '').trim() + String((base && base.sufixo) || '').trim();
+    }
+    function gtParseKML(text) {
+        const doc = new DOMParser().parseFromString(text, 'application/xml');
+        if (doc.getElementsByTagName('parsererror').length) throw new Error('KML/XML invalido');
+        const parseCoords = function (s) {
+            return String(s || '').trim().split(/\s+/).map(function (t) {
+                const p = t.split(','); return [parseFloat(p[0]), parseFloat(p[1])];
+            }).filter(function (c) { return isFinite(c[0]) && isFinite(c[1]); });
+        };
+        const txt = function (el, tag) { const e = el.getElementsByTagName(tag)[0]; return e ? (e.textContent || '').trim() : ''; };
+        const feats = [];
+        const pms = doc.getElementsByTagName('Placemark');
+        for (let i = 0; i < pms.length; i++) {
+            const pm = pms[i];
+            const props = {};
+            const nm = txt(pm, 'name'); if (nm) props.nome = nm;
+            const ds = txt(pm, 'description');
+            if (ds) {
+                const _pd = _gtKmlDescToProps(ds);
+                if (_pd.order.length) { for (const _k of _pd.order) { if (!(_k in props)) props[_k] = _pd.map[_k]; } if (_pd.html) props._descHtml = _pd.html; }
+                else props.descricao = ds;
+            }
+            const sd = pm.getElementsByTagName('SimpleData');
+            for (let k = 0; k < sd.length; k++) { const n = sd[k].getAttribute('name'); if (n) props[n] = (sd[k].textContent || '').trim(); }
+            const dd = pm.getElementsByTagName('Data');
+            for (let k = 0; k < dd.length; k++) { const n = dd[k].getAttribute('name'); const v = dd[k].getElementsByTagName('value')[0]; if (n && v) props[n] = (v.textContent || '').trim(); }
+            let geom = null;
+            const pt = pm.getElementsByTagName('Point')[0];
+            const ls = pm.getElementsByTagName('LineString')[0];
+            const pg = pm.getElementsByTagName('Polygon')[0];
+            if (pt) { const c = parseCoords(txt(pt, 'coordinates')); if (c.length) geom = { type: 'Point', coordinates: c[0] }; }
+            else if (ls) { const c = parseCoords(txt(ls, 'coordinates')); if (c.length >= 2) geom = { type: 'LineString', coordinates: c }; }
+            else if (pg) { const ob = pg.getElementsByTagName('outerBoundaryIs')[0] || pg; const ring = parseCoords(txt(ob, 'coordinates')); if (ring.length >= 3) geom = { type: 'Polygon', coordinates: [ring] }; }
+            props._rotulo = props['Município'] || props['Municipio'] || props['Tipo'] || props.nome || props.name || '';
+            if (geom) feats.push({ type: 'Feature', properties: props, geometry: geom });
+        }
+        try {
+            const _dayOf = function (p) {
+                const s = (p && (p['Último foco'] || p['Ultimo foco'] || p['Data fim'] || p['Data início'] || p['Data inicio'])) || '';
+                const mm = String(s).match(/(\d{4})-(\d{2})-(\d{2})/);
+                return mm ? mm[0] : '';
+            };
+            let _ref = '', _any = false;
+            for (const _f of feats) { const _d = _dayOf(_f.properties); if (_d) { _any = true; if (_d > _ref) _ref = _d; } }
+            for (const _f of feats) {
+                const _d = _dayOf(_f.properties);
+                const _at = (!_any || !_d) ? true : (_d === _ref);
+                _f.properties._ativo = !!_at;
+                _f.properties['Situação'] = (!_any || !_d) ? 'Indeterminado' : (_at ? ('Foco ativo no dia ' + _ref) : 'Sem foco no dia corrente');
+            }
+        } catch (_) {}
+        return { type: 'FeatureCollection', features: feats };
+    }
+    async function gtMonitFetch(base) {
+        const url = gtBaseUrl(base);
+        if (!url) throw new Error('rota vazia');
+        const fresh = (base.alwaysFresh !== false);
+        const bust = fresh ? ((url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now()) : '';
+        const resp = await fetch(url + bust, { cache: fresh ? 'no-store' : 'default' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const text = await resp.text();
+        const suf = String(base.sufixo || '').toLowerCase();
+        if (suf.indexOf('kml') >= 0 || /^\s*(<\?xml|<kml)/i.test(text)) return gtParseKML(text);
+        return JSON.parse(text);
+    }
+    function gtMonitFindLayers(baseId) {
+        return gtExtraLayers.filter(function (l) { return l && l.isMonit && l.monitConfig && l.monitConfig.id === baseId; });
+    }
+    // Filtra as feicoes por situacao (Todas / Ativas / Inativas) usando _ativo.
+    function gtMonitFilterData(full, filtro) {
+        const feats = (full && full.features) || [];
+        let out = feats;
+        if (filtro === 'ativas') out = feats.filter(function (f) { return f.properties && f.properties._ativo === true; });
+        else if (filtro === 'inativas') out = feats.filter(function (f) { return f.properties && f.properties._ativo === false; });
+        return { type: 'FeatureCollection', features: out.slice() };
+    }
+    async function gtMonitApplyFilter(base) {
+        const layers = gtMonitFindLayers(base.id);
+        for (const l of layers) {
+            if (!l._allData) continue;
+            l.data = gtMonitFilterData(l._allData, base.filtro);
+            try { await gtLayerPushToMap(l); } catch (_) {}
+        }
+        try { gtRenderLayerChips(); } catch (_) {}
+        try { gtRenderOverlayColorbars(); } catch (_) {}
+    }
+    async function gtMonitAdd(base) {
+        for (const l of gtMonitFindLayers(base.id)) { try { gtRemoveExtraLayer(l.id); } catch (_) {} }
+        let full;
+        try { full = await gtMonitFetch(base); }
+        catch (e) { console.error('[GISELE/Monit]', e); try { showToast('Falha ao carregar "' + (base.nome || base.id) + '": ' + (e && e.message)); } catch (_) {} return null; }
+        const n = (full && full.features) ? full.features.length : 0;
+        const data = gtMonitFilterData(full, base.filtro);
+        const layerId = 'monit_' + base.id + '_' + (++gtLayerSeq);
+        const color = (base.color && /^#[0-9a-f]{6}$/i.test(base.color)) ? base.color : '#ff5722';
+        const layer = {
+            id: layerId, type: 'geojson', name: (base.icon ? base.icon + ' ' : '') + (base.nome || base.id),
+            visible: true, opacity: 1, data: data, _allData: full, color: color,
+            isMonit: true, monitConfig: base, _fetchedAt: Date.now()
+        };
+        gtExtraLayers.push(layer);
+        try { gtLayerEnsureMap(); } catch (_) {}
+        try { await gtLayerPushToMap(layer); } catch (e) { console.warn('[Monit] push', e); }
+        try { if (base.mapProvider) gtMonitApplyMapProvider(base.mapProvider); } catch (_) {}
+        try { gtRenderLayerChips(); } catch (_) {}
+        try { gtRenderOverlayColorbars(); } catch (_) {}
+        try { gtRenderCalcSelects(); } catch (_) {}
+        try { showToast('"' + (base.nome || base.id) + '": ' + n.toLocaleString('pt-BR') + ' feicoes'); } catch (_) {}
+        return layer;
+    }
+    function gtMonitApplyMapProvider(prov) {
+        try {
+            const idx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+            const g = getGtSlotState(idx);
+            g._mapProviderUserSet = true;
+            g.mapProvider = prov; g.mapEnabled = (prov !== 'none');
+            const sel = document.getElementById('gtTileProvider'); if (sel) sel.value = prov;
+            const cb = document.getElementById('gtShowMap'); if (cb) cb.checked = g.mapEnabled;
+            const m = (typeof gtSlotEnsureMap === 'function') ? gtSlotEnsureMap(idx) : null;
+            const box = (typeof slotEl === 'function') ? slotEl(idx) : null;
+            const dec = (typeof gtSlotDecoded !== 'undefined') ? gtSlotDecoded[idx] : null;
+            const cvEl = box && box.querySelector('.map-canvas-gt');
+            if (g.mapEnabled && m && dec && dec.bbox) {
+                if (cvEl) cvEl.style.display = '';
+                if (box) box.classList.add('gt-map-active');
+                _gtApplyMapView(idx, m, g.mapProvider, dec.bbox);
+                if (typeof m.redraw === 'function') m.redraw();
+            } else if (!g.mapEnabled) {
+                if (cvEl) cvEl.style.display = 'none';
+                if (box) box.classList.remove('gt-map-active');
+            }
+            if (typeof gtApplySlotControlsFromActive === 'function') gtApplySlotControlsFromActive();
+            try { gtRenderTreeBackground(); } catch (_) {}
+        } catch (e) { console.warn('[Monit] mapProvider', e); }
+    }
+    function _gtKmlDescToProps(html) {
+        const out = { map: {}, order: [], html: '' };
+        try {
+            const d = new DOMParser().parseFromString(String(html || ''), 'text/html');
+            d.querySelectorAll('script,style,link,iframe,meta').forEach(function (n) { n.remove(); });
+            out.html = d.body ? d.body.innerHTML : '';
+            const rows = d.querySelectorAll('tr');
+            rows.forEach(function (tr) {
+                const tds = tr.querySelectorAll('td,th');
+                if (tds.length >= 2) {
+                    const k = (tds[0].textContent || '').trim().replace(/\s+/g, ' ');
+                    const v = (tds[1].textContent || '').trim().replace(/\s+/g, ' ');
+                    if (k && v && !(k in out.map)) { out.map[k] = v; out.order.push(k); }
+                }
+            });
+        } catch (_) {}
+        return out;
+    }
+    function gtOpenMonitFeatureInfo(layer, feature) {
+        try { const old = document.getElementById('gtMiscInfoPopup'); if (old) old.remove(); } catch (_) {}
+        const props = feature.properties || {};
+        const base = layer.monitConfig || {};
+        const pop = document.createElement('div');
+        pop.id = 'gtMiscInfoPopup';
+        pop.style.cssText = ['position:fixed', 'right:20px', 'top:80px', 'width:360px', 'max-height:78vh', 'overflow-y:auto', 'background:#ffffff', 'border:1px solid #d4dbe6', 'border-radius:8px', 'box-shadow:0 8px 32px rgba(0,0,0,0.25)', 'z-index:99998', 'font-family:ui-sans-serif,system-ui,sans-serif', 'color:#1f2937', 'padding:0'].join(';');
+        const header = document.createElement('div');
+        header.style.cssText = 'padding:10px 14px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:8px;background:#f8fafc;border-radius:8px 8px 0 0';
+        const titleEl = document.createElement('strong');
+        titleEl.style.cssText = 'font-size:14px;color:#0f172a;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        titleEl.textContent = String(props.nome || props._rotulo || base.nome || '(sem nome)');
+        const tag = document.createElement('span');
+        tag.style.cssText = 'font-size:10px;color:#fff;background:' + ((base.color && /^#[0-9a-f]{6}$/i.test(base.color)) ? base.color : '#ff5722') + ';padding:2px 6px;border-radius:10px;font-weight:600;flex:0 0 auto';
+        tag.textContent = base.nome || 'Monitoramento';
+        const closeBtn = document.createElement('button');
+        closeBtn.style.cssText = 'background:transparent;border:0;color:#475569;font-size:20px;cursor:pointer;line-height:1;padding:0 4px;flex:0 0 auto';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.addEventListener('click', function () { pop.remove(); });
+        header.appendChild(titleEl); header.appendChild(tag); header.appendChild(closeBtn);
+        pop.appendChild(header);
+        const body = document.createElement('div');
+        body.style.cssText = 'padding:8px 14px 12px;font-size:12px';
+        const skip = { _rotulo: 1, _descHtml: 1, descricao: 1, nome: 1, name: 1 };
+        const keys = Object.keys(props).filter(function (k) { return !skip[k] && k.charAt(0) !== '_'; });
+        if (keys.length) {
+            const table = document.createElement('table');
+            table.style.cssText = 'width:100%;border-collapse:collapse';
+            keys.forEach(function (k) {
+                const tr = document.createElement('tr');
+                const td1 = document.createElement('td');
+                td1.style.cssText = 'padding:4px 8px 4px 0;color:#475569;font-weight:600;vertical-align:top;white-space:nowrap;border-bottom:1px solid #f1f5f9';
+                td1.textContent = k;
+                const td2 = document.createElement('td');
+                td2.style.cssText = 'padding:4px 0;color:#0f172a;vertical-align:top;border-bottom:1px solid #f1f5f9;word-break:break-word';
+                td2.textContent = String(props[k]);
+                tr.appendChild(td1); tr.appendChild(td2); table.appendChild(tr);
+            });
+            body.appendChild(table);
+        } else if (props._descHtml) {
+            const div = document.createElement('div'); div.innerHTML = props._descHtml; body.appendChild(div);
+        } else {
+            const p = document.createElement('div'); p.style.cssText = 'color:#64748b'; p.textContent = 'Sem atributos.'; body.appendChild(p);
+        }
+        pop.appendChild(body);
+        document.body.appendChild(pop);
+        const onEsc = function (e) { if (e.key === 'Escape') { try { pop.remove(); } catch (_) {} document.removeEventListener('keydown', onEsc); } };
+        document.addEventListener('keydown', onEsc);
+    }
+    function gtRenderTreeMonit() {
+        const ul = document.getElementById('gtTreeMonit');
+        if (!ul) return;
+        ul.innerHTML = '';
+        if (!basesDados.length) {
+            const li = document.createElement('li'); li.className = 'gt-tree-empty';
+            li.textContent = '— nenhuma base (config ⚙ › Base de dados) —';
+            ul.appendChild(li); return;
+        }
+        for (const base of basesDados) {
+            const layers = gtMonitFindLayers(base.id);
+            const on = layers.some(function (l) { return l.visible !== false; });
+            const li = document.createElement('li');
+            li.setAttribute('data-monit-id', base.id);
+            li.style.cssText = 'padding:0;display:block';
+            const det = document.createElement('details');
+            det.className = 'gt-tree-misc-group';
+            const smr = document.createElement('summary');
+            smr.style.cssText = 'cursor:pointer;font-size:12px;padding:4px 0;display:flex;align-items:center;gap:6px';
+            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = on; cb.title = 'Ligar/desligar';
+            cb.addEventListener('click', function (e) { e.stopPropagation(); });
+            cb.addEventListener('change', async function () {
+                if (cb.checked) {
+                    const off = gtMonitFindLayers(base.id).find(function (l) { return l.visible === false; });
+                    if (off) { gtToggleExtraLayer(off.id); }
+                    else { cb.disabled = true; await gtMonitAdd(base); cb.disabled = false; }
+                } else {
+                    for (const l of gtMonitFindLayers(base.id)) gtRemoveExtraLayer(l.id);
+                }
+                gtRenderTreeMonit();
+            });
+            smr.appendChild(cb);
+            const nm = document.createElement('span');
+            nm.style.cssText = 'flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+            nm.textContent = (base.icon ? base.icon + ' ' : '') + (base.nome || base.id);
+            smr.appendChild(nm);
+            const cIn = document.createElement('input'); cIn.type = 'color'; cIn.className = 'gt-tree-color';
+            cIn.value = (base.color && /^#[0-9a-f]{6}$/i.test(base.color)) ? base.color : '#ff5722';
+            cIn.title = 'Cor';
+            cIn.addEventListener('click', function (e) { e.stopPropagation(); });
+            cIn.addEventListener('input', function (e) {
+                base.color = e.target.value; saveBases();
+                for (const l of gtMonitFindLayers(base.id)) { try { gtSetMiscLayerColor(l.id, e.target.value); } catch (_) {} }
+            });
+            smr.appendChild(cIn);
+            const refr = document.createElement('button'); refr.type = 'button'; refr.textContent = '↻'; refr.title = 'Atualizar dados (buscar o mais recente)';
+            refr.style.cssText = 'border:1px solid var(--border-soft,#475569);background:transparent;color:var(--accent-cyan,#4dd0e1);width:22px;height:20px;padding:0;border-radius:3px;cursor:pointer;font-size:13px;line-height:1;flex:0 0 auto';
+            refr.addEventListener('click', async function (e) { e.stopPropagation(); refr.disabled = true; refr.textContent = '⏳'; await gtMonitAdd(base); refr.disabled = false; refr.textContent = '↻'; gtRenderTreeMonit(); });
+            smr.appendChild(refr);
+            const rm = document.createElement('button'); rm.type = 'button'; rm.textContent = '\u{1F5D1}'; rm.title = 'Remover base';
+            rm.style.cssText = 'border:1px solid var(--border-soft,#475569);background:transparent;color:#b9472a;width:22px;height:20px;padding:0;border-radius:3px;cursor:pointer;font-size:12px;line-height:1;flex:0 0 auto';
+            rm.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (!confirm('Remover a base "' + (base.nome || base.id) + '"?')) return;
+                for (const l of gtMonitFindLayers(base.id)) gtRemoveExtraLayer(l.id);
+                basesDados = basesDados.filter(function (b) { return b.id !== base.id; });
+                saveBases(); gtRenderTreeMonit();
+            });
+            smr.appendChild(rm);
+            det.appendChild(smr);
+            const body = document.createElement('div');
+            body.style.cssText = 'padding:4px 0 6px 18px;display:flex;flex-direction:column;gap:4px';
+            const info = document.createElement('div');
+            info.style.cssText = 'font-size:11px;color:#8aa;line-height:1.45';
+            const _url = gtBaseUrl(base);
+            const topRow = document.createElement('div');
+            topRow.style.cssText = 'display:flex;align-items:center;gap:6px';
+            const qBtn = document.createElement('button');
+            qBtn.type = 'button'; qBtn.textContent = '?'; qBtn.title = 'Fonte: ' + _url;
+            qBtn.style.cssText = 'border:1px solid var(--border-soft,#475569);background:transparent;color:var(--accent-cyan,#4dd0e1);width:16px;height:16px;border-radius:50%;font-size:10px;font-weight:700;line-height:1;padding:0;cursor:help;flex:0 0 auto';
+            const f2 = document.createElement('div'); f2.style.cssText = 'flex:1 1 auto';
+            if (layers.length && layers[0]._fetchedAt) {
+                const _src = layers[0]._allData || layers[0].data;
+                const nf = (_src && _src.features) ? _src.features.length : 0;
+                f2.textContent = 'Atualizado: ' + new Date(layers[0]._fetchedAt).toLocaleString('pt-BR') + ' · ' + nf.toLocaleString('pt-BR') + ' feicoes';
+            } else { const i = document.createElement('i'); i.textContent = 'nao carregado'; f2.appendChild(i); }
+            topRow.appendChild(qBtn); topRow.appendChild(f2);
+            info.appendChild(topRow);
+            const fonteBox = document.createElement('div');
+            fonteBox.style.cssText = 'display:none;word-break:break-all;margin-top:3px;color:#9fb0c8';
+            const _fb = document.createElement('b'); _fb.textContent = 'Fonte: '; fonteBox.appendChild(_fb); fonteBox.appendChild(document.createTextNode(_url));
+            qBtn.addEventListener('click', function (e) { e.stopPropagation(); fonteBox.style.display = (fonteBox.style.display === 'none') ? 'block' : 'none'; });
+            info.appendChild(fonteBox);
+            body.appendChild(info);
+            const filtRow = document.createElement('div');
+            filtRow.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;color:#8aa';
+            const filtLbl = document.createElement('span'); filtLbl.textContent = 'Mostrar:';
+            const filtSel = document.createElement('select');
+            filtSel.style.cssText = 'font-size:11px;padding:2px 6px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-soft,#475569);border-radius:3px;cursor:pointer';
+            [['all', 'Todas'], ['ativas', 'Ativas'], ['inativas', 'Inativas']].forEach(function (o) { const op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; if ((base.filtro || 'all') === o[0]) op.selected = true; filtSel.appendChild(op); });
+            filtSel.addEventListener('click', function (e) { e.stopPropagation(); });
+            filtSel.addEventListener('change', async function () { base.filtro = filtSel.value; saveBases(); await gtMonitApplyFilter(base); });
+            filtRow.appendChild(filtLbl); filtRow.appendChild(filtSel);
+            body.appendChild(filtRow);
+            const btnR = document.createElement('button'); btnR.type = 'button'; btnR.className = 'gt-tree-action';
+            btnR.textContent = '↻ Atualizar agora'; btnR.style.cssText = 'font-size:10.5px;padding:2px 8px;align-self:flex-start';
+            btnR.addEventListener('click', async function () { btnR.disabled = true; const t0 = btnR.textContent; btnR.textContent = '↻ Atualizando…'; await gtMonitAdd(base); btnR.disabled = false; btnR.textContent = t0; gtRenderTreeMonit(); });
+            body.appendChild(btnR);
+            det.appendChild(body);
+            li.appendChild(det);
+            ul.appendChild(li);
+        }
+        try { gtMonitOrder.apply(); gtMonitOrder.wire(); } catch (_) {}
+    }
+    function gtOpenBaseConfig(baseId) {
+        try {
+            openConfigModal();
+            configActiveId = '__bases__';
+            renderConfigTabs();
+            showBasesPane(true);
+            renderBasesPane();
+            setTimeout(function () {
+                const card = document.getElementById('cfgBaseCard_' + baseId);
+                if (card) { try { card.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {} card.style.boxShadow = '0 0 0 2px var(--accent-cyan,#4dd0e1)'; setTimeout(function () { card.style.boxShadow = ''; }, 1400); }
+            }, 60);
+        } catch (e) { console.warn('[Monit] openBaseConfig', e); }
+    }
+    function setCfgTopSection(sec) {
+        cfgTopSection = (sec === 'bases') ? 'bases' : 'modelos';
+        if (cfgTopSection === 'bases') {
+            if (configActiveId && configActiveId !== '__bases__') { try { syncCurrentPaneToDraft(); } catch (_) {} }
+            showBasesPane(true);
+            renderBasesPane();
+        } else {
+            showBasesPane(false);
+            if (!configActiveId || configActiveId === '__bases__') {
+                const _src = configDraft || modelos;
+                configActiveId = (_src ? Object.keys(_src)[0] : null) || null;
+            }
+            renderConfigTabs();
+            if (configActiveId) renderConfigPane(configActiveId);
+        }
+    }
+    function showBasesPane(on) {
+        const body = document.getElementById('modalBody');
+        const pane = document.getElementById('cfgBasesPane');
+        if (!body || !pane) return;
+        Array.prototype.forEach.call(body.children, function (ch) { if (ch !== pane) ch.style.display = on ? 'none' : ''; });
+        pane.style.display = on ? '' : 'none';
+        const _mt = document.getElementById('modalTabs'); if (_mt) _mt.style.display = on ? 'none' : '';
+        const _tt = document.getElementById('modalTopTabs');
+        if (_tt) _tt.querySelectorAll('.modal-toptab').forEach(function (b) { b.classList.toggle('active', b.dataset.top === (on ? 'bases' : 'modelos')); });
+        ['btnDelModel', 'btnCloneModel', 'btnAddVar'].forEach(function (id) { const b = document.getElementById(id); if (b) b.style.display = on ? 'none' : ''; });
+    }
+    function renderBasesPane() {
+        const host = document.getElementById('cfgBasesList');
+        if (!host) return;
+        if (!configBasesDraft) configBasesDraft = JSON.parse(JSON.stringify(basesDados));
+        const editing = (typeof _configEditing !== 'undefined') ? _configEditing : true;
+        host.innerHTML = '';
+        if (window.GISELE_CONFIG && typeof window.GISELE_CONFIG.dir === 'function') {
+            const pathBar = document.createElement('div');
+            pathBar.style.cssText = 'display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:8px 10px;border:1px solid var(--border-subtle,#2a3850);border-radius:6px;background:var(--bg-elev-1,#0e1622);font-size:11.5px;color:var(--text-secondary,#9fb0c8)';
+            const _l = document.createElement('div'); _l.style.cssText = 'flex:1 1 auto;line-height:1.5;min-width:200px';
+            _l.innerHTML = '<b>Config lida no início / gravada no Exportar:</b> arquivo <code style="color:var(--text,#dbe2ec)">gisele-config.json</code> na pasta:';
+            const _code = document.createElement('div'); _code.style.cssText = 'color:var(--text,#dbe2ec);word-break:break-all;font-family:monospace;margin-top:2px'; _code.textContent = '(localizando…)';
+            _l.appendChild(_code);
+            const _open = document.createElement('button'); _open.type = 'button'; _open.className = 'btn btn-ghost'; _open.textContent = '📂 Abrir pasta'; _open.style.cssText = 'font-size:11px;padding:3px 8px;flex:0 0 auto';
+            _open.addEventListener('click', function () { try { if (window.GISELE_CONFIG.open) window.GISELE_CONFIG.open(); } catch (_) {} });
+            pathBar.appendChild(_l); pathBar.appendChild(_open);
+            host.appendChild(pathBar);
+            try { window.GISELE_CONFIG.dir().then(function (d) { if (d) _code.textContent = String(d); }).catch(function () {}); } catch (_) {}
+        }
+        if (!configBasesDraft.length) {
+            const p = document.createElement('div'); p.style.cssText = 'color:var(--text-muted,#8aa);font-size:12px;padding:8px 0';
+            p.textContent = 'Nenhuma base configurada. Use "+ Nova base de dados".';
+            host.appendChild(p);
+        }
+        configBasesDraft.forEach(function (base, idx) {
+            const card = document.createElement('div');
+            card.id = 'cfgBaseCard_' + base.id;
+            card.style.cssText = 'border:1px solid var(--border-subtle,#2a3850);border-radius:8px;padding:12px 14px;margin-bottom:12px;background:var(--bg-elev-1,#0e1622)';
+            const head = document.createElement('div');
+            head.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
+            const ic = document.createElement('input'); ic.type = 'text'; ic.value = base.icon || ''; ic.maxLength = 2; ic.placeholder = '\u{1F525}'; ic.title = 'Icone (emoji)';
+            ic.style.cssText = 'width:42px;text-align:center;font-size:16px;flex:0 0 auto'; ic.readOnly = !editing;
+            ic.addEventListener('input', function () { base.icon = ic.value; });
+            head.appendChild(ic);
+            const tt = document.createElement('input'); tt.type = 'text'; tt.value = base.nome || ''; tt.placeholder = 'Nome da base (ex.: Queimadas ativas)';
+            tt.style.cssText = 'flex:1 1 auto;font-weight:600;font-size:14px'; tt.readOnly = !editing;
+            tt.addEventListener('input', function () { base.nome = tt.value; });
+            head.appendChild(tt);
+            const col = document.createElement('input'); col.type = 'color'; col.value = (base.color && /^#[0-9a-f]{6}$/i.test(base.color)) ? base.color : '#ff5722'; col.title = 'Cor';
+            col.style.cssText = 'width:36px;height:30px;flex:0 0 auto;padding:2px'; col.disabled = !editing;
+            col.addEventListener('input', function () { base.color = col.value; });
+            head.appendChild(col);
+            const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-ghost'; del.textContent = '\u{1F5D1} Remover'; del.style.cssText = 'font-size:11px;padding:4px 8px;flex:0 0 auto'; del.disabled = !editing;
+            del.addEventListener('click', function () { if (!confirm('Remover a base "' + (base.nome || base.id) + '"?')) return; configBasesDraft.splice(idx, 1); renderBasesPane(); });
+            head.appendChild(del);
+            card.appendChild(head);
+            const grid = document.createElement('div');
+            grid.style.cssText = 'display:grid;grid-template-columns:140px 1fr;gap:8px 12px;align-items:center;font-size:12px';
+            const mkRow = function (labelTxt, inputEl, hintTxt) {
+                const l = document.createElement('label'); l.textContent = labelTxt; l.style.cssText = 'color:var(--text-secondary,#9fb0c8);font-size:11px;text-transform:uppercase;letter-spacing:.4px';
+                grid.appendChild(l);
+                const wrap = document.createElement('div'); wrap.appendChild(inputEl);
+                if (hintTxt) { const h = document.createElement('div'); h.style.cssText = 'font-size:10.5px;color:var(--text-muted,#7f8ca3);margin-top:2px'; h.textContent = hintTxt; wrap.appendChild(h); }
+                grid.appendChild(wrap);
+            };
+            const prev = document.createElement('div'); prev.style.cssText = 'grid-column:1/-1;font-size:11px;color:var(--text-muted,#7f8ca3);word-break:break-all;border-top:1px dashed var(--border-subtle,#2a3850);padding-top:6px';
+            const syncPreview = function () { prev.textContent = 'URL final: ' + gtBaseUrl(base); };
+            const rota = document.createElement('input'); rota.type = 'text'; rota.value = base.rota || ''; rota.placeholder = 'https://servidor/caminho/'; rota.style.cssText = 'width:100%;box-sizing:border-box'; rota.readOnly = !editing;
+            rota.addEventListener('input', function () { base.rota = rota.value; syncPreview(); });
+            mkRow('Rota', rota, 'Diretorio base do recurso (com / no final).');
+            const tpl = document.createElement('input'); tpl.type = 'text'; tpl.value = base.template || ''; tpl.placeholder = 'eventos_ativos'; tpl.style.cssText = 'width:100%;box-sizing:border-box'; tpl.readOnly = !editing;
+            tpl.addEventListener('input', function () { base.template = tpl.value; syncPreview(); });
+            mkRow('Template Nome Arq.', tpl, null);
+            const suf = document.createElement('input'); suf.type = 'text'; suf.value = base.sufixo || ''; suf.placeholder = '.kml'; suf.style.cssText = 'width:100%;box-sizing:border-box'; suf.readOnly = !editing;
+            suf.addEventListener('input', function () { base.sufixo = suf.value; syncPreview(); });
+            mkRow('Sufixo do arquivo', suf, 'Suportado: .kml, .geojson, .json');
+            const prov = document.createElement('select'); prov.style.cssText = 'width:100%;box-sizing:border-box'; prov.disabled = !editing;
+            [['esri', 'Esri — World Imagery (satelite)'], ['osm', 'OpenStreetMap'], ['topo', 'OpenTopoMap (relevo)'], ['none', 'Nenhum (sem mapa)']].forEach(function (o) { const op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; if ((base.mapProvider || 'esri') === o[0]) op.selected = true; prov.appendChild(op); });
+            prov.addEventListener('change', function () { base.mapProvider = prov.value; });
+            mkRow('Mapa-base', prov, null);
+            const frWrap = document.createElement('label'); frWrap.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text,#dbe2ec);font-weight:normal;text-transform:none;letter-spacing:0';
+            const fr = document.createElement('input'); fr.type = 'checkbox'; fr.checked = (base.alwaysFresh !== false); fr.style.cssText = 'width:auto;flex:0 0 auto'; fr.disabled = !editing;
+            fr.addEventListener('change', function () { base.alwaysFresh = fr.checked; });
+            frWrap.appendChild(fr); frWrap.appendChild(document.createTextNode('Sempre trazer dados atualizados ao acessar (no-store)'));
+            mkRow('Atualizacao', frWrap, null);
+            syncPreview();
+            grid.appendChild(prev);
+            card.appendChild(grid);
+            host.appendChild(card);
+        });
+        const add = document.getElementById('btnAddBase');
+        if (add) add.disabled = !editing;
+    }
+    function _gtAddBaseDraft() {
+        if (!configBasesDraft) configBasesDraft = JSON.parse(JSON.stringify(basesDados));
+        let nid = 'base_' + (configBasesDraft.length + 1);
+        const taken = function (x) { return configBasesDraft.some(function (b) { return b.id === x; }); };
+        while (taken(nid)) nid += '_';
+        configBasesDraft.push({ id: nid, nome: 'Nova base', icon: '\u{1F4E1}', rota: '', template: '', sufixo: '.kml', mapProvider: 'esri', alwaysFresh: true, color: '#22d3ee' });
+        renderBasesPane();
+        setTimeout(function () { const c = document.getElementById('cfgBaseCard_' + nid); if (c) { try { c.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {} } }, 30);
+    }
+
     function gtRenderTree() {
         gtRenderTreeBackground();
         gtRenderTreeMisc();
+        try { gtRenderTreeMonit(); } catch (_) {}
         gtRenderTreeLayers();
         try { gtRenderTreeUserPoly(); } catch (_) {}
     }
@@ -13689,6 +14387,8 @@
                 }
             });
             const name = document.createElement('span'); name.className = 'gt-tree-name'; name.textContent = it.nome || it.id;
+            // Item simples (sem summary): garante a mesma cor/layout dos demais nós da árvore
+            lbl.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text,#cbd6e6);cursor:pointer;padding:3px 0';
             lbl.appendChild(cb); lbl.appendChild(name);
             li.appendChild(lbl);
             ul.appendChild(li);
@@ -14812,6 +15512,22 @@
         for (let i = 0; i < used.length; i++) {
             if (!layers[i] || !layers[i].decoded) throw new Error('camada não disponível: ' + used[i]);
         }
+        // ── Spec p/ re-amostrar a TS da camada de cálculo (recompute por passo) ──
+        let _tsTokens = {}, _tsOk = true;
+        try {
+            for (let i = 0; i < used.length; i++) {
+                const L = layers[i];
+                if (L && L.id === 'primary') {
+                    const ss = (state && state.slots && state.slots[(typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0]) || null;
+                    if (ss && ss.modelo && ss.variavel && ss.data) _tsTokens[used[i]] = { source: { modelo: ss.modelo, variavel: ss.variavel, data: ss.data } };
+                    else { _tsOk = false; break; }
+                } else if (L && L.source && L.source.modeloId) {
+                    _tsTokens[used[i]] = { source: { modelo: L.source.modeloId, variavel: L.source.variavelId, data: L.source.data } };
+                } else if (L && L.calcSpec) {
+                    _tsTokens[used[i]] = { calcSpec: L.calcSpec };
+                } else { _tsOk = false; break; }
+            }
+        } catch (_) { _tsOk = false; }
         // Verifica que todas têm a mesma dimensão
         if (layers.length === 0) throw new Error('expressão precisa referenciar pelo menos uma camada');
         const ref = layers[0].decoded;
@@ -14865,6 +15581,7 @@
         const newName = displayName || ('expr: ' + expr);
         const layer = { id, type: 'geotiff', name: newName, visible: true, opacity: 0.85,
             decoded, paleta,
+            calcSpec: _tsOk ? { expr, ast, tokens: _tsTokens, layerName: newName } : null,
             props: { paleta, autoMinMax: true, customMin: null, customMax: null,
                       undefRaw: '', clipBelow: null, clipAbove: null }
         };
@@ -16711,6 +17428,13 @@
         idAttr: 'data-tree-layer-id',
         gripParent: (el) => el.querySelector(':scope > div') || el,
     });
+    const gtMonitOrder = _gtMakeReorderModule({
+        key: 'gisele.tree.monit.order.v1',
+        container: '#gtTreeMonit',
+        item: ':scope > li[data-monit-id]',
+        idAttr: 'data-monit-id',
+        gripParent: (el) => el.querySelector(':scope > details > summary') || el,
+    });
 
     const gtToolsOrder = {
         KEY: 'gisele.tools.order.v1',
@@ -16849,17 +17573,6 @@
             const btFull = document.getElementById('btnGtExpFull');
             const btPoly = document.getElementById('btnGtExpPoly');
             const btMisc = document.getElementById('btnGtExpMisc');
-            // Botão multi-ponto: usa pontos ativos do viewport
-            try {
-                const btTsActive = document.getElementById('btnGtExpTsActivePts');
-                if (btTsActive && !btTsActive._gtWired) {
-                    btTsActive._gtWired = true;
-                    btTsActive.addEventListener('click', () => {
-                        const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
-                        _gtRunTimeSeriesAtActivePoints(slotIdx);
-                    });
-                }
-            } catch (e) { console.warn('wire TsActivePts:', e); }
             const btTS   = document.getElementById('btnGtExpTimeseries');
             if (btFull) btFull.addEventListener('click', () => {
                 _gtExpFlash('btnGtExpFull');
@@ -16874,18 +17587,30 @@
 
             if (btTS) btTS.addEventListener('click', () => {
                 const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
-                gtSetSlotTool(slotIdx, 'export-timeseries');
-                gtExpSetStatus('Clique em qualquer ponto do mapa para exportar a evolução temporal nessa coordenada.');
+                try { gtOpenTsConfigDialog(slotIdx); } catch (e) { console.error('ts dialog', e); }
             });
             if (btMisc) btMisc.addEventListener('click', () => {
                 _gtExpHighlight('btnGtExpMisc');
-                // Lista TODAS as camadas vetoriais carregadas (Miscelâneas + Shapefiles + GeoJSON)
+                // Só camadas vetoriais com POLÍGONOS: o recorte usa polígonos como máscara,
+                // então camadas de pontos (Cidades, Plataformas) não se aplicam e ficam de fora.
+                const _hasPolys = (l) => {
+                    const fs = l && l.data && l.data.features;
+                    if (!Array.isArray(fs)) return false;
+                    for (const f of fs) {
+                        const g = f && f.geometry; if (!g) continue;
+                        if (g.type === 'Polygon' || g.type === 'MultiPolygon') return true;
+                        if (g.type === 'GeometryCollection' && Array.isArray(g.geometries)) {
+                            for (const gg of g.geometries) if (gg && (gg.type === 'Polygon' || gg.type === 'MultiPolygon')) return true;
+                        }
+                    }
+                    return false;
+                };
                 const miscs = (typeof gtExtraLayers !== 'undefined')
-                    ? gtExtraLayers.filter(l => l && l.type === 'geojson' && l.data)
+                    ? gtExtraLayers.filter(l => l && l.type === 'geojson' && l.data && _hasPolys(l))
                     : [];
                 if (!miscs.length) {
                     _gtExpClearHighlight();
-                    gtExpSetStatus('Nenhuma camada vetorial carregada. Use "＋ Adicionar GeoTIFF / GeoJSON / Shapefile…" no menu Ferramentas para carregar um shape, ou marque uma Miscelânea.', true);
+                    gtExpSetStatus('Nenhuma camada vetorial com POLÍGONOS carregada. O recorte usa polígonos como máscara — camadas de pontos (Cidades, Plataformas) não se aplicam. Carregue/desenhe um shape de polígono, ou marque os Corais na Miscelânea.', true);
                     return;
                 }
                 // Dialog com layout flex: header + scrollable body + footer.
@@ -18006,6 +18731,7 @@
     } else {
         inicializar();
     }
+    try { window.addEventListener('load', function () { try { gtBootstrapConfigFromFile(); } catch (_) {} }); } catch (_) {}
 })();
 </script>
 

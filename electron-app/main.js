@@ -80,6 +80,43 @@ function pythonHelperDisabled() { return hasFlag('--no-python-helper'); }
 ipcMain.handle('gisele-python:get-url', () => pythonSpawner.getUrl());
 ipcMain.handle('gisele-python:is-available', () => pythonSpawner.isRunning());
 
+// ─── Config persistente em arquivo: pasta configuração/ em userData ───
+// Export grava aqui por padrão; no início o renderer auto-importa o arquivo.
+function configDir() {
+  const d = path.join(app.getPath('userData'), 'configuração');
+  try { fs.mkdirSync(d, { recursive: true }); } catch (_) {}
+  return d;
+}
+const CONFIG_FILENAME = 'gisele-config.json';
+ipcMain.handle('gisele-config:dir', () => { try { return configDir(); } catch (_) { return null; } });
+ipcMain.handle('gisele-config:open', () => { try { shell.openPath(configDir()); return true; } catch (_) { return false; } });
+ipcMain.handle('gisele-config:save', (_e, text) => {
+  try {
+    const f = path.join(configDir(), CONFIG_FILENAME);
+    fs.writeFileSync(f, String(text == null ? '' : text), 'utf8');
+    debugLog('config gravada: ' + f);
+    return { ok: true, path: f };
+  } catch (err) { debugLog('erro gravando config: ' + (err && err.message)); return { ok: false, error: String(err && err.message) }; }
+});
+ipcMain.handle('gisele-config:load', () => {
+  try {
+    const dir = configDir();
+    let f = path.join(dir, CONFIG_FILENAME);
+    if (!fs.existsSync(f)) {
+      let cands = [];
+      try { cands = fs.readdirSync(dir).filter((n) => /\.json$/i.test(n)); } catch (_) {}
+      if (!cands.length) return { ok: true, found: false };
+      cands = cands.map((n) => {
+        let t = 0; try { t = fs.statSync(path.join(dir, n)).mtimeMs; } catch (_) {}
+        return { n: n, t: t };
+      }).sort((a, b) => b.t - a.t);
+      f = path.join(dir, cands[0].n);
+    }
+    const text = fs.readFileSync(f, 'utf8');
+    return { ok: true, found: true, path: f, text: text };
+  } catch (err) { return { ok: false, error: String(err && err.message) }; }
+});
+
 // ─── Cria janela ────────────────────────────────────────────────────
 function createWindow() {
   const displayIndices = parseDisplaysArg();
