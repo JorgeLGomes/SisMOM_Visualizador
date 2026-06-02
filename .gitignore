@@ -47,3 +47,14 @@ electron-app/dist*.zip
 __pycache__/
 *.pyc
 *.egg-info/
+
+# ---- Brand: rascunhos da geracao do logo (manter so os entregaveis) ----
+brand/*
+!brand/gisele_logo.svg
+!brand/gisele_logomark.svg
+!brand/gisele_logomark_mono.svg
+!brand/gisele-icon-192.png
+!brand/gisele-icon-512.png
+
+# ---- api-client: saidas de extracao (CSV de exemplo/teste) ----
+api-client/*.csv
