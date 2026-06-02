@@ -6206,7 +6206,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260601-18500-cfgpath'); document.documentElement.setAttribute('data-build', '20260601-18500-cfgpath'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260601-20400-bandlevels'); document.documentElement.setAttribute('data-build', '20260601-20400-bandlevels'); } catch (_) {}
         loadModelos();
         buildSlots();
         try { pngInit(); } catch (_) {}
@@ -6650,6 +6650,10 @@
             } catch (_) {}
             return { width, height, data, nodata: effectiveNoData, nodataExtras: nodataExtras.length ? nodataExtras : null, bbox, scale, min: mn, max: mx };
         }
+        let _gtBands = 0;
+        let _gtBandLevels = null;
+        function setBands(n) { _gtBands = ((n | 0) >= 2) ? (n | 0) : 0; }
+        function setBandLevels(arr) { _gtBandLevels = (arr && arr.length) ? arr.slice().sort(function (a, b) { return a - b; }) : null; }
         function aplicarPaleta(decoded, opts) {
             const { width, height, data, nodata } = decoded;
             const palName = (opts && opts.paleta) || 'viridis';
@@ -6667,6 +6671,16 @@
             const nExtras = extras ? extras.length : 0;
             const clipBelow = (opts && opts.clipBelow != null && isFinite(opts.clipBelow)) ? opts.clipBelow : null;
             const clipAbove = (opts && opts.clipAbove != null && isFinite(opts.clipAbove)) ? opts.clipAbove : null;
+            let _bandT = null;
+            if (_gtBandLevels && _gtBandLevels.length) {
+                const _L = _gtBandLevels; _bandT = new Array(_L.length + 1);
+                for (let _bj = 0; _bj <= _L.length; _bj++) {
+                    const _lo = (_bj === 0) ? min : _L[_bj - 1];
+                    const _hi = (_bj === _L.length) ? max : _L[_bj];
+                    let _tt = (((_lo + _hi) / 2) - min) / range; if (_tt < 0) _tt = 0; else if (_tt > 1) _tt = 1;
+                    _bandT[_bj] = _tt;
+                }
+            }
             const N = width * height;
             const rgba = new Uint8ClampedArray(N * 4);
             for (let i = 0; i < N; i++) {
@@ -6680,8 +6694,9 @@
                 const o = dst * 4;
                 if (masked) { rgba[o]=0; rgba[o+1]=0; rgba[o+2]=0; rgba[o+3]=0; }
                 else {
-                    let t = (v - min) / range;
-                    if (t < 0) t = 0; else if (t > 1) t = 1;
+                    let t;
+                    if (_bandT) { let _j = 0; const _L = _gtBandLevels; while (_j < _L.length && v >= _L[_j]) _j++; t = _bandT[_j]; }
+                    else { t = (v - min) / range; if (t < 0) t = 0; else if (t > 1) t = 1; if (_gtBands >= 2) { let _b = (t * _gtBands) | 0; if (_b >= _gtBands) _b = _gtBands - 1; t = (_b + 0.5) / _gtBands; } }
                     const idx = (t * 255) | 0;
                     rgba[o]     = pal[idx * 3];
                     rgba[o + 1] = pal[idx * 3 + 1];
@@ -6697,7 +6712,7 @@
             const ext = (m.extensao || '').toLowerCase();
             return ext === '.tif' || ext === '.tiff';
         }
-        return { decodeTIFF, aplicarPaleta, GT_PALETTES, isGeoTiffModel };
+        return { decodeTIFF, aplicarPaleta, GT_PALETTES, isGeoTiffModel, setBands, setBandLevels };
     })();
     // Disponível também para testes externos
     try { if (typeof window !== 'undefined') window.SisMOM_GeoTIFF = SisMOM_GeoTIFF; } catch(_) {}
@@ -10763,6 +10778,7 @@
         const box = slotEl(slotIdx);
         const gt = getGtSlotState(slotIdx);
         const opts = gtSlotApplyOpts(slotIdx);
+        try { if (typeof gtRasterMode !== 'undefined' && gtRasterMode === 'bands') gtUpdateBandLevels(slotIdx); } catch (_) {}
         const url = lastLoadedURL[slotIdx] || ('__slot' + slotIdx);
         const imgData = gtGetImageData(url, decoded, opts);
         if (gt.mapEnabled && decoded.bbox) {
@@ -11990,6 +12006,12 @@
             const ev = (el.type === 'checkbox' || el.tagName === 'SELECT') ? 'change' : 'input';
             el.addEventListener(ev, () => gtDispatchActiveControlChange());
         });
+        ['gtContourMode', 'gtContourCount', 'gtContourLevels'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const ev = (el.tagName === 'SELECT') ? 'change' : 'input';
+            el.addEventListener(ev, function () { if (typeof gtRasterMode !== 'undefined' && gtRasterMode === 'bands') { try { gtRerenderAllRasters(); } catch (_) {} } });
+        });
         // Toggle "Mostrar navegação"
         const navHud = document.getElementById('gtShowNavHud');
         if (navHud) {
@@ -12779,6 +12801,24 @@
                 }
             }
         }
+        // Bilinear: pre-upscala o bitmap do raster (cacheado por overlay) p/ um shading
+        // interpolado e nao pixelado, inclusive na vertical do fatiamento Mercator.
+        function _smoothRasterBitmap(o) {
+            if (!o || !o.bitmap) return o && o.bitmap;
+            if (o._smooth) return o._smooth;
+            const bw = o.bitmap.width || 1, bh = o.bitmap.height || 1;
+            const target = 800;
+            const sc = Math.min(8, Math.max(1, Math.ceil(target / Math.max(1, Math.min(bw, bh)))));
+            if (sc <= 1) { o._smooth = o.bitmap; return o.bitmap; }
+            const cw = Math.min(4096, bw * sc), ch = Math.min(4096, bh * sc);
+            try {
+                const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+                const c = cv.getContext('2d');
+                c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+                c.drawImage(o.bitmap, 0, 0, cw, ch);
+                o._smooth = cv; return cv;
+            } catch (_) { o._smooth = o.bitmap; return o.bitmap; }
+        }
         function _drawOneRaster(o, drawBox) {
             if (!o || !o.bitmap || !o.bbox) return;
             const ctx = self.ctx;
@@ -12786,7 +12826,10 @@
             const y0 = latToY(o.bbox.maxY), y1 = latToY(o.bbox.minY);
             ctx.save();
             ctx.globalAlpha = (o.opacity == null ? 0.85 : o.opacity);
-            ctx.imageSmoothingEnabled = false;
+            const _smooth = (SisMOM_Map.rasterSmooth !== false);
+            ctx.imageSmoothingEnabled = _smooth;
+            ctx.imageSmoothingQuality = 'high';
+            const _src = _smooth ? _smoothRasterBitmap(o) : o.bitmap;
             // Renderização por scanlines em Mercator: o bitmap está em projeção equirectangular
             // (lat linear por linha), mas em Mercator a relação lat↔Y é não-linear. Fazer um
             // único drawImage estica linearmente entre y0=latToY(maxY) e y1=latToY(minY),
@@ -12794,7 +12837,7 @@
             // em N faixas horizontais e desenhar cada uma na sua posição Y Mercator correta.
             //
             // Para projeção plate carrée (não-Mercator), uma única drawImage basta.
-            const bh = (o.bitmap && o.bitmap.height) || 0;
+            const bh = (_src && _src.height) || 0;
             const w = x1 - x0;
             if (isMercator() && bh > 1) {
                 // Número de faixas: limita pra evitar custo absurdo (>256 faixas dificilmente
@@ -12812,10 +12855,10 @@
                     const sy = latToY(latTop);
                     const dy = latToY(latBot) - sy;
                     if (dy <= 0) continue;
-                    ctx.drawImage(o.bitmap, 0, r0, o.bitmap.width, r1 - r0, x0, sy, w, dy);
+                    ctx.drawImage(_src, 0, r0, _src.width, r1 - r0, x0, sy, w, dy);
                 }
             } else {
-                ctx.drawImage(o.bitmap, x0, y0, w, y1 - y0);
+                ctx.drawImage(_src, x0, y0, w, y1 - y0);
             }
             ctx.restore();
             if (drawBox) {
@@ -14276,6 +14319,48 @@
         setTimeout(function () { const c = document.getElementById('cfgBaseCard_' + nid); if (c) { try { c.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {} } }, 30);
     }
 
+    // ─── Modo de sombreamento do raster GeoTIFF: suavizado | pixel | bandas (shaded) ───
+    // SisMOM_Map.rasterSmooth (estatica lida por _drawOneRaster) + SisMOM_GeoTIFF.setBands.
+    const GT_BANDS_N = 16;
+    let gtRasterMode = (function () { try { return localStorage.getItem('gisele.raster.mode') || 'smooth'; } catch (_) { return 'smooth'; } })();
+    // Bandas seguem os MESMOS niveis dos contornos (campo "Niveis" custom, ou auto N).
+    function gtUpdateBandLevels(slotIdx) {
+        try {
+            if (!(typeof SisMOM_GeoTIFF !== 'undefined' && SisMOM_GeoTIFF.setBandLevels)) return;
+            if (gtRasterMode !== 'bands') { SisMOM_GeoTIFF.setBandLevels(null); if (SisMOM_GeoTIFF.setBands) SisMOM_GeoTIFF.setBands(0); return; }
+            const idx = (slotIdx != null) ? slotIdx : ((typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0);
+            const dec = (typeof gtSlotDecoded !== 'undefined') ? gtSlotDecoded[idx] : null;
+            const gt = (typeof getGtSlotState === 'function') ? getGtSlotState(idx) : null;
+            const mn = (gt && !gt.autoMinMax && isFinite(gt.min)) ? gt.min : (dec && isFinite(dec.min) ? dec.min : null);
+            const mx = (gt && !gt.autoMinMax && isFinite(gt.max)) ? gt.max : (dec && isFinite(dec.max) ? dec.max : null);
+            const lvlEl = document.getElementById('gtContourLevels');
+            const cntEl = document.getElementById('gtContourCount');
+            const clevels = lvlEl ? (lvlEl.value || '') : '';
+            const ccount = cntEl ? (parseInt(cntEl.value, 10) || 10) : 10;
+            const copts = clevels.trim() ? { mode: 'manual', levels: clevels } : { mode: 'auto', count: ccount };
+            const lv = (typeof gtComputeContourLevels === 'function') ? gtComputeContourLevels(mn, mx, copts) : [];
+            if (lv && lv.length) { SisMOM_GeoTIFF.setBandLevels(lv); if (SisMOM_GeoTIFF.setBands) SisMOM_GeoTIFF.setBands(0); }
+            else { SisMOM_GeoTIFF.setBandLevels(null); if (SisMOM_GeoTIFF.setBands) SisMOM_GeoTIFF.setBands(GT_BANDS_N); }
+        } catch (_) {}
+    }
+    function _gtApplyRasterModeStatics() {
+        try { if (typeof SisMOM_Map !== 'undefined') SisMOM_Map.rasterSmooth = (gtRasterMode !== 'pixel'); } catch (_) {}
+        gtUpdateBandLevels();
+    }
+    _gtApplyRasterModeStatics();
+    async function gtRerenderAllRasters() {
+        try { if (typeof _gtImgDataCache !== 'undefined') _gtImgDataCache.clear(); } catch (_) {}
+        try { if (typeof _gtBlobUrlCache !== 'undefined') _gtBlobUrlCache.clear(); } catch (_) {}
+        try { for (let i = 0; i < NUM_SLOTS; i++) { try { await gtRerenderSlot(i); } catch (_) {} } } catch (_) {}
+        try { for (const l of gtExtraLayers) { if (l && l.type === 'geotiff') { try { await gtLayerPushToMap(l); } catch (_) {} } } } catch (_) {}
+        try { const maps = (typeof gtAllActiveMaps === 'function') ? gtAllActiveMaps() : []; for (const m of maps) if (m && m.redraw) m.redraw(); } catch (_) {}
+    }
+    function gtSetRasterMode(mode) {
+        gtRasterMode = (mode === 'pixel' || mode === 'bands') ? mode : 'smooth';
+        try { localStorage.setItem('gisele.raster.mode', gtRasterMode); } catch (_) {}
+        _gtApplyRasterModeStatics();
+        gtRerenderAllRasters();
+    }
     function gtRenderTree() {
         gtRenderTreeBackground();
         gtRenderTreeMisc();
@@ -17126,6 +17211,24 @@
         // ─ Grupo 3: Contornos (bloco inteiro) ─
         const ctr = document.getElementById('gtContourBlock');
         if (ctr) p.appendChild(ctr);
+        // ─ Sombreado do campo (suavizado x pixel) — abaixo de Contornos ─
+        const gSm = document.createElement('div');
+        gSm.className = 'gt-cfg-row';
+        gSm.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0';
+        gSm.innerHTML = ''
+            + '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted,#8aa);flex:1">'
+            + '<span style="min-width:78px">\u{1F7E6} Sombreado:</span>'
+            + '<select id="gtCfgSmooth" style="flex:1;font-size:11px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:4px;padding:3px 6px">'
+            + '<option value="smooth">Suavizado (interpolado)</option>'
+            + '<option value="bands">Bandas (shaded)</option>'
+            + '<option value="pixel">Pixel (celulas)</option>'
+            + '</select></label>';
+        p.appendChild(gSm);
+        const smSel = gSm.querySelector('#gtCfgSmooth');
+        if (smSel) {
+            smSel.value = (typeof gtRasterMode !== 'undefined') ? gtRasterMode : 'smooth';
+            smSel.addEventListener('change', function () { if (typeof gtSetRasterMode === 'function') gtSetRasterMode(smSel.value); });
+        }
         // ─ Grupo 4: Colorbar + Info ─
         const cb = document.getElementById('gtColorbar'); if (cb) p.appendChild(cb);
         const inf = document.getElementById('gtInfo');    if (inf) p.appendChild(inf);
