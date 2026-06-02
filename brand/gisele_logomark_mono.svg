@@ -1,0 +1,16 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GISELE" style="color:#0e1d34">
+  <title>GISELE — monocromático</title>
+  <defs>
+    <clipPath id="cDropM">
+      <path d="M256 116 C 330 196 372 270 372 340 C 372 405 320 452 256 452 C 192 452 140 405 140 340 C 140 270 182 196 256 116 Z"/>
+    </clipPath>
+  </defs>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 116 C 330 196 372 270 372 340 C 372 405 320 452 256 452 C 192 452 140 405 140 340 C 140 270 182 196 256 116 Z" stroke-width="18"/>
+    <g clip-path="url(#cDropM)" stroke-width="14" stroke-opacity="0.9">
+      <path d="M118 322 q 34 -28 68 0 t 68 0 t 68 0 t 68 0"/>
+      <path d="M126 372 q 33 -26 66 0 t 66 0 t 66 0 t 66 0"/>
+      <path d="M118 422 q 34 -28 68 0 t 68 0 t 68 0 t 68 0"/>
+    </g>
+  </g>
+</svg>
