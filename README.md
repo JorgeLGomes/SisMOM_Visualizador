@@ -1,8 +1,15 @@
-# SisMOM — Visualizador
+# GISELE — Visualizador
 
-Visualizador de modelos meteorológicos do **SisMOM** (CPTEC/INPE).
-Aplicativo de página única (`figuras_SisMOM_v23.html`) empacotado em
-**executáveis** para Windows (`.exe`) e Linux (`AppImage`/`.deb`).
+Plataforma de visualização de modelos meteorológicos e oceanográficos
+**GISELE** — *Gestão Integrada de Soluções Estratégicas e Inteligência*
+(CPTEC · INPE · MCTI). Aplicativo de página única (`figuras_SisMOM_v23.html`)
+empacotado em **executáveis** para Windows (`.exe`), macOS (`.dmg`) e
+Linux (`AppImage`/`.deb`).
+
+> **Versão atual:** v2.12.1 — build `20260601-20400-bandlevels`.
+> Dois modos de operação: **PNG/GIF** (figuras pré-renderizadas do FTP do
+> CPTEC) e **GeoTIFF** (dado bruto decodificado no navegador, paleta editável).
+> Veja a seção 4 e o manual completo em `docs/GISELE_Manual_Uso.pdf`.
 
 ---
 
@@ -30,9 +37,11 @@ npm install
 npm run dist
 ```
 
+> Ou rode **`rebuild-electron.bat`** na raiz (build robusto: sincroniza os HTML em lockstep, limpa `dist\` e decide sucesso pela existência do `.exe`).
+
 Saída em `electron-app\dist\`:
-- `SisMOM Visualizador Setup 1.0.0.exe` — **instalador** (cria atalho na área de trabalho e no menu Iniciar)
-- `SisMOM Visualizador 1.0.0.exe` — **portátil** (roda sem instalar)
+- `GISELE Setup 2.12.1.exe` — **instalador** (cria atalho na área de trabalho e no menu Iniciar)
+- `GISELE-2.12.1-portable.exe` — **portátil** (roda sem instalar)
 
 ### Linux (AppImage / .deb) — rode no Linux ou WSL
 
@@ -41,8 +50,8 @@ npm run dist:linux
 ```
 
 Saída em `electron-app/dist/`:
-- `SisMOM Visualizador-1.0.0.AppImage` — executável único, portátil
-- `sismom-visualizador_1.0.0_amd64.deb` — instalador Debian/Ubuntu
+- `GISELE-2.12.1.AppImage` — executável único, portátil
+- `gisele_2.12.1_amd64.deb` — instalador Debian/Ubuntu
 
 > No Windows, use **WSL** (`wsl --install` no PowerShell admin) para gerar os
 > alvos Linux. Não é possível empacotar AppImage/.deb diretamente do Windows
@@ -64,27 +73,27 @@ Saída em `electron-app/dist/`:
 
 ### Windows
 
-- **Instalador:** duplo-clique em `SisMOM Visualizador Setup 1.0.0.exe`,
+- **Instalador:** duplo-clique em `GISELE Setup 2.12.1.exe`,
   escolha a pasta de instalação, conclua. Aparecem atalhos na área de trabalho
   e no menu Iniciar.
-- **Portátil:** copie `SisMOM Visualizador 1.0.0.exe` para qualquer pasta e
+- **Portátil:** copie `GISELE-2.12.1-portable.exe` para qualquer pasta e
   abra com duplo-clique. Não instala nada.
 
 ### Linux
 
 - **AppImage** (qualquer distribuição):
   ```bash
-  chmod +x "SisMOM Visualizador-1.0.0.AppImage"
-  ./"SisMOM Visualizador-1.0.0.AppImage"
+  chmod +x "GISELE-2.12.1.AppImage"
+  ./"GISELE-2.12.1.AppImage"
   ```
   Pode exigir FUSE: `sudo apt install libfuse2`.
 
 - **.deb** (Debian/Ubuntu/derivados):
   ```bash
-  sudo dpkg -i sismom-visualizador_1.0.0_amd64.deb
+  sudo dpkg -i gisele_2.12.1_amd64.deb
   sudo apt -f install     # caso falte alguma dependência
   ```
-  Depois aparece **"SisMOM Visualizador"** no menu de aplicativos.
+  Depois aparece **"GISELE"** no menu de aplicativos.
 
 ---
 
@@ -228,6 +237,40 @@ verificado.
 | **1 / 2 / 3 / 4** | Quantidade de mapas |
 | **?** | Lista de atalhos |
 | **Esc** | Fechar modal |
+
+---
+
+## 4. Modo GeoTIFF e recursos avançados
+
+Além do modo **PNG/GIF**, o GISELE tem um modo **GeoTIFF** que decodifica o
+dado bruto no navegador e o renderiza com paleta editável. Principais recursos
+(passo a passo em `docs/GISELE_Manual_Uso.pdf`):
+
+- **Decodificador GeoTIFF nativo** (sem dependências) + **15+ paletas**
+  científicas (Viridis, Turbo, RdBu, ...), com sombreado **Suavizado / Bandas /
+  Pixel** e bandas alinhadas aos níveis do contorno.
+- **Multi-painel (1–4)** com mapa-base por painel (Esri / OSM / OpenTopo),
+  sincronização de viewport, trava e replicação de anotações entre painéis.
+- **Árvore ERMA** no painel direito — *Background · Miscelânea · Monitoramento ·
+  Camadas · Ferramentas* — com **Configuração da Camada** por camada (paleta,
+  min/max, clip, contornos, sombreado).
+- **Calculadora dupla**: álgebra entre camadas por expressão
+  (`Camada1*1000+Camada2`) e **calculadora temporal** (`t1..t24`,
+  `sum/mean/max/min/count`).
+- **Contornos** (marching squares, com cache) e **ferramentas** de distância,
+  área, perfil de linha e **série temporal** num ponto (gráficos interativos
+  com zoom e exportação CSV/PNG).
+- **Miscelâneas**: plataformas offshore, corais, cidades por UF — vetores de
+  referência com cor, hachura e popup de atributos.
+- **Monitoramento (v2.12)**: rotas de dados genéricos **KML/GeoJSON** — ex.:
+  **Queimadas recentes (INPE)**, com atualização ao vivo e filtro Ativas/Inativas.
+- **Importar/Exportar**: shapefile/GeoJSON como camada; exportar campo ou
+  recorte para **GeoJSON** (com estatísticas); polígonos do usuário salvos.
+- **Exportar vídeo MP4** da evolução temporal (nos modos PNG e GeoTIFF).
+
+> **Identidade visual:** a marca GISELE (logo, logomark e ícones) está em
+> `brand/`. Os ícones do app ainda apontam para os arquivos legados
+> `sismom-icon-*`; a troca para a marca nova está prevista para um próximo passo.
 
 ---
 

@@ -4,12 +4,12 @@
 
 | Campo | Valor |
 |---|---|
-| Versão de referência | v2.3 / build `20260529-3000-calc` |
+| Versão de referência | v2.12.1 / build `20260601-20400-bandlevels` |
 | Cliente | CPTEC/INPE — MCTI |
 | Sigla | GISELE — Gestão Integrada de Soluções Estratégicas e Inteligência |
 | Domínio | Visualização meteorológica e oceanográfica operacional |
 | Documento | Especificações técnicas para reimplementação |
-| Data | 29/05/2026 |
+| Data | 02/06/2026 (atualizado) |
 
 ---
 
@@ -347,6 +347,42 @@ Cada ferramenta:
 - **RF-13.6**: Atalho de teclado F11 (fullscreen toggle) + Ctrl+Q (sair)
 
 ---
+
+### 5.14. RF-14: Monitoramento — rotas de dados genéricos (v2.12)
+
+Fonte de dados **independente dos modelos**: rotas **KML/GeoJSON** configuradas na aba *Base de dados* (rota, template de nome, sufixo, mapa-base, "sempre trazer dados atualizados"). Menu **📡 Monitoramento** na árvore ERMA, uma linha por base (liga/desliga, cor, **↻ atualizar** com `cache:'no-store'`, filtro Todas/Ativas/Inativas, remover, reordenar). Parser KML embarcado (DOMParser → Point/LineString/Polygon → GeoJSON; atributos extraídos da tabela HTML do `<description>`). Seed de fábrica: **Queimadas recentes (INPE)** — marcador 🔥 (path vetorial, não emoji), rótulo acima do ponto, foco ativo×apagado por cor do miolo e popup read-only de atributos. Config persistível em arquivo (`%APPDATA%/GISELE/configuração/gisele-config.json` no Electron).
+
+### 5.15. RF-15: Calculadora Temporal (v2.6)
+
+Na Configuração da Camada, expressões entre tempos da mesma rodada: sintaxe `tN`/`hN`, ranges `t1..t24`, funções `sum/mean/max/min/count`. Gera camada derivada; modal de progresso com fetches paralelos.
+
+### 5.16. RF-16: Exportar/Importar dados vetoriais (v2.6–v2.8)
+
+Exportar o campo inteiro ou um recorte (polígono/retângulo/por camada/área total) como **GeoJSON** (nuvem de pontos) com `metadata.stats` (min, max, soma, média, média ponderada por área, área total) e popup de confirmação. Exportar **série temporal de um ponto** → GeoJSON. Importar **Shapefile** (`.shp` ou `.zip`, parser JS puro + ZIP via `DecompressionStream`) e GeoJSON como camada vetorial, com preview e diálogo de confirmação.
+
+### 5.17. RF-17: Série temporal e perfil interativos (v2.x)
+
+Perfil ao longo de polilinha e **série temporal num ponto** (eixo X tempo, eixo Y valor). Gráficos interativos: toggle por chip da legenda, zoom por click-and-drag (rubber-band), tooltip multi-série, exportação CSV e PNG. Multi-painel (curvas por painel) e multi-camada (uma curva por camada raster ativa; camadas de cálculo reavaliadas **por tempo de validade**).
+
+### 5.18. RF-18: Polígonos do usuário (v2.9)
+
+Storage `gisele.savedPolygons.v1` (localStorage; disco no Electron) com save/list/rename/setColor/remove. Submenu em Ferramentas: desenhar e salvar, exportar/importar `.geojson`, visualizar (toggle), gerenciar (perímetro/área/bbox) e usar como **máscara de recorte** no Exportar GeoJSON.
+
+### 5.19. RF-19: Sincronização multi-painel (v2.9)
+
+API `getViewport`/`applyViewportRaw`/listener no `SisMOM_Map`: propagação de viewport entre painéis, **lock por painel** (🔒) com replicação de anotações (distância/linha/texto/perfil), **perfil combinado** e **série temporal multi-painel** (amostragem paralela, CSV combinado). Painéis de análise (`frequência=0`, ex. MERGE) recuam a data automaticamente até a observação disponível.
+
+### 5.20. RF-20: Helper Python local (v2.7) + cliente `gisele_ts` (v2.10)
+
+Subprocess opcional embarcado no Electron (FastAPI + rasterio + httpx): acelera extração temporal, calculadora temporal e perfil com fetches paralelos (~10×), cache decoded em memória e endpoint de render PNG server-side (matplotlib). **Fallback transparente para JS** quando offline (badge ⚡/JS). Cliente Python standalone `api-client/gisele_ts` envelopa `/v1/timeseries/point` para uso em scripts/notebooks.
+
+### 5.21. RF-21: Anotação e desenho (v2.11)
+
+No **modo PNG/GIF**: linha/área/texto em coords normalizadas à imagem, com seleção, **lock e replicação por painel**. **Caneta de tela** global (canvas `position:fixed` acima de tudo): paleta, espessura, desfazer/limpar, independente de modo.
+
+### 5.22. RF-22: Render do raster GeoTIFF (v2.12.1)
+
+Raster interpolado (bilinear, `imageSmoothingEnabled`) com modos de sombreado **Suavizado | Bandas | Pixel** (`gisele.raster.mode`). No modo **Bandas**, as faixas de cor seguem exatamente os **mesmos níveis do contorno** (custom ou N auto), via `setBandLevels`; contorno e shaded compartilham os níveis.
 
 ## 6. Requisitos não-funcionais (RNF)
 

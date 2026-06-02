@@ -1,6 +1,8 @@
-# SisMOM Visualizador — Briefing para nova sessão
+# GISELE — Briefing para nova sessão (histórico)
 
 > Documento de transferência de contexto. Cole/anexe no início da próxima sessão (Opus 4.6 ou modelo mais robusto) para continuar de onde paramos.
+>
+> **Nota (02/06/2026):** documento **histórico** (maio/2026, quando o projeto ainda usava o nome SisMOM). Para o estado atual (v2.12.1, features e arquitetura correntes) consulte sempre o `HANDOVER_GISELE.md`.
 
 ---
 

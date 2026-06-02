@@ -1,7 +1,7 @@
-# GISELE 2.0.0
+# GISELE 2.12.1
 
-Build: `20260528-0250-calc`
-Data: 2026-05-28
+Build: `20260601-20400-bandlevels`
+Data: 2026-06-02
 
 ## Novidades principais (vs 1.0.0)
 
@@ -54,6 +54,22 @@ Data: 2026-05-28
 - `package.json` v2.0.0 com arquivos PWA (manifest, icons múltiplos)
 - Scripts `build.bat` e `build.sh` automatizados: sincronizam HTML da raiz, instalam deps, limpam dist/, geram instalador
 
+## Novidades 2.1.0 → 2.12.1
+
+> Cada versão abaixo é um release; detalhes completos no `HANDOVER_GISELE.md`.
+
+- **2.1.0–2.3.0** — Ferramentas de medição/análise (distância, área, retângulo, círculo, **perfil de linha** e **série temporal num ponto** com gráficos interativos), **vídeo MP4** da evolução temporal (PNG e GeoTIFF), **mapa-base padrão por modelo**, Miscelâneas (Plataformas offshore + Corais BR com hachura/cor/popup), flag `--strict-cors` e Preset FTP CPTEC.
+- **2.4.0** — Reorganização do painel direito em **árvore ERMA** (Background/Miscelânea/Camadas/Ferramentas) + **Configuração da Camada por nó** + **calculadora dupla** (expressão entre camadas e op per-layer).
+- **2.5.0** — Fix do Background Esri no executável + correções das Miscelâneas (v1–v4) + remoção de "Abrir TIF local".
+- **2.6.0** — **Calculadora Temporal** (`t1..t24`, `sum/mean/...`), **Exportar GeoJSON** (raster→nuvem de pontos) e **Importar Shapefile** (parser JS puro + ZIP via DecompressionStream).
+- **2.7.0** — **Helper Python** local opcional (FastAPI + rasterio) com fallback transparente; marching squares ~8–15× mais rápido + cache de contornos; opacidade/rename/calc.
+- **2.8.0** — Exportar GeoJSON com **estatísticas** (min/max/soma/média/área) + popup de confirmação + reorganização da UX de exportação.
+- **2.9.0** — **Multi-painel** (bbox sync + lock + replicação + perfil/série combinados) + **Polígonos do usuário** (salvar/exportar) + gráficos interativos (toggle por legenda, zoom drag).
+- **2.10.0** — **Cidades brasileiras** (miscelânea agrupada por UF) + cliente Python `gisele_ts` (extração de série temporal standalone).
+- **2.11.0 / 2.11.1** — **Desenho no modo PNG/GIF** (linha/área/texto com seleção/lock/replicação por painel) + fix do MERGE multipainel (recuo automático de data); série temporal consolidada multi-camada/cálculo; **anotação livre na tela** (caneta).
+- **2.12.0** — **Base de dados** (rotas genéricas KML/GeoJSON) + menu **📡 Monitoramento** na árvore ERMA, com **Queimadas recentes (INPE)** out-of-the-box (atualização ao vivo, filtro Ativas/Inativas, popup de atributos, marcador 🔥) e config persistente em arquivo (Electron).
+- **2.12.1** — Render do raster GeoTIFF **interpolado** (bilinear) + modos de sombreado **Suavizado / Bandas / Pixel**, com **bandas alinhadas aos níveis do contorno**.
+
 ## Como gerar a distribuição
 
 Veja `electron-app/LEIA-ME-build.txt`. Resumo:
@@ -61,11 +77,11 @@ Veja `electron-app/LEIA-ME-build.txt`. Resumo:
 **Windows:**
 ```
 cd electron-app
-build.bat
+rebuild-electron.bat   (ou build.bat, legado)
 ```
 Saída em `electron-app/dist/`:
-- `GISELE Setup 2.0.0.exe` — instalador NSIS
-- `GISELE-2.0.0-portable.exe` — portátil
+- `GISELE Setup 2.12.1.exe` — instalador NSIS
+- `GISELE-2.12.1-portable.exe` — portátil
 
 **Linux:**
 ```
@@ -73,8 +89,8 @@ cd electron-app
 chmod +x build.sh && ./build.sh
 ```
 Saída em `electron-app/dist/`:
-- `GISELE-2.0.0.AppImage`
-- `sismom-visualizador_2.0.0_amd64.deb`
+- `GISELE-2.12.1.AppImage`
+- `gisele_2.12.1_amd64.deb`
 
 ## Verificações pós-build
 
@@ -91,6 +107,7 @@ Saída em `electron-app/dist/`:
 ## Pendências conhecidas
 
 - Pasta local com varredura (webkitdirectory) — feature solicitada, não implementada
+- Identidade visual GISELE (brand/) ainda não conectada ao app (favicon/manifest/ícone Electron) — pendente
 - Paleta/min/max default por variável (persistência) — Fase 3 pendente
 - Controles de paleta por painel Mi no header — Fase 4 pendente
 - Assinatura digital do .exe — requer certificado pago (~ USD 200/ano), distribuído sem assinatura por ora
@@ -98,5 +115,13 @@ Saída em `electron-app/dist/`:
 
 ## Histórico de versões
 
+- **2.12.1** (2026-06-02): raster GeoTIFF interpolado + sombreado Suavizado/Bandas/Pixel + bandas por nível.
+- **2.12.0** (2026-06-01): Base de dados (KML/GeoJSON) + menu Monitoramento (Queimadas INPE).
+- **2.11.x** (2026-06-01): desenho no PNG + fix MERGE multipainel + série temporal consolidada + caneta de tela.
+- **2.10.0** (2026-05-31): Cidades brasileiras (por UF) + cliente Python `gisele_ts`.
+- **2.9.0** (2026-05-31): multi-painel (sync/lock/replicação) + polígonos do usuário + gráficos interativos.
+- **2.6.0–2.8.0** (2026-05-29/30): Calculadora Temporal, Exportar/Importar GeoJSON e Shapefile, helper Python, perf de contornos.
+- **2.4.0–2.5.0** (2026-05-28): árvore ERMA + Configuração da Camada + calculadora dupla + Miscelâneas.
+- **2.1.0–2.3.0** (2026-05-28): ferramentas de medição, série temporal, vídeo MP4, mapa-base por modelo.
 - **2.0.0** (2026-05-28): Modo GeoTIFF completo, multi-painel com mapa, cache, paletas extras, calculadora.
 - **1.0.0** (2026-05-25): Versão inicial PNG/GIF apenas.

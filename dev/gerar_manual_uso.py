@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Gera o PDF MANUAL DE USO do SisMOM Visualizador.
+Gera o PDF MANUAL DE USO do GISELE.
 
 Cobre instalação, abas PNG/GIF e GeoTIFF, configuração de modelos,
 painel direito, calculadora, servidor HTTP local, atalhos, troubleshooting.
@@ -19,7 +19,7 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from pathlib import Path
 from datetime import date
 
-OUT = Path('/sessions/optimistic-relaxed-davinci/mnt/Visualizador/docs/GISELE_Manual_Uso.pdf')
+OUT = Path(__file__).resolve().parent.parent / 'docs' / 'GISELE_Manual_Uso.pdf'
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
 # ─── Paleta de cores ─────────────────────────────────────────────────
@@ -121,7 +121,7 @@ story += [
     Spacer(1, 0.6*cm),
     p('CPTEC / INPE', 'CoverMeta'),
     Spacer(1, 4*cm),
-    p('Versão 2.0.0 — build 20260528-0500-gisele', 'CoverMeta'),
+    p('Versão 2.12.1 — build 20260601-20400-bandlevels', 'CoverMeta'),
     p(f'Atualizado em {date.today().strftime("%d/%m/%Y")}', 'CoverMeta'),
 ]
 story.append(PageBreak())
@@ -143,8 +143,9 @@ sumario = [
     '12. Exportar dados como GeoJSON (v2.6+)',
     '13. Servidor HTTP local de dados',
     '14. Acelerador Python (helper local, v2.7+)',
-    '15. Atalhos de teclado',
-    '16. Solução de problemas',
+    '15. Novidades v2.8 a v2.12.1 (Monitoramento, multipainel, polígonos, sombreado)',
+    '16. Atalhos de teclado',
+    '17. Solução de problemas',
 ]
 story.append(bullets(sumario))
 story.append(PageBreak())
@@ -1109,7 +1110,58 @@ story.append(tip(
 story.append(PageBreak())
 
 # ===== 15. ATALHOS =====
-story.append(h1('15. Atalhos de teclado'))
+story.append(h1('15. Novidades v2.8 a v2.12.1'))
+story.append(p(
+    'Recursos adicionados depois da v2.7. Resumo operacional; o detalhamento completo de '
+    'cada item esta no HANDOVER_GISELE.md.'
+))
+
+story.append(h2('Monitoramento - rotas de dados KML/GeoJSON (v2.12)'))
+story.append(p(
+    'Uma fonte de dados independente dos modelos meteorologicos. Em <b>Configurar modelos &gt; '
+    'Base de dados</b> voce cadastra uma "rota" (URL) que entrega <b>KML</b> ou <b>GeoJSON</b>; '
+    'ela aparece no menu <b>Monitoramento</b> da arvore ERMA.'
+))
+story.append(bullets([
+    'Liga/desliga, cor, e <b>Atualizar</b> (sempre traz o dado mais recente, sem cache).',
+    'Filtro <b>Todas / Ativas / Inativas</b> por feicao.',
+    'Clique numa feicao abre um popup com os atributos (tabela do KML do INPE).',
+    'Ja vem com <b>Queimadas recentes (INPE)</b> de fabrica (desligada; voce liga). Foco ativo '
+    'aparece com miolo amarelo; apagado, cinza. Marcador em forma de chama.',
+]))
+
+story.append(h2('Sombreado do raster: Suavizado / Bandas / Pixel (v2.12.1)'))
+story.append(p(
+    'Na Configuracao da Camada, logo abaixo de Contornos, escolha como o GeoTIFF e desenhado: '
+    '<b>Suavizado</b> (interpolacao bilinear, sem pixelar), <b>Bandas</b> (faixas de cor discretas '
+    'que seguem exatamente os <b>mesmos niveis do contorno</b>) ou <b>Pixel</b> (sem suavizacao). '
+))
+
+story.append(h2('Multi-painel sincronizado e poligonos do usuario (v2.9)'))
+story.append(bullets([
+    'Os paineis (1-4) compartilham o mesmo zoom/area; o <b>cadeado</b> trava um painel e replica '
+    'anotacoes (linha, area, texto, perfil) para os travados.',
+    'Perfil e serie temporal <b>combinados</b> entre paineis (uma curva por painel, CSV unico).',
+    '<b>Poligonos do usuario</b>: desenhe e salve poligonos (persistem entre sessoes), exporte/'
+    'importe .geojson e use-os como mascara de recorte no Exportar GeoJSON.',
+]))
+
+story.append(h2('Cidades brasileiras e cliente Python (v2.10)'))
+story.append(p(
+    'Nova miscelania <b>Cidades brasileiras</b> agrupada por UF (liga o estado inteiro de uma vez, '
+    'com filtro por nome). E o pacote <b>api-client/gisele_ts</b>: um cliente Python para extrair '
+    'serie temporal de um ponto a partir de scripts/notebooks (usa o helper Python local).'
+))
+
+story.append(h2('Desenho no modo PNG e caneta de tela (v2.11)'))
+story.append(p(
+    'No modo PNG/GIF agora da para desenhar linha, area e texto sobre a imagem (com selecao, trava '
+    'e replicacao por painel). E ha uma <b>caneta de tela</b> global (botao no cabecalho) que '
+    'desenha por cima de tudo - util para apresentacoes. Esc sai.'
+))
+
+story.append(PageBreak())
+story.append(h1('16. Atalhos de teclado'))
 story.append(tbl([
     ['Atalho', 'Acao'],
     ['Espaco',                'Play/Pause da animacao no painel ativo.'],
@@ -1127,7 +1179,7 @@ story.append(tbl([
 story.append(PageBreak())
 
 # ===== 16. SOLUCAO DE PROBLEMAS =====
-story.append(h1('16. Solucao de problemas'))
+story.append(h1('17. Solucao de problemas'))
 
 story.append(h2('Contornos demoram para aparecer'))
 story.append(p(

@@ -2,7 +2,7 @@
  GISELE - GERAR VERSAO DE DISTRIBUICAO
 ============================================================
 
-VERSAO ATUAL: 2.0.0   (package.json)
+VERSAO ATUAL: 2.12.1   (package.json)
 
 Pre-requisito (uma vez):
   - Node.js LTS  ->  https://nodejs.org   (recomendado v20+)
@@ -44,12 +44,12 @@ ARQUIVOS QUE ENTRAM NO PACOTE (campo "files" do package.json):
       npm run dist:mac
 
   Saida em dist/:
-   - GISELE-2.0.0-x64.dmg          (Intel Mac)
-   - GISELE-2.0.0-arm64.dmg        (Apple Silicon M1/M2/M3)
-   - GISELE-2.0.0-mac-x64.zip      (Intel zipado)
-   - GISELE-2.0.0-mac-arm64.zip    (ARM zipado)
-   - GISELE-2.0.0-standalone/      (HTML puro)
-   - GISELE-2.0.0-standalone.zip   (HTML puro zipado)
+   - GISELE-2.12.1-x64.dmg          (Intel Mac)
+   - GISELE-2.12.1-arm64.dmg        (Apple Silicon M1/M2/M3)
+   - GISELE-2.12.1-mac-x64.zip      (Intel zipado)
+   - GISELE-2.12.1-mac-arm64.zip    (ARM zipado)
+   - GISELE-2.12.1-standalone/      (HTML puro)
+   - GISELE-2.12.1-standalone.zip   (HTML puro zipado)
 
   Para distribuir: usuarios montam o .dmg e arrastam GISELE.app
   para a pasta Applications. Na 1a abertura, podem precisar
@@ -59,7 +59,8 @@ ARQUIVOS QUE ENTRAM NO PACOTE (campo "files" do package.json):
  BUILD WINDOWS (.exe instalador + .exe portavel)
 ============================================================
   Modo automatico (recomendado):
-      duplo-clique em build.bat
+      duplo-clique em rebuild-electron.bat (build robusto; decide sucesso pelo .exe gerado)
+        (build.bat tambem existe, legado)
         (sincroniza HTML, npm install, limpa dist/, gera .exe)
 
   Modo manual:
@@ -69,6 +70,11 @@ ARQUIVOS QUE ENTRAM NO PACOTE (campo "files" do package.json):
       npm run dist:win
 
   Saida em dist\:
-   - GISELE Setup 2.0.0.exe              (instalador NSIS)
-   - GISELE-2.0.0-portable.exe           (portavel, sem instalacao)
-   - SisMOM-Visualizador-2.0
+   - GISELE Setup 2.12.1.exe              (instalador NSIS)
+   - GISELE-2.12.1-portable.exe           (portavel, sem instalacao)
+   - GISELE-2.12.1-standalone.zip       (HTML puro zipado)
+
+NOTA (build marker 20260601-20400-bandlevels, v2.12.1):
+  - Os icones do app ainda sao os sismom-icon-*.png. A nova identidade
+    visual GISELE (pasta brand/: gisele_logo.svg, logomark, icones 192/512)
+    sera conectada (favicon/manifest/Electron) num passo futuro.
