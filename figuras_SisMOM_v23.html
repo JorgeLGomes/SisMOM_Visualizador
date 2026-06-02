@@ -6206,7 +6206,7 @@
     }
 
     function inicializar() {
-        try { console.log('[GISELE] build = 20260601-20400-bandlevels'); document.documentElement.setAttribute('data-build', '20260601-20400-bandlevels'); } catch (_) {}
+        try { console.log('[GISELE] build = 20260602-1300-monitproxy'); document.documentElement.setAttribute('data-build', '20260602-1300-monitproxy'); } catch (_) {}
         loadModelos();
         buildSlots();
         try { pngInit(); } catch (_) {}
@@ -13933,14 +13933,44 @@
         } catch (_) {}
         return { type: 'FeatureCollection', features: feats };
     }
+    // Proxies CORS (fallback p/ navegador/file:// quando a fonte nao envia
+    // Access-Control-Allow-Origin). No app Electron (webSecurity:false) o fetch
+    // direto ja funciona, entao o proxy so e usado se o direto falhar. Editavel.
+    const GT_CORS_PROXIES = [
+        function (u) { return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
+        function (u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+        function (u) { return 'https://thingproxy.freeboard.io/fetch/' + u; }
+    ];
     async function gtMonitFetch(base) {
         const url = gtBaseUrl(base);
         if (!url) throw new Error('rota vazia');
         const fresh = (base.alwaysFresh !== false);
         const bust = fresh ? ((url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now()) : '';
-        const resp = await fetch(url + bust, { cache: fresh ? 'no-store' : 'default' });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const text = await resp.text();
+        const directUrl = url + bust;
+        const tries = [{ u: directUrl, via: 'direto' }];
+        if (/^https?:\/\//i.test(url)) {
+            for (const mk of GT_CORS_PROXIES) { try { tries.push({ u: mk(directUrl), via: 'proxy' }); } catch (_) {} }
+        }
+        let text = null, lastErr = null, usedProxy = false;
+        for (let i = 0; i < tries.length; i++) {
+            try {
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const to = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 12000) : 0;
+                let resp;
+                try { resp = await fetch(tries[i].u, { cache: fresh ? 'no-store' : 'default', redirect: 'follow', signal: ctrl ? ctrl.signal : undefined }); }
+                finally { if (to) clearTimeout(to); }
+                if (!resp.ok) { lastErr = new Error('HTTP ' + resp.status); continue; }
+                const t = await resp.text();
+                if (t && t.trim()) { text = t; usedProxy = (tries[i].via === 'proxy'); break; }
+                lastErr = new Error('resposta vazia');
+            } catch (e) { lastErr = e; }
+        }
+        if (text == null) {
+            const msg = (lastErr && lastErr.message) || 'falha de rede';
+            const e2 = new Error(msg + ' \u2014 a fonte pode bloquear CORS no navegador; use o app GISELE (Electron) ou um proxy');
+            e2._cors = true; throw e2;
+        }
+        base._lastViaProxy = usedProxy;
         const suf = String(base.sufixo || '').toLowerCase();
         if (suf.indexOf('kml') >= 0 || /^\s*(<\?xml|<kml)/i.test(text)) return gtParseKML(text);
         return JSON.parse(text);
@@ -13987,7 +14017,7 @@
         try { gtRenderLayerChips(); } catch (_) {}
         try { gtRenderOverlayColorbars(); } catch (_) {}
         try { gtRenderCalcSelects(); } catch (_) {}
-        try { showToast('"' + (base.nome || base.id) + '": ' + n.toLocaleString('pt-BR') + ' feicoes'); } catch (_) {}
+        try { showToast('"' + (base.nome || base.id) + '": ' + n.toLocaleString('pt-BR') + ' feicoes' + (base._lastViaProxy ? ' (via proxy CORS)' : '')); } catch (_) {}
         return layer;
     }
     function gtMonitApplyMapProvider(prov) {
