@@ -1,3 +1,55 @@
+# GISELE 2.13.0
+
+Build: `20260602-3350-veccache`
+Data: 2026-06-05
+
+## Novidades v2.13.0
+
+### METAR — Estações meteorológicas em tempo real
+- Base default `metar_br` no Monitoramento: busca dados da API aviationweather.gov
+- Decoder próprio `gtDecodeMETAR`: temperatura, ponto de orvalho, umidade, vento, visibilidade, nuvens, teto, pressão QNH, tempo presente
+- **Station model visual** escalado por zoom: cobertura de nuvens, bárbulas de vento (kt), T/Td/Pressão no símbolo clássico
+- 251 estações (Brasil + Am. do Sul/Central/Caribe) em `miscelaneas/estacoes_metar.json`
+- Filtro interativo de estações; `gtMetarRebuildIndex` sincroniza índice ICAO→props
+
+### Spatial Bookmarks (🔖)
+- Botão 🔖 no header salva/restaura visões completas: viewport, modelo ativo, visibilidade de camadas, layout de painéis
+- Topics/categorias para organizar bookmarks
+- Persistido em `localStorage` chave `gisele.bookmarks.v1`
+
+### Exportar PDF cartográfico (botão PDF)
+- Captura canvas atual + legenda + seta-norte + barra de escala em PDF-1.4 puro JS (sem libs externas)
+- Dialog com título e subtítulo; download direto como `.pdf`
+
+### Série temporal por polígono (📈)
+- Novo modo no Exportar GeoJSON: extrai max/min/mean por passo para um ou mais polígonos
+- Cache dedicado de rasters (~1 GB LRU) evita re-download entre feições do mesmo passo
+- Python helper: endpoint `/v1/timeseries/polygon` com máscara NumPy (~10× mais rápido)
+
+### Web Worker pool para decodificação GeoTIFF
+- Pool de N workers paralelos (= `hardwareConcurrency`, máx 4); fallback transparente para thread principal
+- `SisMOM_GeoTIFF.__workerSrc`: fonte autocontida serializada — sem arquivo Worker externo
+- UI não trava durante decode de grades grandes na animação e na série temporal
+
+### Cache de bitmaps renderizados (~1 GB LRU)
+- Bitmaps `createImageBitmap` cacheados por `(url, opts)`; troca de frame na animação só substitui bitmap
+- `_gtTsRasterCache` separado (~1 GB) para série temporal; reutiliza entre feições do mesmo passo
+- Tetos em bytes (não só contagem) para memória previsível em grades de alta resolução
+
+### Base de pontos + Nova base de dados
+- "+ Nova base de pontos" no modal de Configuração: carrega CSV ou GeoJSON de pontos do usuário
+- `gtOpenShapeClassConfig`: classificação visual de camadas por campo com esquema de cores
+
+### Botões "🧹 Limpar" e "👁 Visualizar" no header
+- Substituem o antigo "Abrir GeoTIFF local"
+- "Limpar" remove camadas e desmarca visão ativa; "Visualizar" renderiza o modelo configurado na toolbar
+
+### Documento ADEQUACAO_COPERNICUS.md
+- Análise de aderência GISELE × Plataforma COPERNICUS (MPSP/INPE)
+- Diagnóstico dos 4 cards, tabela ✅/🟡/❌ por requisito, plano de adequação em fases
+
+---
+
 # GISELE 2.12.1
 
 Build: `20260601-20400-bandlevels`

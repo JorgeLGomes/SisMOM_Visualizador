@@ -1,14 +1,14 @@
 # Resumo — GISELE (para retomar após reboot)
 
 > Gerado em 2026-05-27, ao final de uma sessão de limpeza de artefatos de build.
-> **Atualizado em 2026-06-02** — ver "Estado atual" abaixo.
+> **Atualizado em 2026-06-05** — ver "Estado atual" abaixo.
 > Contexto completo e vivo: `HANDOVER_GISELE.md` (versão corrente). `BRIEFING_SESSAO.md` é histórico.
 >
-> ## Estado atual (02/06/2026)
+> ## Estado atual (05/06/2026)
 >
-> - **Versão:** v2.12.1 — build marker `20260601-20400-bandlevels`.
-> - **Último release commitado:** `39ae1d1` (v2.12.1: raster GeoTIFF interpolado + modos Suavizado/Bandas/Pixel + bandas por nível).
-> - **Pendente (não commitado):** identidade visual GISELE em `brand/` (logo/logomark/ícones) + atualização de documentação. Use `organizar-git.bat` para commitar de forma temática.
+> - **Versão:** v2.13.0 — build marker `20260602-3350-veccache`.
+> - **Último release:** `5a0385b` (fix CORS proxy Queimadas).
+> - **Pendente a commitar (v2.13.0):** METAR, Spatial Bookmarks, PDF export, Série temporal por polígono, Web Worker decode pool, cache de bitmaps, base de pontos, botões Limpar/Visualizar + docs. Rodar `organizar-git.bat` no Windows para commitar.
 > - **Para o estado completo de features, sempre consultar `HANDOVER_GISELE.md`.**
 
 **Pasta de trabalho:** `C:\Projetos\Visualizador`

@@ -355,6 +355,33 @@ class TimeSeriesPointResponse(BaseModel):
     failed: int
 
 
+class PolygonSample(BaseModel):
+    idx: int
+    passo_h: int
+    time_utc: Optional[str] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+    mean: Optional[float] = None
+    sum: Optional[float] = None
+    count: int = 0
+
+
+class TimeSeriesPolygonRequest(BaseModel):
+    """Estatisticas zonais (min/max/media/soma) de poligono(s) ao longo do tempo."""
+    modelo: ModelConfig
+    variavel: VariavelConfig
+    dataRodada: str = Field(..., description="YYYYMMDDHH")
+    geometries: list[dict] = Field(...,
+        description="Geometrias GeoJSON (Polygon/MultiPolygon), coordenadas [lon,lat]")
+    nodata_extras: Optional[list[float]] = None
+    parallel_limit: int = Field(DEFAULT_PARALLEL, ge=1, le=32,
+                                description="Quantas fetches concorrentes")
+    passoMin: Optional[int] = Field(None, ge=1,
+                                    description="Primeiro passo em HORAS (opcional).")
+    passoMax: Optional[int] = Field(None, ge=1,
+                                    description="Ultimo passo em HORAS (opcional).")
+
+
 class ProfileLineRequest(BaseModel):
     tif_url: str = Field(..., description="URL absoluta do TIF a amostrar")
     coords: list[tuple[float, float]] = Field(..., description="Polilinha [(lat,lon), ...]")
@@ -448,6 +475,109 @@ def _resolve_steps(freq: int, horizonte: Optional[int], max_passos: int) -> list
     horizon = max(freq, horizonte or max_passos or 24)
     file_max = horizon // freq
     return [i * freq for i in range(1, file_max + 1)]
+
+
+async def _fetch_decoded(
+    client: httpx.AsyncClient, url: str,
+) -> tuple[Optional["DecodedRaster"], Optional[str]]:
+    """Baixa o TIF e retorna o DecodedRaster (decodificado), reusando os caches.
+    Pre-checa o decoded cache em RAM (pula fetch+decode em hit). Diferente de
+    _fetch_and_sample, devolve o raster inteiro para reducoes zonais."""
+    cached = _decoded_get(url)
+    if cached is not None:
+        return (cached, None)
+    ok, content, err = await _fetch_one(client, url)
+    if not ok or content is None:
+        return (None, err)
+    try:
+        decoded = decode_geotiff_bytes(content)
+        _decoded_put(url, decoded)
+        return (decoded, None)
+    except Exception as e:
+        return (None, f"decode_err: {e}")
+
+
+def _zonal_mask(width: int, height: int, bbox: dict, geometries: list) -> "np.ndarray":
+    """Rasteriza geometrias GeoJSON em uma mascara booleana (H,W) na grade do raster.
+    Convencao top-down identica ao sampler: centro do pixel
+      lat = maxY - (j+0.5)*dLat ; lon = minX + (i+0.5)*dLon.
+    Buracos (aneis internos do Polygon) sao subtraidos; multiplos poligonos/partes
+    sao unidos. Usa matplotlib.path (mesma dependencia ja carregada p/ paletas)."""
+    import numpy as np
+    _ensure_mpl()
+    from matplotlib.path import Path as _MplPath
+    W = int(width); H = int(height)
+    minX = float(bbox["minX"]); minY = float(bbox["minY"])
+    maxX = float(bbox["maxX"]); maxY = float(bbox["maxY"])
+    d_lon = (maxX - minX) / W
+    d_lat = (maxY - minY) / H
+    lon_c = minX + (np.arange(W) + 0.5) * d_lon          # (W,)
+    lat_c = maxY - (np.arange(H) + 0.5) * d_lat          # (H,) top-down
+    LON, LAT = np.meshgrid(lon_c, lat_c)                 # (H,W)
+    pts = np.column_stack([LON.ravel(), LAT.ravel()])    # (H*W, 2) -> [lon,lat]
+    mask = np.zeros(H * W, dtype=bool)
+
+    def _parts(geom):
+        if not isinstance(geom, dict):
+            return []
+        t = geom.get("type"); c = geom.get("coordinates")
+        if not c:
+            return []
+        if t == "Polygon":
+            return [c]                                   # uma parte: [outer, hole...]
+        if t == "MultiPolygon":
+            return list(c)                               # varias partes
+        return []
+
+    for geom in (geometries or []):
+        for part in _parts(geom):
+            if not part or not part[0]:
+                continue
+            try:
+                outer = _MplPath(np.asarray(part[0], dtype=float)[:, :2])
+            except Exception:
+                continue
+            inside = outer.contains_points(pts)
+            for hole in part[1:]:
+                if not hole:
+                    continue
+                try:
+                    inside &= ~_MplPath(np.asarray(hole, dtype=float)[:, :2]).contains_points(pts)
+                except Exception:
+                    pass
+            mask |= inside
+    return mask.reshape(H, W)
+
+
+def _zonal_stats(decoded: "DecodedRaster", mask: "np.ndarray",
+                 nodata_extras: Optional[list[float]]) -> Optional[dict]:
+    """Reduz as celulas dentro da mascara (min/max/media/soma/contagem), excluindo
+    NoData com a mesma regra de is_masked (nao-finito, == nodata, == extras)."""
+    import numpy as np
+    arr = decoded.data                                   # (H,W) float32
+    if getattr(arr, "shape", None) != mask.shape:
+        return None                                      # grade incompativel
+    sel = mask & np.isfinite(arr)
+    nd = getattr(decoded, "nodata", None)
+    if nd is not None:
+        sel &= (arr != nd)
+    if nodata_extras:
+        for e in nodata_extras:
+            try:
+                sel &= (arr != float(e))
+            except (TypeError, ValueError):
+                pass
+    vals = arr[sel]
+    n = int(vals.size)
+    if n == 0:
+        return {"min": None, "max": None, "mean": None, "sum": None, "count": 0}
+    return {
+        "min": float(np.min(vals)),
+        "max": float(np.max(vals)),
+        "mean": float(np.mean(vals)),
+        "sum": float(np.sum(vals)),
+        "count": n,
+    }
 
 
 # ───────────────────────── Endpoints ─────────────────────────
@@ -636,6 +766,120 @@ async def timeseries_point_geojson(req: TimeSeriesPointRequest):
             "elapsed_seconds": ts.elapsed_seconds,
         },
         "features": features,
+    }
+
+
+@app.post("/v1/timeseries/polygon")
+async def timeseries_polygon(req: TimeSeriesPolygonRequest):
+    """Estatisticas zonais (min/max/media/soma) de poligono(s) ao longo do tempo.
+
+    Espelha /v1/timeseries/point: fetch paralelo (asyncio.gather + Semaphore +
+    httpx.AsyncClient compartilhado). A mascara de celulas do poligono e rasterizada
+    UMA vez por grade (reusada em todos os passos) e as reducoes sao numpy vetorizado —
+    bem mais eficiente que o caminho ponto-a-ponto do cliente para poligonos grandes.
+    """
+    t0 = time.time()
+    if not req.geometries:
+        raise HTTPException(400, "geometries vazio")
+    m = req.modelo.model_dump()
+    v = req.variavel.model_dump()
+    freq = max(1, int(v.get("frequencia") or 1))
+
+    steps = _resolve_steps(freq, v.get("horizonte"), m.get("maxPassos", 24))
+    if not steps:
+        raise HTTPException(400, f"frequencia/horizonte invalidos (freq={freq}, hor={v.get('horizonte')})")
+
+    if req.passoMin is not None:
+        steps = [s for s in steps if s >= req.passoMin]
+    if req.passoMax is not None:
+        steps = [s for s in steps if s <= req.passoMax]
+    if not steps:
+        raise HTTPException(400,
+            f"intervalo de=({req.passoMin}h) ate=({req.passoMax}h) nao cobre nenhum passo (freq={freq}h)")
+
+    urls = []
+    for passo_h in steps:
+        url = montarURL(
+            modelo_cfg=m, variavel_cfg=v,
+            dataRodada=req.dataRodada, passo_h=passo_h, freq=freq, use_tif=True,
+        )
+        urls.append((passo_h, url))
+
+    sem = asyncio.Semaphore(req.parallel_limit)
+    samples: list[PolygonSample] = []
+    fetched = 0
+    failed = 0
+    _mask_cache: dict = {}
+    _mask_lock = asyncio.Lock()
+    _EMPTY = {"min": None, "max": None, "mean": None, "sum": None, "count": 0}
+
+    async def _get_mask(decoded):
+        b = decoded.bbox
+        key = f"{decoded.width}x{decoded.height}|{b['minX']},{b['minY']},{b['maxX']},{b['maxY']}"
+        # Calcula a mascara uma unica vez por grade (serializado p/ evitar recomputo).
+        async with _mask_lock:
+            mk = _mask_cache.get(key)
+            if mk is None:
+                mk = await asyncio.to_thread(_zonal_mask, decoded.width, decoded.height, b, req.geometries)
+                _mask_cache[key] = mk
+            return mk
+
+    limits = httpx.Limits(
+        max_keepalive_connections=req.parallel_limit,
+        max_connections=req.parallel_limit + 4,
+    )
+    async with httpx.AsyncClient(follow_redirects=True, limits=limits,
+                                   http2=True,
+                                   timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+        async def worker(idx: int, passo_h: int, url: str):
+            nonlocal fetched, failed
+            stats = None
+            err = None
+            async with sem:
+                _flight_enter(f"poly t={passo_h}h")
+                w_t0 = time.time()
+                decoded, err = await _fetch_decoded(client, url)
+                if decoded is not None:
+                    try:
+                        mk = await _get_mask(decoded)
+                        stats = await asyncio.to_thread(_zonal_stats, decoded, mk, req.nodata_extras)
+                    except Exception as e:
+                        err = f"zonal_err: {e}"
+                _flight_exit(f"poly t={passo_h}h", time.time() - w_t0)
+            if err or stats is None:
+                failed += 1
+                stats = _EMPTY
+            else:
+                fetched += 1
+            valid = passo_validity_time(req.dataRodada, passo_h)
+            samples.append(PolygonSample(
+                idx=idx, passo_h=passo_h,
+                time_utc=valid.replace(tzinfo=timezone.utc).isoformat(),
+                min=stats["min"], max=stats["max"], mean=stats["mean"],
+                sum=stats["sum"], count=stats["count"],
+            ))
+
+        _flight_reset_peak()
+        await asyncio.gather(*(worker(i + 1, ph, u) for i, (ph, u) in enumerate(urls)))
+    samples.sort(key=lambda s: s.idx)
+    peak_observed = _inflight["max_observed"]
+    print(f"[par] timeseries_polygon: {len(urls)} fetches, peak_concurrent={peak_observed}, "
+          f"elapsed={time.time() - t0:.2f}s", flush=True)
+
+    run_dt = datetime(
+        int(req.dataRodada[0:4]), int(req.dataRodada[4:6]),
+        int(req.dataRodada[6:8]), int(req.dataRodada[8:10]),
+        tzinfo=timezone.utc,
+    )
+    return {
+        "samples": samples,
+        "layer_name": f"{m.get('nome') or 'modelo'} · {v.get('label') or v.get('id') or 'variavel'}",
+        "run_date_utc": run_dt.isoformat(),
+        "elapsed_seconds": round(time.time() - t0, 3),
+        "fetched": fetched, "failed": failed,
+        "max_concurrent_observed": peak_observed,
+        "parallel_limit_used": req.parallel_limit,
+        "polygon_count": len(req.geometries),
     }
 
 

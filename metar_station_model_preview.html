@@ -1,0 +1,128 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>GISELE — Station Model METAR (escala por zoom)</title>
+<style>
+ body{margin:0;background:#0b1220;color:#e6ecf2;font-family:ui-sans-serif,system-ui,sans-serif}
+ .wrap{max-width:1040px;margin:0 auto;padding:18px} h1{font-size:18px;margin:0 0 4px}
+ p.sub{color:#9fb0c8;margin:0 0 14px;font-size:13px} .card{background:#eef2f7;border-radius:10px;padding:8px;margin-bottom:14px}
+ canvas{display:block;width:100%;height:auto;border-radius:6px}
+ .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 18px;font-size:13px;background:#0e1726;border:1px solid #223;border-radius:8px;padding:12px}
+ .legend b{color:#fff} .k{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+</style></head><body><div class="wrap">
+<h1>Modelo de Estação (Station Model) — escala com o zoom</h1>
+<p class="sub">Mesma função do GISELE (<code>drawStationModel</code>). Em cima: zoom aproximado (fontes grandes/legíveis). Embaixo: zoom de país inteiro (menor).</p>
+<div class="card"><canvas id="cv" width="1900" height="640"></canvas></div>
+<div class="legend">
+ <div><b>Centro</b> — cobertura de nuvens (vazio→cheio).</div>
+ <div><b>Haste/barbela</b> — vento (meia=5kt, barba=10kt, galhardete=50kt).</div>
+ <div><span class="k" style="background:#d32f2f"></span><b>Sup-esq</b> — Temperatura (°C).</div>
+ <div><span class="k" style="background:#2e7d32"></span><b>Inf-esq</b> — Ponto de orvalho (°C).</div>
+ <div><span class="k" style="background:#16263e"></span><b>Sup-dir</b> — Pressão (3 dígitos).</div>
+ <div><b>Abaixo</b> — ICAO da estação.</div>
+</div></div>
+<script>
+const cv=document.getElementById('cv'); const ctx=cv.getContext('2d');
+ctx.fillStyle='#eef2f7'; ctx.fillRect(0,0,cv.width,cv.height);
+let gtStationScale = 1;
+let __ppd = 130;            // pixels-por-grau simulado (controla a escala por zoom)
+function lonToX(d){ return d * __ppd; }
+function gtDecodeMETAR(raw) {
+        const out = {}; const toks = String(raw || '').trim().split(/\s+/);
+        if (toks.length < 2) return out;
+        out.estacao = toks[0];
+        const tm = toks[1].match(/^(\d{2})(\d{2})(\d{2})Z$/);
+        if (tm) out.horario = 'dia ' + tm[1] + ' · ' + tm[2] + ':' + tm[3] + ' UTC';
+        let i = 2; let smWdir = null, smWspd = null, smT = null, smTd = null, smSky = null, smP = null, smRh = null;
+        if (toks[i] === 'AUTO' || toks[i] === 'COR') i++;
+        if (toks[i] && /^(\d{3}|VRB)\d{2,3}(G\d{2,3})?(KT|MPS)$/.test(toks[i])) {
+            const w = toks[i]; const dir = w.slice(0, 3); const um = w.match(/(KT|MPS)$/)[1];
+            const sp = parseInt(w.match(/^(?:\d{3}|VRB)(\d{2,3})/)[1], 10); const g = w.match(/G(\d{2,3})/);
+            const spKt = (um === 'MPS') ? Math.round(sp * 1.94384) : sp;
+            if (/^0{5}(KT|MPS)$/.test(w)) { out.vento = 'calmo'; smWspd = 0; smWdir = null; }
+            else { const dirTxt = (dir === 'VRB') ? 'variável' : (dir + '°'); out.vento = dirTxt + ' a ' + sp + (um === 'KT' ? ' kt' : ' m/s') + (g ? (' (rajadas ' + parseInt(g[1], 10) + (um === 'KT' ? ' kt' : ' m/s') + ')') : ''); smWspd = spKt; smWdir = (dir === 'VRB') ? 'VRB' : parseInt(dir, 10); }
+            i++;
+            if (toks[i] && /^\d{3}V\d{3}$/.test(toks[i])) { out.vento += ' var ' + toks[i].replace('V', '°–') + '°'; i++; }
+        }
+        if (toks[i] === 'CAVOK') { out.visibilidade = 'CAVOK (≥10 km, sem nuvens significativas)'; smSky = 0; i++; }
+        else {
+            if (toks[i] && /^\d{4}$/.test(toks[i])) { const v = parseInt(toks[i], 10); out.visibilidade = (v >= 9999) ? '≥ 10 km' : (v >= 1000 ? ((v / 1000).toFixed(v % 1000 ? 1 : 0) + ' km') : (v + ' m')); i++; if (toks[i] && /^\d{4}[NSEW]{1,2}$/.test(toks[i])) i++; }
+            else if (toks[i] && /^(M)?\d+(\/\d+)?SM$/.test(toks[i])) { out.visibilidade = toks[i].replace('SM', ' mi').replace('M', '<'); i++; }
+        }
+        const clouds = []; const wx = []; let ceilingFt = null;
+        for (; i < toks.length; i++) {
+            const t = toks[i]; let m;
+            if ((m = t.match(/^(FEW|SCT|BKN|OVC|VV)(\d{3})(CB|TCU)?$/))) {
+                const cov = { FEW: 'poucas (FEW)', SCT: 'esparsas (SCT)', BKN: 'nuvens quebradas (BKN)', OVC: 'encoberto (OVC)', VV: 'céu obscurecido (VV)' }[m[1]];
+                const ft = parseInt(m[2], 10) * 100; clouds.push(cov + ' a ' + ft.toLocaleString('pt-BR') + ' ft' + (m[3] ? (' ' + m[3]) : ''));
+                if ((m[1] === 'BKN' || m[1] === 'OVC' || m[1] === 'VV') && (ceilingFt === null || ft < ceilingFt)) ceilingFt = ft;
+                const ok = { FEW: 2, SCT: 4, BKN: 6, OVC: 8, VV: 9 }[m[1]]; if (smSky === null || ok > smSky) smSky = ok;
+            } else if (/^(SKC|CLR|NSC|NCD)$/.test(t)) { clouds.push('céu limpo (' + t + ')'); if (smSky === null) smSky = 0; }
+            else if ((m = t.match(/^(M)?(\d{2})\/(M)?(\d{2})$/))) {
+                smT = (m[1] ? -1 : 1) * parseInt(m[2], 10); smTd = (m[3] ? -1 : 1) * parseInt(m[4], 10);
+                out.temperatura = smT + ' °C'; out.orvalho = smTd + ' °C';
+                const es = function (x) { return 6.112 * Math.exp((17.62 * x) / (243.12 + x)); }; smRh = Math.round(100 * es(smTd) / es(smT)); out.umidade = smRh + ' %';
+            } else if ((m = t.match(/^Q(\d{4})$/))) { smP = parseInt(m[1], 10); out.pressao_qnh = smP + ' hPa'; }
+            else if ((m = t.match(/^A(\d{4})$/))) { const inHg = parseInt(m[1], 10) / 100; smP = inHg * 33.8639; out.pressao_qnh = inHg.toFixed(2) + ' inHg'; }
+            else if (t !== 'RMK' && /^(VC)?([+-])?(MI|PR|BC|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS){1,3}$/.test(t)) { wx.push(t); }
+            else if (t === 'RMK') break;
+        }
+        if (clouds.length) out.nuvens = clouds.join('; ');
+        if (ceilingFt !== null) out.teto = ceilingFt.toLocaleString('pt-BR') + ' ft';
+        if (wx.length) out.tempo_presente = wx.join(' ');
+        let p3 = null, pFull = null; if (smP != null) { let v = Math.round(smP * 10) % 1000; if (v < 0) v += 1000; p3 = ('000' + v).slice(-3); pFull = String(Math.round(smP)); }
+        out._sm = { t: smT, td: smTd, wdir: smWdir, wspd: smWspd, sky: smSky, p3: p3, pFull: pFull, rh: smRh };
+        return out;
+    }
+function drawStationModel(px, py, sm, props) {
+                ctx.save();
+                let ppd = 60; try { ppd = Math.abs(lonToX(1) - lonToX(0)); } catch (_) {}
+                if (!isFinite(ppd) || ppd <= 0) ppd = 60;
+                const s = (typeof gtStationScale === 'number' ? gtStationScale : 1) * Math.max(1.1, Math.min(3.4, ppd / 48));
+                const R = 5 * s; const INK = '#16263e';
+                ctx.beginPath(); ctx.arc(px, py, R, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+                const ok = sm ? sm.sky : null;
+                if (ok === 8 || ok === 9) { ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(px, py, R, 0, Math.PI * 2); ctx.fill(); }
+                else if (ok != null && ok >= 1) { const ang = (ok / 8) * Math.PI * 2; ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(px, py); ctx.arc(px, py, R, -Math.PI / 2, -Math.PI / 2 + ang, false); ctx.closePath(); ctx.fill(); }
+                ctx.lineWidth = Math.max(1, 1.3 * Math.min(s, 2.2)); ctx.strokeStyle = INK; ctx.beginPath(); ctx.arc(px, py, R, 0, Math.PI * 2); ctx.stroke();
+                if (ok === 9) { ctx.beginPath(); ctx.moveTo(px - R * 0.7, py - R * 0.7); ctx.lineTo(px + R * 0.7, py + R * 0.7); ctx.moveTo(px + R * 0.7, py - R * 0.7); ctx.lineTo(px - R * 0.7, py + R * 0.7); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
+                const LW = Math.max(1.2, 1.4 * Math.min(s, 2.4));
+                if (sm && sm.wspd != null && sm.wspd > 0 && sm.wdir != null) {
+                    const dirDeg = (sm.wdir === 'VRB') ? 0 : sm.wdir; const a = dirDeg * Math.PI / 180; const ux = Math.sin(a), uy = -Math.cos(a);
+                    const L = 22 * s; const sx = px + ux * R, sy = py + uy * R; const ex = px + ux * (R + L), ey = py + uy * (R + L);
+                    ctx.lineCap = 'round';
+                    ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = LW + 1.8; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+                    ctx.strokeStyle = INK; ctx.lineWidth = LW; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+                    const perpx = -uy, perpy = ux; let spd = Math.round(sm.wspd / 5) * 5;
+                    let n50 = Math.floor(spd / 50); spd -= n50 * 50; let n10 = Math.floor(spd / 10); spd -= n10 * 10; let n5 = (spd >= 5) ? 1 : 0;
+                    const BL = 8 * s, STEP = 3.6 * s; let pos = 0; const at = function (d) { return [ex - ux * d, ey - uy * d]; };
+                    for (let k = 0; k < n50; k++) { const p1 = at(pos), p2 = at(pos + STEP * 1.4); ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p1[0] + perpx * BL, p1[1] + perpy * BL); ctx.lineTo(p2[0], p2[1]); ctx.closePath(); ctx.fillStyle = INK; ctx.fill(); pos += STEP * 1.7; }
+                    if (n50 > 0) pos += STEP * 0.5;
+                    for (let k = 0; k < n10; k++) { const p1 = at(pos); ctx.strokeStyle = INK; ctx.lineWidth = LW; ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p1[0] + perpx * BL, p1[1] + perpy * BL); ctx.stroke(); pos += STEP; }
+                    if (n5) { if (pos === 0) pos += STEP; const p1 = at(pos); ctx.strokeStyle = INK; ctx.lineWidth = LW; ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p1[0] + perpx * BL * 0.5, p1[1] + perpy * BL * 0.5); ctx.stroke(); }
+                } else if (sm && sm.wspd === 0) { ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, LW * 0.8); ctx.beginPath(); ctx.arc(px, py, R + 3 * s, 0, Math.PI * 2); ctx.stroke(); }
+                const F = Math.round(10 * s), Fs = Math.round(8.5 * s), step = Math.round(11.5 * s);
+                const lab = function (str, x, y, col, align, fs) { ctx.font = 'bold ' + (fs || F) + 'px ui-sans-serif, system-ui, sans-serif'; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, (fs || F) * 0.26); ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.strokeText(str, x, y); ctx.fillStyle = col; ctx.fillText(str, x, y); };
+                const oxx = R + 4 * s, oyy = R + 2 * s;
+                if (sm && sm.t != null) lab(String(sm.t), px - oxx, py - oyy, '#d32f2f', 'right');
+                if (sm && sm.td != null) lab(String(sm.td), px - oxx, py + oyy, '#2e7d32', 'right');
+                const rx = px + oxx; const ryTop = py - oyy;
+                if (sm && (sm.pFull || sm.p3)) lab(String(sm.pFull || sm.p3), rx, ryTop, '#16263e', 'left');
+                if (props && props.ICAO) lab(props.ICAO, rx, ryTop + step, '#1f3a5f', 'left', Fs);
+                if (sm && sm.rh != null) lab(sm.rh + '%', rx, ryTop + step * 2, '#1565c0', 'left', Fs);
+                ctx.restore();
+            }
+const samples=[
+ ['SBBR 021800Z 08003KT 9999 SCT030 26/13 Q1021','SBBR · 80° 3kt'],
+ ['SBSP 021700Z 15010KT 9999 BKN025 18/12 Q1025','SBSP · 150° 10kt'],
+ ['SBGL 021700Z 12008KT CAVOK 27/19 Q1019','SBGL · CAVOK'],
+ ['SBPA 021700Z 36015G27KT 8000 -RA SCT015 BKN030 14/M02 Q1028','SBPA · 360° 15kt raj27'],
+ ['SBPV 021700Z 27050KT 9999 OVC012 31/25 Q1008','SBPV · 270° 50kt OVC']
+];
+function row(yc, label){
+ ctx.fillStyle='#33455c'; ctx.font='bold 13px ui-sans-serif'; ctx.textAlign='left'; ctx.fillText(label, 16, yc-110);
+ const cols=samples.length, cw=cv.width/cols;
+ samples.forEach(function(s,idx){ const cx=idx*cw+cw/2; const dec=gtDecodeMETAR(s[0]); drawStationModel(cx, yc, dec._sm, {ICAO:s[0].split(' ')[0]});
+  ctx.fillStyle='#5b6b82'; ctx.font='11px ui-sans-serif'; ctx.textAlign='center'; ctx.fillText(s[1], cx, yc+90); });
+}
+__ppd = 150; row(180, 'Zoom aproximado (ppd≈150 → escala ~3,1×)');
+__ppd = 32;  row(470, 'Zoom de país inteiro (ppd≈32 → escala mínima ~1,1×)');
+</script></body></html>
