@@ -281,4 +281,53 @@
 | **Preview + dialog de confirmação no upload** | "Quando o usuário fizer um upload do shape, geojson.... plotar sobre o mapa e pedir para confirmar a extração" | Edit (`_gtShowPolygonPreview` + `gtOpenConfirmExtractDialog`; fit ao bbox; cleanup de previews; Enter/Esc) |
 | **Dialog fora da área do mapa** | "Colocar o box da informação fora da área de visualização do gráfico" | Edit (overlay sem backdrop fullscreen; card `position:fixed; top:14px; right:14px; pointer-events:auto`) |
 | **Renderer `style.noVertices`** | "as linhas estão bem grossas" + "deixar na mesma espessura para todas as linhas" | Edit (renderer polígono pula loop de circles em cada vértice quando `style.noVertices === true`; lineWidth uniforme 0.7) |
-| **Importar shapefile como camada extra** | "i
+| **Importar shapefile como camada extra** | "importar shapefile como camada extra" | Edit (`_gtParseShpBuffer` + zip reader; filtra por `tipo_dado='shapefile'` em `addGeoJSON`) |
+
+---
+
+## 3. Sessão 07/06/2026 — Campos de vento + resize + fixes de layout
+
+**Build marker atual:** `20260607-0700-bases-fix` (pendente de commit)
+
+### 3.1. Funcionalidades implementadas nesta sessão
+
+| Feature | Descrição | Status |
+|---|---|---|
+| **Coluna Fórmula na tabela de variáveis** | Input `formula` por variável: expressão como `sqrt({U}^2+{V}^2)` usando `{ID}` refs. `_gtEvalFormula(formula, varDataMap)` avalia per-pixel com `new Function`. | ✅ feito |
+| **Campos vec_u / vec_v** | Colunas U-vent e V-vent na tabela de config: IDs das vars componentes zonal/meridional. | ✅ feito |
+| **Campo vetorial de vento (setas + streamlines)** | `SisMOM_Map.setVectorField(uDec, vDec, mode, opts)` + `clearVectorField()`. `drawVectorField()` interno: bilinear sampling, setas proporcionais (modo `arrows`), Euler integration (modo `stream`). Seletor "Vento" na toolbar GT (aparece só quando vec_u/vec_v preenchidos). | ✅ feito |
+| **Resize de colunas da tabela de variáveis** | Drag handles no `<th>`; persistido em `localStorage('gisele_vartbl_colw')`. `_initVarTableColResize()`. | ✅ feito |
+| **Resize do modal de configurações** | Handle SE no modal (`#modalConfigRszH`); persistido em `localStorage('gisele_modal_size')`. `_initModalResize()`. | ✅ feito |
+| **Scroll horizontal fino nas abas de modelos** | `scrollbar-width: thin` + webkit height 5px em `.modal-tabs`; resolve sobreposição da barra h sobre a barra v. | ✅ feito |
+| **Resize handle no lugar certo** | `position: relative` adicionado ao `.modal`; o handle `position:absolute; right:0;bottom:0` agora ancora ao modal (antes ancorava ao backdrop). | ✅ feito |
+| **Fonte maior nas abas de modelos** | `.modal-tab { font-size: 15px; padding: 11px 16px }` (era 13.5px / 8px 14px). | ✅ feito |
+| **Fix Base de dados sumiu** | `showBasesPane(true)` convertera `#modalBody` em flex-container (body.style.display='flex') quebrando o layout. Revertido para show/hide simples: `pane.style.display = on ? '' : 'none'`. Scroll já funciona via `.modal-body { overflow-y: auto }` — o `<footer>` está FORA do `#modalBody`. Removido também o `display:none;display:flex` duplicado no HTML do `#cfgBasesPane`. | ✅ feito |
+
+### 3.2. Estrutura HTML do modal (referência rápida)
+
+```
+.modal (display:flex; flex-direction:column; position:relative; overflow:hidden; max-height:92vh)
+  .modal-rsz-h #modalConfigRszH  ← handle SE, position:absolute
+  .modal-header
+  #modalTopTabs                   ← "Configurar modelos" | "Base de dados"
+  .modal-tabs #modalTabs          ← abas dos modelos (overflow-x:auto, scrollbar thin)
+  .modal-body #modalBody          ← flex:1; min-height:0; overflow-y:auto; padding:16px 18px
+    .form-grid                    ← formulário do modelo (hidden quando bases)
+    .var-table-wrap               ← tabela de variáveis (hidden quando bases)
+    #cfgBasesPane                 ← pane de bases (hidden por padrão, display:'' quando ativo)
+      #cfgBasesTabs               ← abas das bases
+      #cfgBasesList               ← lista de cards de bases
+  footer.modal-footer             ← FORA do #modalBody (sibling direto de .modal)
+```
+
+### 3.3. Commits pendentes (rodar na ordem no Windows)
+
+| BAT | Conteúdo |
+|---|---|
+| `commit-wind-vector.bat` | feat: campo vetorial + coluna fórmula + vec_u/vec_v |
+| `commit-resize.bat` | feat: resize colunas da tabela + resize modal |
+| `commit-scroll-fix.bat` | fix: scroll bases + resize handle + barra abas fina + font abas |
+| `commit-bases-fix.bat` | fix: Base de dados sumiu (showBasesPane simplificado) |
+
+> **Importante:** os BATs devem ser executados **em sequência** no Windows (clique duplo ou terminal CMD na pasta `C:\Projetos\Visualizador`). Cada um faz `git read-tree HEAD` (seguro em FUSE), `git add` e `git commit + push`.
+
