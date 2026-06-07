@@ -1518,7 +1518,8 @@
         .var-table .col-id { width: 84px; font-family: var(--font-mono); }
         .var-table .col-label { }
         .var-table .col-unit { width: 70px; }
-        .var-table .col-freq { width: 64px; }
+        .var-table .col-inicio { width: 64px; }
+        .col-freq { width: 64px; }
         .var-table .col-horiz { width: 64px; }
         .var-table .col-file { width: 200px; font-family: var(--font-mono); font-size: 11px; }
         .var-table .col-esc1 { width: 90px; font-family: var(--font-mono); font-size: 11px; }
@@ -1896,7 +1897,7 @@
         <div class="map-container" id="mapContainer" data-layout="2"></div>
     </main>
     <section id="mainGT" style="display:none" aria-label="Dashboard GeoTIFF">
-    <div id="gtToolbar" style="display:flex;gap:8px;padding:6px 12px;background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08);align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text,#cbd6e6)">
+    <div id="gtToolbar" style="display:flex;gap:8px;padding:6px 12px;background:var(--bg-elev-2,rgba(255,255,255,0.07));border-bottom:1px solid rgba(255,255,255,0.12);align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text,#cbd6e6);position:sticky;top:0;z-index:10;flex-shrink:0">
         <label style="display:inline-flex;align-items:center;gap:4px">Modelo
             <select id="gtModeloSel" style="min-width:140px;font-size:12px"></select>
         </label>
@@ -2041,7 +2042,7 @@
                             <th class="col-label">Nome longo</th>
                             <th class="col-unit">Unidade</th>
                             <th class="col-freq" title="Frequência em horas entre arquivos. Use 0 para observação / análise / reanálise (sem previsão).">Freq (h)</th>
-                            <th class="col-horiz" title="Horizonte em horas — máx. hora de previsão">Horiz (h)</th>
+                            <th class="col-inicio" title="Passo inicial em horas (primeiro arquivo disponível; 0 = inclui análise T+0)">Início (h)</th><th class="col-horiz" title="Horizonte em horas — máx. hora de previsão">Horiz (h)</th>
                             <th class="col-file">Prefixo de arquivo</th>
                             <th class="col-esc1" title="Variável disponível em PNG/GIF">PNG</th>
                             <th class="col-esc2" title="Variável disponível em TIF (GeoTIFF)">TIF</th>
@@ -3334,9 +3335,10 @@
     const state = {
         layout: 1,
         slots: Array.from({ length: NUM_SLOTS }, newSlot),
-        passoAtual: 1,
+        passoAtual: 0,
         maxPassos: 120,
         stepFreq: 1,
+        passoInicio: 0,
         tempo: 200,
         animando: false,
         interval: null
@@ -3540,7 +3542,7 @@
         } else {
             const freq = Math.max(1, freqRaw);
             file_idx = Math.round(passo / freq);
-            if (file_idx < 1) return null;
+            if (file_idx < 0) return null;  // permite 0 (análise T+0)
             passo_h = file_idx * freq;            // hora de previsão (snap)
         }
 
@@ -4040,7 +4042,7 @@
         const isAnalise = v && Number(v.frequencia) === 0;
         const max = v ? (v.horizonte || (modelos[s.modelo] || {}).maxPassos || 24) : ((modelos[s.modelo] || {}).maxPassos || 24);
         // Campos de análise/observação (Freq=0) não têm passo, então ignoram o alcance.
-        if (!isAnalise && (passo < 1 || passo > max)) {
+        if (!isAnalise && (passo < 0 || passo > max)) {  // passo=0 válido (análise T+0)
             // Cancel any in-flight load for this slot
             activeRequests[i] = (activeRequests[i] || 0) + 1;
             // Hide the active image, show a specific error
@@ -4147,6 +4149,8 @@
     function atualizarMaxPassos() {
         let maxH = 1;
         let minF = Infinity;
+        let minPI = 0;   // passo_inicio: menor valor entre slots ativos (0 = inclui análise T+0)
+        let piSet = false;
         for (let i = 0; i < state.layout; i++) {
             const s = state.slots[i];
             const v = getVariavel(s.modelo, s.variavel);
@@ -4154,17 +4158,21 @@
                 if (Number(v.frequencia) === 0) continue;  // análise/obs: fora da grade de passos
                 const h = Math.max(1, v.horizonte || (modelos[s.modelo] && modelos[s.modelo].maxPassos) || 24);
                 const f = Math.max(1, v.frequencia || 1);
+                const pi = (v.passo_inicio == null) ? 0 : Number(v.passo_inicio);
                 if (h > maxH) maxH = h;
                 if (f < minF) minF = f;
+                if (!piSet || pi < minPI) { minPI = pi; piSet = true; }
             } else {
                 const m = modelos[s.modelo];
                 if (m && m.maxPassos > maxH) maxH = m.maxPassos;
                 if (1 < minF) minF = 1;
+                if (!piSet) { minPI = 0; piSet = true; }
             }
         }
         if (!isFinite(minF)) minF = 1;
         state.maxPassos = maxH;
         state.stepFreq = minF;
+        state.passoInicio = piSet ? Math.max(0, minPI) : 0;
         // Snap current passo to the new grid (round to nearest stepFreq, clamp)
         if (state.passoAtual > state.maxPassos) state.passoAtual = state.maxPassos;
         if (state.passoAtual < state.stepFreq) state.passoAtual = state.stepFreq;
@@ -4389,13 +4397,16 @@
     let _lastGridKey = '';
     function renderizarPassos() {
         const step = state.stepFreq || 1;
-        const key = step + ':' + state.maxPassos;
+        const _piG = (state.passoInicio != null && state.passoInicio >= 0) ? state.passoInicio : 0;
+        const key = step + ':' + state.maxPassos + ':' + _piG;
         if (key !== _lastGridKey) {
-            // So reconstroi a grade quando o passo/maximo realmente mudam.
+            // So reconstroi a grade quando o passo/maximo/inicio realmente mudam.
             _lastGridKey = key;
             const fragment = document.createDocumentFragment();
             DOM.grid.innerHTML = '';
-            for (let h = step; h <= state.maxPassos; h += step) {
+            // Inclui passo 0 (análise T+0) quando passoInicio === 0
+            const _hStart = (_piG === 0) ? 0 : (Math.ceil(_piG / step) * step || step);
+            for (let h = _hStart; h <= state.maxPassos; h === 0 ? (h = step) : (h += step)) {
                 const btn = document.createElement('button');
                 btn.className = 'time-btn';
                 btn.type = 'button';
@@ -4416,7 +4427,7 @@
             const cur = DOM.grid.querySelector(`.time-btn[data-passo="${state.passoAtual}"]`);
             if (cur) { cur.classList.add('active'); cur.setAttribute('aria-current', 'true'); }
         }
-        DOM.stepRange.min = step;
+        DOM.stepRange.min = (state.passoInicio != null && state.passoInicio === 0) ? 0 : step;
         DOM.stepRange.max = state.maxPassos;
         DOM.stepRange.step = step;
         DOM.stepRange.value = state.passoAtual;
@@ -4426,7 +4437,8 @@
         const step = state.stepFreq || 1;
         // Snap to step grid
         novo = Math.round(novo / step) * step;
-        if (novo < step) novo = state.maxPassos;
+        const piMin = (state.passoInicio != null && state.passoInicio === 0) ? 0 : step;
+        if (novo < piMin) novo = state.maxPassos;
         if (novo > state.maxPassos) novo = step;
         state.passoAtual = novo;
         const active = DOM.grid.querySelector('.time-btn.active');
@@ -4611,6 +4623,7 @@
         const hasPng = pngJobs.length > 0;
         // urls[stepNo][slotIdx] = url; frames[stepNo][slotIdx] = {img, objUrl} or null
         const stepValues = [];
+        if (state.passoInicio === 0) stepValues.push(0);  // inclui análise T+0
         for (let p = step; p <= state.maxPassos; p += step) stepValues.push(p);
         const frames = stepValues.map(() => []);
         if (hasPng) {
@@ -5392,12 +5405,14 @@
     function makeVarRow(v, idx) {
         const tr = document.createElement('tr');
         const f = v.frequencia == null ? 1 : v.frequencia;
+        const pi = v.passo_inicio == null ? 0 : v.passo_inicio;
         const h = v.horizonte == null ? 120 : v.horizonte;
         tr.innerHTML = `
             <td class="col-id"><input data-vrow="${idx}" data-vfield="id" value="${escAttr(v.id)}" maxlength="32"></td>
             <td class="col-label"><input data-vrow="${idx}" data-vfield="label" value="${escAttr(v.label)}"></td>
             <td class="col-unit"><input data-vrow="${idx}" data-vfield="unidade" value="${escAttr(v.unidade)}" maxlength="20"></td>
             <td class="col-freq"><input type="number" min="0" max="9999" data-vrow="${idx}" data-vfield="frequencia" value="${f}"></td>
+            <td class="col-inicio"><input type="number" min="0" max="9999" data-vrow="${idx}" data-vfield="passo_inicio" value="${pi}" title="Passo inicial (h): 0 inclui análise T+0"></td>
             <td class="col-horiz"><input type="number" min="1" max="99999" data-vrow="${idx}" data-vfield="horizonte" value="${h}"></td>
             <td class="col-file"><input data-vrow="${idx}" data-vfield="arquivo" value="${escAttr(v.arquivo)}"></td>
             <td class="col-esc1" style="text-align:center"><input type="checkbox" data-vrow="${idx}" data-vfield="disp_png" ${v.disp_png === false ? '' : 'checked'}></td>
@@ -5453,6 +5468,8 @@
                     if (inp.dataset.vfield === 'frequencia') {
                         const nf = Number(val);
                         val = (isFinite(nf) && nf >= 0) ? nf : 1;
+                    } else if (inp.dataset.vfield === 'passo_inicio') {
+                        val = Math.max(0, Number(val) || 0);
                     } else if (inp.dataset.vfield === 'horizonte') {
                         val = Math.max(1, Number(val) || 1);
                     }
@@ -5471,7 +5488,7 @@
     function addVarRow() {
         const tbody = document.getElementById('varTableBody');
         const idx = tbody.querySelectorAll('tr').length;
-        const v = { id: '', label: '', unidade: '', arquivo: '', frequencia: 1, horizonte: 120, disp_png: true, disp_tif: false };
+        const v = { id: '', label: '', unidade: '', arquivo: '', frequencia: 1, passo_inicio: 0, horizonte: 120, disp_png: true, disp_tif: false };
         tbody.appendChild(makeVarRow(v, idx));
         tbody.lastChild.querySelector('input').focus();
     }
@@ -6211,7 +6228,7 @@
 
     function inicializar() {
         let gtStationScale = (function () { try { const v = parseFloat(localStorage.getItem('gisele.metar.scale')); return (isFinite(v) && v > 0) ? v : 1; } catch (_) { return 1; } })();
-    try { console.log('[GISELE] build = 20260602-3350-veccache'); document.documentElement.setAttribute('data-build', '20260602-3350-veccache'); } catch (_) {}
+    try { console.log('[GISELE] build = 20260605-2500-cfg-fix'); document.documentElement.setAttribute('data-build', '20260605-2500-cfg-fix'); } catch (_) {}
         loadModelos();
         buildSlots();
         try { pngInit(); } catch (_) {}
@@ -6443,12 +6460,37 @@
             const bytesPerPixel = bytesPerSample * samplesPerPixel;
             const totalBytes = width * height * bytesPerPixel;
             const raw = new Uint8Array(totalBytes);
+            // Aplica predictor=2 numa linha de lineW pixels (uint8/16/32-bit samples)
+            function _pred2Row(buf, lineOff, lineW) {
+                for (let x = 1; x < lineW; x++) {
+                    for (let c = 0; c < samplesPerPixel; c++) {
+                        const off  = lineOff + (x * samplesPerPixel + c) * bytesPerSample;
+                        const prev = lineOff + ((x-1) * samplesPerPixel + c) * bytesPerSample;
+                        if (bytesPerSample === 1) {
+                            buf[off] = (buf[off] + buf[prev]) & 0xff;
+                        } else if (bytesPerSample === 2) {
+                            const v = (buf[off]|(buf[off+1]<<8)) + (buf[prev]|(buf[prev+1]<<8));
+                            buf[off] = v & 0xff; buf[off+1] = (v>>8) & 0xff;
+                        } else if (bytesPerSample === 4) {
+                            // uint32 wrapping (LibTIFF horAcc32) — correto para float32+Predictor=2
+                            const vO=((buf[off]  |(buf[off+1]<<8) |(buf[off+2]<<16)|(buf[off+3]<<24))>>>0);
+                            const vP=((buf[prev] |(buf[prev+1]<<8)|(buf[prev+2]<<16)|(buf[prev+3]<<24))>>>0);
+                            const s=(vO+vP)>>>0;
+                            buf[off]=s&0xff;buf[off+1]=(s>>8)&0xff;buf[off+2]=(s>>16)&0xff;buf[off+3]=(s>>24)&0xff;
+                        }
+                    }
+                }
+            }
             if (isTiled) {
                 const tilesAcross = Math.ceil(width / tileW);
                 const tilesDown = Math.ceil(height / tileH);
                 for (let ty = 0; ty < tilesDown; ty++) {
                     for (let tx = 0; tx < tilesAcross; tx++) {
                         const seg = segments[ty * tilesAcross + tx];
+                        // Predictor=2 por tile: a cadeia de diferenças reinicia em cada tile
+                        if (predictor === 2) {
+                            for (let row = 0; row < tileH; row++) _pred2Row(seg, row * tileW * bytesPerPixel, tileW);
+                        }
                         for (let row = 0; row < tileH; row++) {
                             const y = ty * tileH + row;
                             if (y >= height) break;
@@ -6468,21 +6510,9 @@
                     raw.set(segments[s].subarray(0, need), dst);
                     dst += need;
                 }
-            }
-            if (predictor === 2) {
-                for (let y = 0; y < height; y++) {
-                    const rowOff = y * width * bytesPerPixel;
-                    for (let x = 1; x < width; x++) {
-                        for (let c = 0; c < samplesPerPixel; c++) {
-                            const off = rowOff + (x * samplesPerPixel + c) * bytesPerSample;
-                            const prev = rowOff + ((x-1) * samplesPerPixel + c) * bytesPerSample;
-                            if (bytesPerSample === 1) raw[off] = (raw[off] + raw[prev]) & 0xff;
-                            else if (bytesPerSample === 2) {
-                                const v = (raw[off] | (raw[off+1] << 8)) + (raw[prev] | (raw[prev+1] << 8));
-                                raw[off] = v & 0xff; raw[off+1] = (v >> 8) & 0xff;
-                            }
-                        }
-                    }
+                // Strips são full-width: predictor na imagem montada está correto
+                if (predictor === 2) {
+                    for (let y = 0; y < height; y++) _pred2Row(raw, y * width * bytesPerPixel, width);
                 }
             }
             const N = width * height;
@@ -9048,7 +9078,7 @@
 
     async function gtSampleTimeSeries(slotIdx, lat, lon, onProgress, opts) {
         opts = opts || {};
-        const passoMin = (opts.passoMin != null && isFinite(opts.passoMin) && opts.passoMin > 0) ? opts.passoMin : null;
+        const passoMin = (opts.passoMin != null && isFinite(opts.passoMin) && opts.passoMin >= 0) ? opts.passoMin : null;
         const passoMax = (opts.passoMax != null && isFinite(opts.passoMax) && opts.passoMax > 0) ? opts.passoMax : null;
         const s = opts.source ? { modelo: opts.source.modelo, variavel: opts.source.variavel, data: opts.source.data } : (state && state.slots && state.slots[slotIdx]);
         if (!s || !s.modelo || !s.data || !s.variavel) {
@@ -9076,9 +9106,12 @@
         const samples = [];
         let firstBbox = null;
         // Calcula intervalo efetivo de file_idx baseado em passoMin/passoMax (em horas)
-        let idxMin = 1;
+        // passo_inicio=0 (default) inclui a análise T+0; passo_inicio>0 pula os primeiros passos
+        const _piRaw = (v.passo_inicio == null) ? 0 : Number(v.passo_inicio);
+        const _idxMinDefault = Math.round(_piRaw / freq);   // 0 quando passo_inicio=0
+        let idxMin = _idxMinDefault;
         let idxMax = fileMax;
-        if (passoMin != null) idxMin = Math.max(1, Math.ceil(passoMin / freq));
+        if (passoMin != null) idxMin = Math.max(_idxMinDefault, Math.round(passoMin / freq));
         if (passoMax != null) idxMax = Math.min(fileMax, Math.floor(passoMax / freq));
         if (idxMin > idxMax) throw new Error('intervalo inválido: de=' + passoMin + 'h até=' + passoMax + 'h não cobre nenhum passo (freq=' + freq + 'h)');
         if (passoMin != null || passoMax != null) {
@@ -9249,7 +9282,7 @@
     // ─── Série temporal de máx/mín/média num polígono (camada ativa do slot ao longo dos passos) ───
     async function gtSamplePolygonTimeSeries(slotIdx, polygons, onProgress, opts) {
         opts = opts || {};
-        const passoMin = (opts.passoMin != null && isFinite(opts.passoMin) && opts.passoMin > 0) ? opts.passoMin : null;
+        const passoMin = (opts.passoMin != null && isFinite(opts.passoMin) && opts.passoMin >= 0) ? opts.passoMin : null;
         const passoMax = (opts.passoMax != null && isFinite(opts.passoMax) && opts.passoMax > 0) ? opts.passoMax : null;
         // ─── Delegação ao backend Python (estatísticas zonais eficientes) ───
         // Polígono grande + modelo de alta resolução: acumulado/média é pesado no cliente.
@@ -9278,8 +9311,10 @@
         const layerName = (m.nome || s.modelo) + ' · ' + s.variavel;
         const isNativeGt = (typeof SisMOM_GeoTIFF !== 'undefined') && SisMOM_GeoTIFF.isGeoTiffModel(m);
         const hasOwnTifRoute = !isNativeGt && ((m.url_path_tif && !m.same_url_for_tif) || (m.file_name_tif && !m.same_name_for_tif));
-        let idxMin = 1, idxMax = fileMax;
-        if (passoMin != null) idxMin = Math.max(1, Math.ceil(passoMin / freq));
+        const _piRawP = (v.passo_inicio == null) ? 0 : Number(v.passo_inicio);
+        const _idxMinDefP = Math.round(_piRawP / freq);
+        let idxMin = _idxMinDefP, idxMax = fileMax;
+        if (passoMin != null) idxMin = Math.max(_idxMinDefP, Math.round(passoMin / freq));
         if (passoMax != null) idxMax = Math.min(fileMax, Math.floor(passoMax / freq));
         if (idxMin > idxMax) throw new Error('intervalo de passos inválido.');
         const _buildUrlFor = function (passo_h) {
@@ -11061,6 +11096,9 @@
                     try { if (_gtPrevHl && _gtPrevHl !== _hit) _gtPrevHl._gtHl = false; } catch (_) {}
                     if (_hit) _hit._gtHl = true;
                     _gtPrevHl = _hit;
+                    // Invalida o cache vetorial: _blitVectorLayers() cacheia por (size,vp,_extraVer)
+                    // e não detecta mudança de _gtHl — sem isto o destaque só aparece no próximo zoom.
+                    try { for (const mm of gtAllActiveMaps()) if (mm && mm.invalidateVectors) mm.invalidateVectors(); } catch (_) {}
                     try { for (const mm of gtAllActiveMaps()) if (mm && mm.redraw) mm.redraw(); } catch (_) {}
                     if (_hit) { if (_hitLayer.isMonit) gtOpenMonitFeatureInfo(_hitLayer, _hit); else gtOpenMiscFeatureInfo(_hitLayer, _hit); }
                 } catch (err) { console.error('misc click', err); }
@@ -13895,6 +13933,7 @@
             addRasterOverlay, removeRasterOverlay, setOverlayVisible, setOverlayOpacity,
             moveOverlay, getOverlayIndex, getOverlayOpacity,
             addGeoJSON, removeGeoJSON, setGeoJSONVisible, clearGeoJSON,
+            invalidateVectors() { self._extraVer = (self._extraVer || 0) + 1; },
             zoomBy,
             setTileProvider, setProjection, setAttributionElement,
             redraw: draw,
@@ -17332,8 +17371,8 @@
         const m = /^([th])(\d+)$/i.exec(name || '');
         if (!m) return null;
         const n = parseInt(m[2], 10);
-        if (m[1].toLowerCase() === 't') return n;
-        return Math.max(1, Math.round(n / freq));
+        if (m[1].toLowerCase() === 't') return n;   // t0 é válido (análise)
+        return Math.max(0, Math.round(n / freq));  // h0 = análise
     }
     function _gtExpandRangeIdx(rangeNode, freq) {
         if (!rangeNode || !rangeNode.from || !rangeNode.to ||
