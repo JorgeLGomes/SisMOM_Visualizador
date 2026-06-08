@@ -2027,33 +2027,56 @@
                 </label>
                 <label for="cfgMaxPassos">Máx. passos</label>
                 <input type="number" id="cfgMaxPassos" min="1" max="999" step="1">
-                <label for="cfgUrlPath">Template do endereço (PNG/GIF)</label>
+                <!-- ─── Seção 1: Imagem Web ─── -->
+                <div style="grid-column:1/-1;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;gap:8px">
+                    <span style="font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#5b8def);white-space:nowrap">Imagem Web</span>
+                    <span style="flex:1;height:1px;background:var(--border-subtle)"></span>
+                    <span style="font-size:10px;color:var(--text-muted)">.png · .gif · .jpg</span>
+                </div>
+                <label for="cfgUrlPath">Template do endereço</label>
                 <input type="text" id="cfgUrlPath" placeholder="https://.../{yyyy}{mm}{dd}{hh}/{escopo1}/{escopo2}/fig">
-                <label for="cfgExtensao">Sufixo do arquivo (PNG/GIF)</label>
+                <label for="cfgExtensao">Sufixo</label>
                 <select id="cfgExtensao">
                     <option value=".png">.png</option>
                     <option value=".gif">.gif</option>
                     <option value=".jpg">.jpg</option>
                     <option value=".jpeg">.jpeg</option>
-                    <option value=".tif">.tif</option>
-                    <option value=".tiff">.tiff</option>
                 </select>
-                <label for="cfgTifTemplate" style="display:flex;align-items:center;gap:8px">
-                    <span>Template TIF (diretório/arquivo)</span>
-                    <label style="font-weight:normal;font-size:11px;color:var(--text-muted);display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="cfgSameTif" checked> usar o mesmo do PNG</label>
-                </label>
-                <input type="text" id="cfgTifTemplate" placeholder="https://.../{yyyy}{mm}{dd}{hh}/geotiff/{prefixo}-{F%3}{ext}" title="Template completo do TIF. Digite o caminho + nome do arquivo numa só linha. O sistema detecta automaticamente onde o diretório termina e o nome do arquivo começa. Use {ext} para substituição automática pelo Sufixo TIF.">
-                <div id="cfgTifSplitPreview" class="tif-split-preview" style="display:none"></div>
-                <label for="cfgExtensaoTif">Sufixo do arquivo TIF</label>
+                <label for="cfgFileName">Template Nome Arq.</label>
+                <input type="text" id="cfgFileName" placeholder="{prefixo}{f%3}{ext}">
+                <!-- ─── Seção 2: GeoTIFF ─── -->
+                <div style="grid-column:1/-1;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;gap:8px">
+                    <span style="font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#5b8def);white-space:nowrap">GeoTIFF</span>
+                    <span style="flex:1;height:1px;background:var(--border-subtle)"></span>
+                    <span style="font-size:10px;color:var(--text-muted)">.tif · .tiff</span>
+                </div>
+                <label for="cfgTifTemplate">Template do endereço</label>
+                <input type="text" id="cfgTifTemplate" placeholder="https://.../{yyyy}{mm}{dd}{hh}/geotiff" title="Diretório base para os arquivos GeoTIFF. Deixe em branco para usar o mesmo endereço da Imagem Web.">
+                <label for="cfgExtensaoTif">Sufixo TIF</label>
                 <select id="cfgExtensaoTif">
                     <option value=".tif" selected>.tif</option>
                     <option value=".tiff">.tiff</option>
                 </select>
-                <label for="cfgFileName">Template Nome Arq.</label>
-                <input type="text" id="cfgFileName" placeholder="{prefixo}{f%3}{ext}">
+                <label for="cfgTifFileName">Template Nome Arq.</label>
+                <input type="text" id="cfgTifFileName" placeholder="{prefixo}-{F%3}{ext}" title="Nome do arquivo GeoTIFF 2D. Use {ext} para o Sufixo TIF. Deixe em branco para usar o mesmo nome da Imagem Web.">
+                <!-- ─── Seção 3: Variáveis 3D ─── -->
+                <div style="grid-column:1/-1;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;gap:8px">
+                    <span style="font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#5b8def);white-space:nowrap">Variáveis 3D</span>
+                    <span style="flex:1;height:1px;background:var(--border-subtle)"></span>
+                    <span style="font-size:10px;color:var(--text-muted)">{nivel} hPa</span>
+                </div>
+                <label for="cfgFileName3D">Template Nome Arq. 3D (Web)</label>
+                <input type="text" id="cfgFileName3D" placeholder="{prefixo}_{nivel}hPa_{yyyy}{mm}{dd}{hh}{ext}" title="Nome do arquivo para variáveis 3D na Imagem Web. Use {nivel} para o nível de pressão.">
+                <label for="cfgTifFileName3D">Template Nome Arq. 3D (TIF)</label>
+                <input type="text" id="cfgTifFileName3D" placeholder="{prefixo}_{nivel}hPa_{yyyy}{mm}{dd}{hh}{ext}" title="Nome do arquivo para variáveis 3D no GeoTIFF. Use {nivel} para o nível de pressão.">
+                <label style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-top:2px">
+                    <span>Níveis de pressão (hPa)</span>
+                    <span style="font-weight:normal;font-size:11px;color:var(--text-muted)">separados por vírgula</span>
+                </label>
+                <input type="text" id="cfgNiveis" placeholder="1000,925,850,700,500,300,250,200,150,100" title="Lista de níveis de pressão (hPa) disponíveis para variáveis 3D deste modelo. Use vírgulas como separador." style="grid-column:1/-1">
                 <label style="grid-column:1/-1;display:flex;gap:14px;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-subtle)">
                     <span style="font-weight:600;color:var(--text)">Formatos disponíveis no FTP:</span>
-                    <label style="display:inline-flex;gap:4px;align-items:center;font-weight:normal;color:var(--text)"><input type="checkbox" id="cfgTemPng" checked> PNG/GIF</label>
+                    <label style="display:inline-flex;gap:4px;align-items:center;font-weight:normal;color:var(--text)"><input type="checkbox" id="cfgTemPng" checked> PNG/GIF/JPEG</label>
                     <label style="display:inline-flex;gap:4px;align-items:center;font-weight:normal;color:var(--text)"><input type="checkbox" id="cfgTemTif"> GeoTIFF (.tif)</label>
                 </label>
                 <label for="cfgMapProvider">Mapa-base padrão (GeoTIFF)</label>
@@ -2063,11 +2086,6 @@
                     <option value="osm">OpenStreetMap</option>
                     <option value="topo">OpenTopoMap (relevo)</option>
                 </select>
-                <label style="grid-column:1/-1;margin-top:4px;padding-top:6px;border-top:1px dashed var(--border-subtle);display:flex;align-items:center;gap:8px">
-                    <span>Níveis de pressão (hPa) — variáveis 3D</span>
-                    <span style="font-weight:normal;font-size:11px;color:var(--text-muted)">separados por vírgula</span>
-                </label>
-                <input type="text" id="cfgNiveis" placeholder="1000,925,850,700,500,300,250,200,150,100" title="Lista de níveis de pressão (hPa) disponíveis para variáveis 3D deste modelo. Use vírgulas como separador." style="grid-column:1/-1">
                 <div style="grid-column:1/-1;display:flex;gap:6px;align-items:center;padding:6px 0;border-top:1px dashed var(--border-subtle)">
                     <span style="color:var(--text-muted);font-size:11px;font-weight:600">Atalhos:</span>
                     <button type="button" class="btn btn-ghost" id="btnCfgPresetCptecTif" title="Preenche os templates com o padrão do FTP do CPTEC: PNG em /fig/, TIF em /geotiff/" style="font-size:11px;padding:3px 8px">Preset FTP CPTEC (PNG /fig/ → TIF /geotiff/)</button>
@@ -3679,7 +3697,8 @@
         let pathTpl, nameTpl;
         if (m.url_path != null || m.file_name != null) {
             pathTpl = m.url_path || '';
-            nameTpl = m.file_name || '';
+            // 3D template: se variável é 3D (nivel !== undefined) e modelo tem template 3D, usa-o
+            nameTpl = (nivel !== undefined && m.file_name_3d) ? m.file_name_3d : (m.file_name || '');
         } else if (m.url_base != null) {
             const ub = m.url_base;
             const filePh = /\{(prefixo|fct|f%\d+|passo4?|ext)\}/.exec(ub);
@@ -3953,17 +3972,13 @@
             // Se o modo gtiff e o modelo NÃO é nativo TIF, deriva a URL
             let urlTif = url;
             // Nível de pressão para variáveis 3D
-            const _nivel3d = (() => { try { const _v = getVariavel(_gtS.modelo, _gtS.variavel); return (_v && _v.is3d) ? (getGtSlotState(slotIdx).nivelAtual || '') : undefined; } catch(_){} })();
+            const _nivel3d = (() => { try { const _v = getVariavel(_gtS.modelo, _gtS.variavel); return (_v && _v.is3d) ? _resolveNivelAtual(slotIdx) : undefined; } catch(_){} })();
             if (_isGtMode && !_isNativeGt) {
                 try {
                     // Se o modelo tem rota TIF própria, monta com substituição temporária do modelo
                     const hasOwnTifRoute = _gtM && ((_gtM.url_path_tif && !_gtM.same_url_for_tif) || (_gtM.file_name_tif && !_gtM.same_name_for_tif));
                     if (hasOwnTifRoute) {
-                        const mTif = Object.assign({}, _gtM, {
-                            url_path: _gtM.same_url_for_tif ? _gtM.url_path : (_gtM.url_path_tif || _gtM.url_path),
-                            file_name: _gtM.same_name_for_tif ? _gtM.file_name : (_gtM.file_name_tif || _gtM.file_name),
-                            extensao: _gtM.extensao_tif || '.tif'
-                        });
+                        const mTif = _buildMTifModel(_gtM);
                         const orig = modelos[_gtS.modelo];
                         modelos[_gtS.modelo] = mTif;
                         try {
@@ -4945,7 +4960,28 @@
             const caminhoCell = tip.querySelector('[data-info="caminho"]');
             const arquivoCell = tip.querySelector('[data-info="arquivo"]');
             const stripEl = el.querySelector('[data-info="filenameStrip"]');
-            const url = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: epSnap, nivel: _getSlotNivel(i) });
+            // Em modo GeoTIFF (nativo ou overlay), exibir a URL TIF real que será carregada
+            const _infoM = modelos[s.modelo] || {};
+            const _infoIsNativeGt = (typeof SisMOM_GeoTIFF !== 'undefined') && SisMOM_GeoTIFF.isGeoTiffModel(_infoM);
+            const _infoIsGtMode = (typeof appMode !== 'undefined' && appMode === 'gtiff');
+            const _infoNivel = _getSlotNivel(i);
+            let url;
+            if (_infoIsNativeGt || _infoIsGtMode) {
+                // Modelo com rota TIF própria: substituição temporária de modelo
+                const _hasOwnTif = _infoM && ((_infoM.url_path_tif && !_infoM.same_url_for_tif) || (_infoM.file_name_tif && !_infoM.same_name_for_tif));
+                if (_hasOwnTif) {
+                    const _mTif = _buildMTifModel(_infoM);
+                    const _origM = modelos[s.modelo];
+                    modelos[s.modelo] = _mTif;
+                    try { url = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: epSnap, nivel: _infoNivel }); }
+                    finally { modelos[s.modelo] = _origM; }
+                } else {
+                    // Nativo TIF ou derivado sem rota própria: usa tif:true para extensão correta
+                    url = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: epSnap, nivel: _infoNivel, tif: true });
+                }
+            } else {
+                url = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: epSnap, nivel: _infoNivel });
+            }
             if (url) {
                 const lastSlash = url.lastIndexOf('/');
                 const path = lastSlash >= 0 ? url.slice(0, lastSlash) : '';
@@ -5531,61 +5567,30 @@
         // ── Níveis de pressão para variáveis 3D ──
         const niveisInp = document.getElementById('cfgNiveis');
         if (niveisInp) niveisInp.value = Array.isArray(m.niveis) ? m.niveis.join(',') : (m.niveis || '');
-        // ── Template TIF unificado: campo único com auto-split diretório/arquivo ──
-        const sameTifCb = document.getElementById('cfgSameTif');
-        const tifInp    = document.getElementById('cfgTifTemplate');
-        const tifPrev   = document.getElementById('cfgTifSplitPreview');
-        // Checkbox: "usar o mesmo do PNG" — verdadeiro quando ambos same_* são true
-        sameTifCb.checked = (m.same_url_for_tif !== false) && (m.same_name_for_tif !== false);
-        // Combinar url_path_tif + file_name_tif num campo só
-        const _tpRaw = m.url_path_tif || '';
-        const _tnRaw = m.file_name_tif || '';
-        const _tifCombined = (_tpRaw && _tnRaw)
-            ? (_tpRaw.endsWith('/') ? _tpRaw : _tpRaw + '/') + _tnRaw
-            : (_tpRaw + _tnRaw);
-        tifInp.value = _tifCombined;
-        // Preview: mostra diretório (azul) + nome do arquivo (verde) após o split
-        function _tifPreviewUpdate() {
-            const val = tifInp.value.trim();
-            if (!val) { tifPrev.style.display = 'none'; return; }
-            const sp = _tifTemplateSplit(val);
-            if (!sp.path && !sp.name) { tifPrev.style.display = 'none'; return; }
-            tifPrev.style.display = '';
-            // Detecta {ext} no nome e resolve para o sufixo TIF atual
-            const extTifVal = (document.getElementById('cfgExtensaoTif') || {}).value || '.tif';
-            const nameResolved = sp.name ? sp.name.replace(/\{ext\}/g, '<em style="color:var(--accent-green,#4caf50);font-style:normal">' + escAttr(extTifVal) + '</em>') : '';
-            // Aviso se o nome tem extensão PNG/GIF hardcoded
-            const warnPng = sp.name && /\.(png|gif|jpe?g)(\?|$)/i.test(sp.name);
-            tifPrev.innerHTML =
-                (sp.path ? '<span class="tsp-dir">📁 ' + escAttr(sp.path) + '</span>' : '') +
-                (sp.path && sp.name ? '<span class="tsp-sep">+</span>' : '') +
-                (sp.name ? '<span class="tsp-file">📄 ' + nameResolved + '</span>' : '') +
-                (warnPng ? '<span style="color:#f87171;font-size:10px;font-weight:600;flex-basis:100%">⚠ arquivo TIF com sufixo PNG/GIF — use {ext} ou .tif</span>' : '');
-        }
-        function updTifVis() {
-            const hide = sameTifCb.checked;
-            tifInp.style.display = hide ? 'none' : '';
-            tifPrev.style.display = (hide || !tifInp.value.trim()) ? 'none' : '';
-            if (!hide) _tifPreviewUpdate();
-        }
-        sameTifCb.onchange = updTifVis;
-        tifInp.oninput = _tifPreviewUpdate;
-        updTifVis();
+        // ── Template TIF: campos separados (url_path_tif e file_name_tif) ──
+        const tifUrlInp  = document.getElementById('cfgTifTemplate');   // URL path
+        const tifNameInp = document.getElementById('cfgTifFileName');   // filename
+        if (tifUrlInp)  tifUrlInp.value  = m.url_path_tif  || '';
+        if (tifNameInp) tifNameInp.value = m.file_name_tif || '';
+        // ── Templates 3D ──
+        const fn3dInp    = document.getElementById('cfgFileName3D');
+        const tifFn3dInp = document.getElementById('cfgTifFileName3D');
+        if (fn3dInp)    fn3dInp.value    = m.file_name_3d     || '';
+        if (tifFn3dInp) tifFn3dInp.value = m.file_name_tif_3d || '';
         // Preset: FTP do CPTEC — PNG em /fig/, TIF em /geotiff/ + nome padrão
         const btnPreset = document.getElementById('btnCfgPresetCptecTif');
         if (btnPreset) btnPreset.onclick = () => {
             const cbTif  = document.getElementById('cfgTemTif');
             const cbPng  = document.getElementById('cfgTemPng');
-            const stCb   = document.getElementById('cfgSameTif');
             const inpUrl = document.getElementById('cfgUrlPath');
-            const tifI   = document.getElementById('cfgTifTemplate');
+            const tifUI  = document.getElementById('cfgTifTemplate');
+            const tifNI  = document.getElementById('cfgTifFileName');
             if (cbPng) cbPng.checked = true;
             if (cbTif) cbTif.checked = true;
-            if (stCb) stCb.checked = false;  // rota própria para TIF
             const urlPng = (inpUrl && inpUrl.value) || 'https://ftp1.cptec.inpe.br/pesquisa/SisMOM/sismom_fig/sismom_oper/{data}/{escopo2}/{escopo1}/fig';
             const urlTif = urlPng.replace(/\/fig(\b|$)/g, '/geotiff$1').replace(/\/fig\//g, '/geotiff/');
-            if (tifI) tifI.value = (urlTif.endsWith('/') ? urlTif : urlTif + '/') + '{prefixo}-{F%4}{ext}';
-            updTifVis();
+            if (tifUI) tifUI.value = urlTif;
+            if (tifNI) tifNI.value = '{prefixo}-{F%4}{ext}';
             try { showToast && showToast('Preset CPTEC aplicado'); } catch (_) {}
         };
         const tbody = document.getElementById('varTableBody');
@@ -5665,18 +5670,15 @@
         // Níveis de pressão para variáveis 3D
         const _niveisInp = document.getElementById('cfgNiveis');
         m.niveis = _niveisInp ? _niveisInp.value.trim() : (m.niveis || '');
-        // Template TIF unificado: auto-split em url_path_tif + file_name_tif
-        const _sameTif = !!document.getElementById('cfgSameTif').checked;
-        m.same_url_for_tif  = _sameTif;
-        m.same_name_for_tif = _sameTif;
-        if (_sameTif) {
-            m.url_path_tif  = '';
-            m.file_name_tif = '';
-        } else {
-            const _tifSp = _tifTemplateSplit(document.getElementById('cfgTifTemplate').value || '');
-            m.url_path_tif  = _tifSp.path.replace(/\/$/, '');  // armazenar sem trailing slash
-            m.file_name_tif = _tifSp.name;
-        }
+        // Template TIF: campos separados url_path_tif + file_name_tif
+        // (sem checkbox — campos vazios = fallback para rota da Imagem Web via _buildMTifModel)
+        m.same_url_for_tif  = false;
+        m.same_name_for_tif = false;
+        m.url_path_tif  = ((document.getElementById('cfgTifTemplate')  || {}).value || '').trim().replace(/\/$/, '');
+        m.file_name_tif = ((document.getElementById('cfgTifFileName')  || {}).value || '').trim();
+        // Templates 3D
+        m.file_name_3d     = ((document.getElementById('cfgFileName3D')    || {}).value || '').trim();
+        m.file_name_tif_3d = ((document.getElementById('cfgTifFileName3D') || {}).value || '').trim();
         // Discard the legacy field after editing — url_path/file_name take precedence.
         delete m.url_base;
         const rows = document.querySelectorAll('#varTableBody tr');
@@ -6488,6 +6490,8 @@
         resolverEAplicarDataM1(false);
         // Liga UI de visualização GeoTIFF (botão no header + modal)
         try { bindGeoTIFFUI(); } catch (e) { console.error('bindGeoTIFFUI', e); }
+        // Liga toolbar do modo GeoTIFF (selectors de modelo/variável/nível/data/passo)
+        try { gtBindToolbar(); } catch (e) { console.error('gtBindToolbar', e); }
         // Liga tabs de modo (PNG/GIF | GeoTIFF) e aplica modo persistido
         try { bindModeTabs(); setAppMode(appMode); } catch (e) { console.error('mode tabs', e); }
         // Liga botão "edge" da sidebar esquerda (reusa toggleSidebar existente)
@@ -7004,8 +7008,39 @@
         try {
             const _s = state.slots[slotIdx];
             const _v = (typeof getVariavel === 'function') ? getVariavel(_s.modelo, _s.variavel) : null;
-            return (_v && _v.is3d) ? (getGtSlotState(slotIdx).nivelAtual || '') : undefined;
+            return (_v && _v.is3d) ? _resolveNivelAtual(slotIdx) : undefined;
         } catch (_) { return undefined; }
+    }
+    // Retorna o nível de pressão selecionado para o slot.
+    // Se nivelAtual ainda for null (ex: primeiro render), usa automaticamente o
+    // primeiro nível da lista do modelo e o persiste no estado para chamadas subsequentes.
+    function _resolveNivelAtual(slotIdx) {
+        try {
+            const _gt = getGtSlotState(slotIdx);
+            if (_gt.nivelAtual != null && _gt.nivelAtual !== '') return _gt.nivelAtual;
+            const _s  = state.slots[slotIdx];
+            const _m  = _s && modelos[_s.modelo];
+            const _niv = (_m && _m.niveis) || '';
+            const _arr = _niv.split(',').map(function(n){ return n.trim(); }).filter(Boolean);
+            if (_arr.length) { _gt.nivelAtual = _arr[0]; return _arr[0]; }
+            return '';
+        } catch (_) { return ''; }
+    }
+    // Constrói objeto de modelo temporário para URLs TIF (substitui url_path/file_name/extensao).
+    // Regra: se file_name_tif não tem {ext} nem extensão explícita, acrescenta {ext} automaticamente.
+    function _buildMTifModel(m) {
+        if (!m) return m;
+        let _fn = m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name);
+        // Auto-complete extension: se file_name_tif é não-vazio mas não inclui {ext} nem extensão literal
+        if (!m.same_name_for_tif && m.file_name_tif && !/\{ext\}|\.[a-zA-Z]{2,5}(\?|$)/.test(m.file_name_tif)) {
+            _fn = _fn + '{ext}';
+        }
+        return Object.assign({}, m, {
+            url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path),
+            file_name: _fn,
+            file_name_3d: m.file_name_tif_3d || m.file_name_3d,  // template 3D TIF (ou fallback web)
+            extensao: m.extensao_tif || '.tif'
+        });
     }
     const _gtSlotMap = [];
     // Retorna o mapa do painel Mi ativo (fallback ao mapa legado do modal).
@@ -9360,18 +9395,14 @@
         let completed = 0;
         let nextIdx = 0;
 
-        const _nivel3dTs = (v.is3d && typeof getGtSlotState === 'function') ? (getGtSlotState(slotIdx).nivelAtual || '') : undefined;
+        const _nivel3dTs = (v.is3d && typeof getGtSlotState === 'function') ? _resolveNivelAtual(slotIdx) : undefined;
         function _buildUrlFor(passo_h) {
             try {
                 if (isNativeGt) {
                     return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dTs, tif: true });
                 }
                 if (hasOwnTifRoute) {
-                    const mTif = Object.assign({}, m, {
-                        url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path),
-                        file_name: m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name),
-                        extensao: m.extensao_tif || '.tif'
-                    });
+                    const mTif = _buildMTifModel(m);
                     const orig = modelos[s.modelo];
                     modelos[s.modelo] = mTif;
                     try { return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dTs }); }
@@ -9551,12 +9582,12 @@
         if (passoMin != null) idxMin = Math.max(_idxMinDefP, Math.round(passoMin / freq));
         if (passoMax != null) idxMax = Math.min(fileMax, Math.floor(passoMax / freq));
         if (idxMin > idxMax) throw new Error('intervalo de passos inválido.');
-        const _nivel3dPoly = (v.is3d && typeof getGtSlotState === 'function') ? (getGtSlotState(slotIdx).nivelAtual || '') : undefined;
+        const _nivel3dPoly = (v.is3d && typeof getGtSlotState === 'function') ? _resolveNivelAtual(slotIdx) : undefined;
         const _buildUrlFor = function (passo_h) {
             try {
                 if (isNativeGt) return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dPoly, tif: true });
                 if (hasOwnTifRoute) {
-                    const mTif = Object.assign({}, m, { url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path), file_name: m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name), extensao: m.extensao_tif || '.tif' });
+                    const mTif = _buildMTifModel(m);
                     const orig = modelos[s.modelo]; modelos[s.modelo] = mTif;
                     try { return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dPoly }); } finally { modelos[s.modelo] = orig; }
                 }
@@ -13008,11 +13039,7 @@
                 const hasOwnTifRoute = (m.url_path_tif && !m.same_url_for_tif) || (m.file_name_tif && !m.same_name_for_tif);
                 let url;
                 if (hasOwnTifRoute) {
-                    const mTif = Object.assign({}, m, {
-                        url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path),
-                        file_name: m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name),
-                        extensao: m.extensao_tif || '.tif'
-                    });
+                    const mTif = _buildMTifModel(m);
                     const orig = modelos[modeloId];
                     modelos[modeloId] = mTif;
                     try { url = montarURL({ modelo: modeloId, data: dataFTP, variavel: variavelId, passo }); }
@@ -17951,11 +17978,7 @@
                 return montarURL({ modelo: src.modeloId, data: src.data, variavel: src.variavelId, passo: passo_h, tif: true });
             }
             if (hasOwnTifRoute) {
-                const mTif = Object.assign({}, m, {
-                    url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path),
-                    file_name: m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name),
-                    extensao: m.extensao_tif || '.tif'
-                });
+                const mTif = _buildMTifModel(m);
                 const orig = modelos[src.modeloId];
                 modelos[src.modeloId] = mTif;
                 try { return montarURL({ modelo: src.modeloId, data: src.data, variavel: src.variavelId, passo: passo_h }); }
@@ -20847,24 +20870,39 @@
             const _nivelWrap = document.getElementById('gtNivelWrap');
             const _nivelSel  = document.getElementById('gtNivelSel');
             if (_nivelWrap && _nivelSel && _vs3) {
-                const _vconf3 = (typeof getVariavel === 'function') ? getVariavel(s.modelo, _vs3.value) : null;
+                // Usa s.variavel (estado autoritativo) — _vs3.value pode estar desatualizado
+                const _varId = s.variavel || _vs3.value;
+                const _vconf3 = (typeof getVariavel === 'function') ? getVariavel(s.modelo, _varId) : null;
                 const _is3d   = !!(_vconf3 && _vconf3.is3d);
-                _nivelWrap.style.display = _is3d ? 'inline-flex' : 'none';
                 if (_is3d) {
                     const _m3 = modelos[s.modelo];
                     const _nivStr = (_m3 && _m3.niveis) || '';
                     const _nivArr = _nivStr.split(',').map(function(n){ return n.trim(); }).filter(Boolean);
-                    const _curOpts = Array.from(_nivelSel.options).map(function(o){ return o.value; }).join(',');
+                    const _curOpts = Array.from(_nivelSel.options).map(function(o){ return o.value; }).filter(function(v){ return v; }).join(',');
                     if (_curOpts !== _nivArr.join(',')) {
-                        _nivelSel.innerHTML = _nivArr.map(function(niv){ return '<option value="' + niv + '">' + niv + ' hPa</option>'; }).join('');
+                        if (_nivArr.length) {
+                            _nivelSel.innerHTML = _nivArr.map(function(niv){ return '<option value="' + niv + '">' + niv + ' hPa</option>'; }).join('');
+                        } else {
+                            // Sem níveis configurados: mostra opção de aviso
+                            _nivelSel.innerHTML = '<option value="" disabled selected>— configure Níveis no modelo —</option>';
+                        }
                     }
+                    // Sempre mostra o wrap quando variável é 3D
+                    _nivelWrap.style.display = 'inline-flex';
                     const _gt3 = getGtSlotState(0);
-                    if (_gt3.nivelAtual != null && _nivelSel.querySelector('option[value="' + _gt3.nivelAtual + '"]')) {
+                    const _prevNivel = _gt3.nivelAtual;
+                    if (_gt3.nivelAtual != null && _gt3.nivelAtual !== '' && _nivelSel.querySelector('option[value="' + _gt3.nivelAtual + '"]')) {
                         _nivelSel.value = String(_gt3.nivelAtual);
-                    } else if (_nivelSel.options.length) {
+                    } else if (_nivelSel.options.length && _nivelSel.options[0].value) {
                         _gt3.nivelAtual = _nivelSel.options[0].value;
                         _nivelSel.value = _gt3.nivelAtual;
                     }
+                    // Se nivelAtual mudou de null para um valor real, re-renderiza
+                    if (!_prevNivel && _gt3.nivelAtual) {
+                        try { renderTudo(); } catch (_r) {}
+                    }
+                } else {
+                    _nivelWrap.style.display = 'none';
                 }
             }
         } catch (_) {}
@@ -21029,12 +21067,16 @@
                 modal.classList.add('gt-sidebar');
                 modal.classList.add('open');
             }
+            // Garante que a toolbar GeoTIFF está vinculada (idempotente)
+            try { gtBindToolbar(); } catch (_) {}
             // IMPORTANTE: gtSelectPanel ANTES de renderTudo, para que o mapa-base
             // padrão do modelo (m.mapProvider) seja aplicado ao gtSlotState ANTES
             // do primeiro carregarGeoTIFFParaSlot — senão o fetch acontece com
             // gt.mapEnabled=false e o mapa não aparece automaticamente.
             try { gtRenderPanelPins(); } catch (_) {}
             try { gtSelectPanel(gtActivePanel || 0); } catch (_) {}
+            // Sincroniza toolbar (popula selects, mostra dropdown de nível se 3D)
+            try { gtSyncToolbarFromState(); } catch (_) {}
             try { renderTudo(); } catch (_) {}
         }
     }
@@ -21077,11 +21119,7 @@
             // Se o modelo tem rota TIF própria, usa essa; senão deriva do PNG
             const hasOwnTifRoute = (m.url_path_tif && !m.same_url_for_tif) || (m.file_name_tif && !m.same_name_for_tif);
             if (hasOwnTifRoute) {
-                const mTif = Object.assign({}, m, {
-                    url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path),
-                    file_name: m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name),
-                    extensao: m.extensao_tif || '.tif'
-                });
+                const mTif = _buildMTifModel(m);
                 // Substituir temporariamente o modelo no map global e montar URL
                 const orig = modelos[s.modelo];
                 modelos[s.modelo] = mTif;
