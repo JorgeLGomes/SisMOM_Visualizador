@@ -1429,6 +1429,15 @@
         }
         .modal-body::-webkit-scrollbar { width: 8px; }
         .modal-body::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 4px; }
+        .tif-split-preview {
+            display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline;
+            font-size:11px; line-height:1.4; padding:4px 8px;
+            background:var(--bg-subtle, rgba(0,0,0,0.04));
+            border-radius:4px; margin-top:-4px;
+        }
+        .tif-split-preview .tsp-dir  { color:var(--accent, #4a90d9); word-break:break-all; }
+        .tif-split-preview .tsp-sep  { color:var(--text-muted); font-weight:600; }
+        .tif-split-preview .tsp-file { color:var(--accent-green, #4caf50); }
 
         .form-grid {
             display: grid;
@@ -2044,16 +2053,12 @@
                     <option value=".tif" selected>.tif</option>
                     <option value=".tiff">.tiff</option>
                 </select>
-                <label for="cfgUrlPathTif" style="display:flex;align-items:center;gap:8px">
-                    <span>Template do endereço (TIF)</span>
-                    <label style="font-weight:normal;font-size:11px;color:var(--text-muted);display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="cfgSameUrlForTif" checked> usar o mesmo do PNG</label>
+                <label for="cfgTifTemplate" style="display:flex;align-items:center;gap:8px">
+                    <span>Template TIF (diretório/arquivo)</span>
+                    <label style="font-weight:normal;font-size:11px;color:var(--text-muted);display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="cfgSameTif" checked> usar o mesmo do PNG</label>
                 </label>
-                <input type="text" id="cfgUrlPathTif" placeholder="https://.../{yyyy}{mm}{dd}{hh}/{escopo1}/{escopo2}/geotiff">
-                <label for="cfgFileNameTif" style="display:flex;align-items:center;gap:8px">
-                    <span>Template Nome Arq. (TIF)</span>
-                    <label style="font-weight:normal;font-size:11px;color:var(--text-muted);display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="cfgSameNameForTif" checked> usar o mesmo do PNG</label>
-                </label>
-                <input type="text" id="cfgFileNameTif" placeholder="{prefixo}{f%3}.tif">
+                <input type="text" id="cfgTifTemplate" placeholder="https://.../{yyyy}{mm}{dd}{hh}/geotiff/{prefixo}-{F%3}.tif" title="Template completo do TIF. Digite o caminho + nome do arquivo numa só linha. O sistema detecta automaticamente onde o diretório termina e o nome do arquivo começa.">
+                <div id="cfgTifSplitPreview" class="tif-split-preview" style="display:none"></div>
                 <div style="grid-column:1/-1;display:flex;gap:6px;align-items:center;padding:6px 0;border-top:1px dashed var(--border-subtle)">
                     <span style="color:var(--text-muted);font-size:11px;font-weight:600">Atalhos:</span>
                     <button type="button" class="btn btn-ghost" id="btnCfgPresetCptecTif" title="Preenche os templates com o padrão do FTP do CPTEC: PNG em /fig/, TIF em /geotiff/" style="font-size:11px;padding:3px 8px">Preset FTP CPTEC (PNG /fig/ → TIF /geotiff/)</button>
@@ -3567,6 +3572,31 @@
        url_path/file_name, we split url_base at the last "/" before a file
        placeholder; if no such split is possible, we append the legacy
        "/{arquivo}-{pad4}.png" form. */
+    /* ─── _tifTemplateSplit: auto-detects directory/filename boundary in a TIF template ───
+       Splits a combined TIF template string at the last "/" that precedes a
+       filename placeholder ({prefixo}, {f%N}, {F%N}, {N%N}, {passo4?}, {ext}).
+       Returns { path, name } — both without leading/trailing separators (path
+       keeps its trailing "/" so montarURL-style concat works). */
+    function _tifTemplateSplit(combined) {
+        if (!combined) return { path: '', name: '' };
+        // File-part placeholders: prefixo, fct, f%N, F%?N, N%?N, passo4, passo, ext
+        const filePh = /\{(prefixo|fct|f%\d+|F%?\d*|N%?\d*|passo4?|ext)\}/.exec(combined);
+        if (filePh) {
+            const before = combined.slice(0, filePh.index);
+            const lastSlash = before.lastIndexOf('/');
+            if (lastSlash >= 0) {
+                return { path: combined.slice(0, lastSlash + 1), name: combined.slice(lastSlash + 1) };
+            }
+            return { path: '', name: combined };
+        }
+        // No explicit file placeholder — try last "/" as fallback
+        const lastSlash = combined.lastIndexOf('/');
+        if (lastSlash > 0) {
+            return { path: combined.slice(0, lastSlash + 1), name: combined.slice(lastSlash + 1) };
+        }
+        return { path: '', name: combined };
+    }
+
     function montarURL({ modelo, data, variavel, passo }) {
         const m = modelos[modelo];
         if (!m) return null;
@@ -5477,44 +5507,54 @@
         if (mapProvSel) mapProvSel.value = (['none','esri','osm','topo'].indexOf(m.mapProvider) >= 0) ? m.mapProvider : 'esri';
         const extTifSel = document.getElementById('cfgExtensaoTif');
         if (extTifSel) extTifSel.value = m.extensao_tif || '.tif';
-        const sameUrl = document.getElementById('cfgSameUrlForTif');
-        const sameName = document.getElementById('cfgSameNameForTif');
-        sameUrl.checked = (m.same_url_for_tif !== false);  // default true
-        sameName.checked = (m.same_name_for_tif !== false);
-        document.getElementById('cfgUrlPathTif').value = m.url_path_tif || '';
-        document.getElementById('cfgFileNameTif').value = m.file_name_tif || '';
-        // Aplicar visibilidade dos campos TIF (hide quando "same...")
-        function updTifVis() {
-            const showUrl = !sameUrl.checked;
-            const showNm = !sameName.checked;
-            document.getElementById('cfgUrlPathTif').style.display = showUrl ? '' : 'none';
-            document.getElementById('cfgFileNameTif').style.display = showNm ? '' : 'none';
+        // ── Template TIF unificado: campo único com auto-split diretório/arquivo ──
+        const sameTifCb = document.getElementById('cfgSameTif');
+        const tifInp    = document.getElementById('cfgTifTemplate');
+        const tifPrev   = document.getElementById('cfgTifSplitPreview');
+        // Checkbox: "usar o mesmo do PNG" — verdadeiro quando ambos same_* são true
+        sameTifCb.checked = (m.same_url_for_tif !== false) && (m.same_name_for_tif !== false);
+        // Combinar url_path_tif + file_name_tif num campo só
+        const _tpRaw = m.url_path_tif || '';
+        const _tnRaw = m.file_name_tif || '';
+        const _tifCombined = (_tpRaw && _tnRaw)
+            ? (_tpRaw.endsWith('/') ? _tpRaw : _tpRaw + '/') + _tnRaw
+            : (_tpRaw + _tnRaw);
+        tifInp.value = _tifCombined;
+        // Preview: mostra diretório (azul) + nome do arquivo (verde) após o split
+        function _tifPreviewUpdate() {
+            const val = tifInp.value.trim();
+            if (!val) { tifPrev.style.display = 'none'; return; }
+            const sp = _tifTemplateSplit(val);
+            if (!sp.path && !sp.name) { tifPrev.style.display = 'none'; return; }
+            tifPrev.style.display = '';
+            tifPrev.innerHTML =
+                (sp.path ? '<span class="tsp-dir">📁 ' + escAttr(sp.path) + '</span>' : '') +
+                (sp.path && sp.name ? '<span class="tsp-sep">+</span>' : '') +
+                (sp.name ? '<span class="tsp-file">📄 ' + escAttr(sp.name) + '</span>' : '');
         }
-        sameUrl.onchange = updTifVis;
-        sameName.onchange = updTifVis;
+        function updTifVis() {
+            const hide = sameTifCb.checked;
+            tifInp.style.display = hide ? 'none' : '';
+            tifPrev.style.display = (hide || !tifInp.value.trim()) ? 'none' : '';
+            if (!hide) _tifPreviewUpdate();
+        }
+        sameTifCb.onchange = updTifVis;
+        tifInp.oninput = _tifPreviewUpdate;
         updTifVis();
-        // Preset: FTP do CPTEC — PNG em /fig/, TIF em /geotiff/
+        // Preset: FTP do CPTEC — PNG em /fig/, TIF em /geotiff/ + nome padrão
         const btnPreset = document.getElementById('btnCfgPresetCptecTif');
         if (btnPreset) btnPreset.onclick = () => {
             const cbTif  = document.getElementById('cfgTemTif');
             const cbPng  = document.getElementById('cfgTemPng');
-            const sameU  = document.getElementById('cfgSameUrlForTif');
-            const sameN  = document.getElementById('cfgSameNameForTif');
+            const stCb   = document.getElementById('cfgSameTif');
             const inpUrl = document.getElementById('cfgUrlPath');
-            const inpTifUrl = document.getElementById('cfgUrlPathTif');
-            const inpTifName = document.getElementById('cfgFileNameTif');
-            // Marca PNG+TIF disponíveis
+            const tifI   = document.getElementById('cfgTifTemplate');
             if (cbPng) cbPng.checked = true;
             if (cbTif) cbTif.checked = true;
-            // Desmarca "usar mesmo do PNG" pra TIF ter rota dedicada
-            if (sameU) sameU.checked = false;
-            if (sameN) sameN.checked = false;
-            // Deriva URL TIF a partir do PNG: /fig/ → /geotiff/
+            if (stCb) stCb.checked = false;  // rota própria para TIF
             const urlPng = (inpUrl && inpUrl.value) || 'https://ftp1.cptec.inpe.br/pesquisa/SisMOM/sismom_fig/sismom_oper/{data}/{escopo2}/{escopo1}/fig';
             const urlTif = urlPng.replace(/\/fig(\b|$)/g, '/geotiff$1').replace(/\/fig\//g, '/geotiff/');
-            if (inpTifUrl) inpTifUrl.value = urlTif;
-            // Nome TIF: padrão {prefixo}-{F%4}.tif
-            if (inpTifName) inpTifName.value = '{prefixo}-{F%4}.tif';
+            if (tifI) tifI.value = (urlTif.endsWith('/') ? urlTif : urlTif + '/') + '{prefixo}-{F%4}.tif';
             updTifVis();
             try { showToast && showToast('Preset CPTEC aplicado'); } catch (_) {}
         };
@@ -5591,10 +5631,18 @@
         const _mpSel = document.getElementById('cfgMapProvider');
         if (_mpSel && _mpSel.value) m.mapProvider = _mpSel.value;
         m.extensao_tif = document.getElementById('cfgExtensaoTif').value || '.tif';
-        m.same_url_for_tif = !!document.getElementById('cfgSameUrlForTif').checked;
-        m.same_name_for_tif = !!document.getElementById('cfgSameNameForTif').checked;
-        m.url_path_tif = document.getElementById('cfgUrlPathTif').value;
-        m.file_name_tif = document.getElementById('cfgFileNameTif').value;
+        // Template TIF unificado: auto-split em url_path_tif + file_name_tif
+        const _sameTif = !!document.getElementById('cfgSameTif').checked;
+        m.same_url_for_tif  = _sameTif;
+        m.same_name_for_tif = _sameTif;
+        if (_sameTif) {
+            m.url_path_tif  = '';
+            m.file_name_tif = '';
+        } else {
+            const _tifSp = _tifTemplateSplit(document.getElementById('cfgTifTemplate').value || '');
+            m.url_path_tif  = _tifSp.path.replace(/\/$/, '');  // armazenar sem trailing slash
+            m.file_name_tif = _tifSp.name;
+        }
         // Discard the legacy field after editing — url_path/file_name take precedence.
         delete m.url_base;
         const rows = document.querySelectorAll('#varTableBody tr');
