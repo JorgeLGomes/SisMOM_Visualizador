@@ -1,85 +1,23 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.13.0 — Build marker `20260602-3350-veccache`
-**Arquivos críticos (sempre em lockstep):**
+**Versão atual:** v2.13.0 — Build marker `f22-temporal-profile`
+**Arquivos críticos (sempre em lockstep — md5 idêntico):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
 - `miscelaneas/manifest.json` + `miscelaneas/*.geojson` (raiz + electron-app)
 
-> **Importante:** todo patch no HTML deve ser aplicado nos DOIS arquivos. Validar com `node --check` e `md5sum` antes de seguir. O Edit tool tem tendência a truncar o tail; SEMPRE checar `</html>` final e reconstruir a partir do `gt-misc-data-corais_br` se faltar.
+**MD5 atual:** `06a184737e0a7923380670e5d14ee1c5`
+**Linhas do HTML:** ~22 448
 
-> **Mudanças de UI v2.4 → v2.5:** o painel direito foi reorganizado em árvore ERMA-style (Background / Miscelânea / Camadas / Ferramentas) com sub-menu **Configuração da Camada** por nó (paleta/min-max/clip/contornos/calc per-layer) movido fisicamente por `appendChild`. Nova **Calculadora dupla**: expressão livre entre camadas em Ferramentas + operador-escalar per-layer na Configuração da Camada. Item **"Abrir TIF local (inspeção)"** foi removido do menu Ferramentas (use **+ Adicionar GeoTIFF/GeoJSON** ou a aba dedicada do header).
+> **Regra de ouro:** todo patch no HTML deve ser aplicado nos DOIS arquivos. Validar sempre com:
+> ```
+> python3 -c "import re,subprocess,tempfile,os; html=open('figuras_SisMOM_v23.html',encoding='utf-8').read(); scripts=re.findall(r'<script(?:(?!\btype\b)[^>])*>(.*?)</script>',html,re.DOTALL); all_js='\n;\n'.join(scripts); f=tempfile.NamedTemporaryFile(suffix='.js',delete=False,mode='w',encoding='utf-8'); f.write(all_js); fname=f.name; f.close(); r=subprocess.run(['node','--check',fname],capture_output=True,text=True); os.unlink(fname); print(r.stderr or 'OK')"
+> cp figuras_SisMOM_v23.html electron-app/figuras_SisMOM_v23.html
+> md5sum figuras_SisMOM_v23.html electron-app/figuras_SisMOM_v23.html
+> ```
 
-> **Mudanças v2.5 → v2.6:** (1) Nova **Calculadora Temporal** em Configuração da Camada com sintaxe `tN`/`hN`, ranges `t1..t24`, funções `sum/mean/max/min/count`. (2) **Exportar GeoJSON** (raster→nuvem de pontos): campo cheio, polígono/retângulo desenhado, ou recorte por camada vetorial carregada. Também **série temporal de ponto → GeoJSON**. (3) **Importar Shapefile** (.shp standalone ou .zip) como camada vetorial — parser puro JS embarcado + ZIP reader via `DecompressionStream`. (4) Fix HUD lat/lon/valor (default ON + toggle na árvore ERMA). (5) Botão `👁/⊘` explícito em cada camada com dim de row ao ocultar. (6) Renderer respeita `style.noVertices` (linha pura sem bolinhas em cada vértice — essencial para shapes com centenas de vértices).
-
-> **Mudanças v2.6 → v2.7:** (1) **Python helper opcional** (FastAPI + rasterio + httpx) embedado no Electron como subprocess — acelera extração temporal, calculadora temporal e perfil de linha com fetches paralelos (~10× speedup esperado). Frontend tem **fallback transparente** para JS quando o helper está offline. Badge UI no canto inferior direito mostra status `⚡ Python` ou `JS only`. (2) Sub-menu da árvore ERMA renomeado de `⚙ Configuração da Camada` → `🛠 Ferramentas`. (3) **Slider de opacidade** adicionado no painel (sincroniza com a camada ativa ao expandir nós). (4) Widget de calculadora escalar per-layer (op + escalar + Aplicar) removido — coberto pelo textarea de Tempos. (5) **Marching squares otimizado** (single-pass + máscara pré-computada Uint8Array + early-skip por cellMin/cellMax + zero closures no hot loop): ~8-15× mais rápido. (6) **Cache de contornos** com fingerprint dos dados (URL do TIF para primary) + LRU true (touch on hit) + cap 100 — animações com contornos ligados ficam quase instantâneas após primeira passagem.
-
-> **Mudanças v2.7 → v2.8:** (1) **Estatísticas no GeoJSON exportado**: `metadata.stats` inclui min, max, soma, média, média ponderada pela área (Soma / Área km²) e área total em m². (2) **Popup de resultado** após Polígono/Retângulo/Por camada/Área total — não auto-salva mais; usuário vê tabela com stats e decide via botão **💾 Salvar GeoJSON**. (3) **Reorganização da árvore Exportar GeoJSON** — 5 opções top-level: ⏱ Série temporal em ponto, ▦ Por polígono, ▭ Por retângulo, 🗂️ Por camada vetorial, 🌐 Área total da camada. (4) **Ícone "?" com popup de help** em cada seção (Calculadora, Exportar, Tempos) substituindo descrições inline; gtShowHelpPopup com auto-posicionamento. (5) **Highlight visual da opção selecionada** em Exportar GeoJSON — borda + background cyan + bullet `●` enquanto a ferramenta está ativa; flash animado na Área total.
-
-> **Mudanças v2.8 → v2.9:**
->
-> **Python helper estendido:** (1) **Cache decoded em memória** (`OrderedDict` LRU 256 entradas) + **endpoint `/v1/render/png`** que aplica paleta server-side via matplotlib (viridis/plasma/RdBu_r/terrain/...) + Pillow, com hierarquia de 4 níveis (png cache → decoded cache → disk cache → FTP). Auto vmin/vmax por percentil 5-95 quando não passado; NoData → alpha=0. `/health` reporta stats dos dois caches. (2) **Bridge JS `gtPyHelper.renderTilePNG(url, opts)`** retorna `ImageBitmap` pronto para `drawImage` (fallback `HTMLImageElement` quando `createImageBitmap` indisponível). Opt-in, não altera caminho principal de animação.
->
-> **Polígonos do usuário (novo módulo completo):** (1) Storage `gtSavedPolygons` em `localStorage` (chave `gisele.savedPolygons.v1`) com `save/list/getById/exists/remove/rename/setColor/clearAll`. Em Electron, persiste em disco (`%APPDATA%\GISELE\Local Storage`). (2) **Submenu "👤 Polígonos do usuário"** dentro de Ferramentas com lista colapsável `📋 Lista de salvos (N)`, ações `✏️ Desenhar e salvar` / `📥 Exportar` / `📤 Importar`. Cada linha: checkbox de visualização (toggle on/off no mapa, cor magenta default) + nome + **⚙ gerenciar** (renomeia + mostra perímetro/área/bbox/data) + **color picker** (contorno) + **🗑 excluir**. (3) `gtAddUserPolyLayer(savedId)` converte registro salvo em `gtExtraLayer` `isUserPoly=true` (geojson FeatureCollection com 1 Polygon). Toggled-on layers aparecem automaticamente em **🗂️ Por camada vetorial** do Exportar GeoJSON com origem "Polígono do usuário". (4) **Drawing flow**: novo intent `_gtDrawIntent='save-only'` salva o polígono sem extração; `'export'` (default) abre dialog com opção de salvar + extrair. Após salvar, ativa visualização automática. (5) Export/Import via arquivo `.geojson` (FeatureCollection com metadados `# M1=…`).
->
-> **Reorganização UI massiva:** (1) **Lat/Lon/Valor** movido da toolbar para `<li>` dentro de Ferramentas (título capitalizado). (2) **Polígonos do usuário** dentro de Ferramentas (não mais em Miscelânea). (3) **Drag-and-drop reorder** das ferramentas via grip `⋮⋮` à esquerda de cada `<li>` — ordem persistida em `localStorage` chave `gisele.tools.order.v1`. Implementação via HTML5 DnD com `data-tool-id`. (4) **Boot sempre colapsado**: todas as 4 seções top-level (Background/Miscelânea/Camadas/Ferramentas) sem atributo `open`; botão Collapse folders → "Expand folders". (5) **Camadas: gear ⚙ inline + 🗑 trash** substituem `<details>` "🛠 Ferramentas" e botão `×`. Gear abre painel de Configuração inline embaixo da linha; estado ativo destaca em cyan. (6) **Polígonos do usuário no `gtRenderTreeUserPoly`** com lista colapsável memorizada entre re-renders.
->
-> **Multi-painel: bbox sync + travamento + replicação:** (1) `SisMOM_Map` ganhou API `getViewport`/`applyViewportRaw(vp)`/`setViewportChangeListener(cb)`. `_fireVp()` dispara após pan/wheel/zoomBy/fitTo/resize. Flag `_vpSilent` em `applyViewportRaw` evita loop. (2) `_gtMakeViewportPropagator(srcIdx)` copia vp do slot fonte para todos os outros via `applyViewportRaw`; guard `_gtSyncingVp` previne recursão. Novo slot copia vp do painel 1 ao ser criado. (3) **`_gtApplyMapView` lock no painel 1**: para slots ≠ 0, copia `_gtSlotMap[0].getViewport()` em vez de `fitTo(bbox)` do layer — preserva área do painel 1 ao trocar modelo em Mi 2/3/4. (4) Ao **trocar modelo em slot ≠ 0** para um diferente do painel 1, `s.data = s0.data` (alinha condição inicial; valid time alinha via `getEffectivePasso`). (5) **Lock por painel** (🔒/🔓 botão ao lado do pin): `gtLockedPanels: Set<number>`. Ações replicadas para travados: distância, linha, texto, perfil, **limpar anotações**. (6) **Perfil combinado**: amostra todos painéis-alvo, plota curvas coloridas por painel (paleta fixa azul/vermelho/verde/roxo), tooltip multi-série, CSV combinado `value_M1/M2/...`. (7) **Série temporal multi-painel**: amostragem **paralela** via `Promise.all` com progress agregado `M1:48/48✓ · M2:24/48 · M3:✗`, drawing incremental, sort por `slotIdx`, CSV combinado.
->
-> **Gráficos interativos (TS + Perfil):** (1) **Toggle on/off por chip da legenda** — click no chip alterna `ts.visible`; chip OFF tem `⊘` + strikethrough + opacity 0.4. Y range auto-zooma sobre só os visíveis. (2) **Ícone 👁** nos chips ajuda a descobrir a affordance. (3) **Zoom por click-and-drag** (rubber-band) sobre a área do plot; mouseup aplica zoom; double-click ou botão "↻ zoom" reseta. Hint "arraste para zoom · duplo-clique reseta" no canto. CSS `.gt-chart-zoom-rect` / `.gt-chart-zoom-reset`. (4) **Clipping** (`ctx.save()` + `rect(margin.l, margin.t, plotW, plotH)` + `ctx.clip()` + `ctx.restore()`) ao redor das curvas — quando zoomado, valores fora do range não extrapolam para os eixos/labels.
-
-> **Mudanças v2.9 → v2.10:**
->
-> **Cidades brasileiras (nova miscelânea agrupada por UF):** (1) Novo item `cidades_br` no `manifest.json` — 240 cidades (capitais + principais), props `nome/uf/regiao/populacao/capital`, com dois campos novos de manifesto: `groupByProp` (agrupa por UF) + `groupOrder` (ordem por região, N→S). (2) Novo render hierárquico `_gtRenderMiscGroupedItem`: `<details>` por item → `<details>` por UF (lazy-load no `toggle`); cada UF vira camada própria com id `cidades_br::SP` (checkbox liga/desliga TODAS as cidades do estado de uma vez). (3) Cabeçalho com contador (`240 em 27 grupos`) + ações globais `✓ Todos` / `👁 Limpar`; dentro de cada estado, filtro de texto `🔍 Filtrar cidades…` + ações locais `☑ Todas` / `👁 Nenhuma`. (4) GeoJSON embarcado inline (`<script id="gt-misc-data-cidades_br">`) para `file://`. (5) Script gerador `dev/baixar_cidades_brasil.py`. Bicópia raiz↔electron sincronizada (manifest + geojson, md5 confere).
->
-> **Cliente Python `gisele_ts` (`api-client/`):** módulo standalone que envelopa o endpoint `/v1/timeseries/point` do helper Python — extração de série temporal num ponto (lat, lon) a partir de scripts/notebooks/pipelines. Componentes: `gisele_ts/client.py` + `models.py` + CLI (`__main__.py`) + `examples/extract_ts.py` + `setup.py` (`pip install -e .`). README com instruções de uso standalone (`python server.py --port 8000`).
->
-> **Infra/versão:** `.gitignore` ganhou patterns Python (`__pycache__/`, `*.pyc`, `*.egg-info/`). `package.json` + `package-lock.json` 2.9.0 → 2.10.0. Build marker `20260531-11500-collapsed` → `20260601-12000-cidades`.
->
-> **Mudanças v2.10.0 → v2.11.0:**
->
-> **Correção multipainel — MERGE/análise com recuo automático de data:** painéis de análise (`frequencia=0`, ex.: MERGE) em M2–M4 continuam alinhados à data de **validade do M1**, mas quando não há imagem no FTP nessa data (ex.: MERGE do dia ainda não publicado) agora **recuam automaticamente** dia a dia (passo = `freq_rodadas`, 1 dia p/ MERGE) até a observação mais recente disponível (até `ANA_FALLBACK_MAX = 14` tentativas). Nova `carregarAnaliseComFallback` (probe via `new Image()` + cache por alvo `s._anaCache`); `applyAnalysisDates` ficou **idempotente** (`s._anaAlignTarget` impede resetar a data já resolvida em re-renders); badge **↩ RECUADO** no resumo do topo quando a data exibida difere da validade do M1; "Tentar novamente" limpa o cache. Não afeta animação (cai no caminho simples de carga) nem o fluxo GeoTIFF.
->
-> **Desenho no modo PNG/GIF (linha, área, texto) + seleção/lock/replicação por painel:** novo módulo paralelo ao do GeoTIFF. (1) Cada painel ganha uma **toolbar no topo** (`.png-toolbar`, só em modo PNG): seletor de painel ativo (M1..M4), 🔒 lock, ✋ pan, ╱ linha, ▭ área, T texto, ⌫ borracha, seletor de cor e 🗑 limpar. (2) Anotações num `<canvas class="png-anno">` dentro do `.map-viewport`, em **coords normalizadas ao conteúdo da imagem** (`object-fit:contain` via `pngContentRect`), acompanhando zoom/pan pelo `transform` CSS do viewport — PNG é imagem estática, sem georreferência. (3) Linha/área multi-vértice (clique adiciona, duplo-clique/Enter finaliza, Esc cancela), texto via prompt, borracha por hit-test (vértice/segmento). (4) **Lock + replicação**: desenhar num painel travado replica a anotação clonada para todos os travados na mesma posição relativa (`pngTargets`/`pngCommit`). (5) Redesenho em load de imagem (anima também), `ResizeObserver` por viewport, troca de modo/layout. Estado em memória (`pngAnnots`/`pngLockedPanels`/`pngActivePanel`/`pngColor`). Isolado: não toca no GeoTIFF (lat/lon) nem na animação. Hooks via try/catch.
->
-> **Versão:** `package.json` + `package-lock.json` 2.10.0 → 2.11.0. Build marker `20260601-12000-cidades` → `20260601-12300-pngmenu`. (v2.11.0 agrupa o fix do MERGE + o desenho no PNG num único release.)
->
-> **Mudanças v2.11.0 → v2.11.1 (release atual):** (1) **Fix rótulo invisível da camada Corais** na árvore Miscelânea (GeoTIFF): itens simples de miscelânea (sem `listIndividual`/`groupByProp`) criavam `<li><label><span.gt-tree-name>` sem cor própria e herdavam texto escuro sobre fundo escuro; agora o `<label>` recebe `color:var(--text)` + layout flex, igual aos `<summary>` dos demais itens. (2) **`rebuild-electron.bat` robusto**: decide SUCESSO pela existência de `dist\*.exe` (não só pelo `errorlevel`, que vinha ≠ 0 por aviso benigno — `extraResource python-helper\dist` ausente); mostra a versão real do `package.json`; usa blocos com `goto` (corrige o `) inesperado` do `[4/6]` causado por aspas simples no `for /f` + parênteses não escapados). (3) **Exportar GeoJSON › Por camada vetorial**: o seletor passa a listar **somente camadas com polígonos** (`Polygon`/`MultiPolygon`); camadas de pontos (Cidades, Plataformas) ficam de fora — evita o erro "não contêm polígonos" ao tentar usá-las como máscara de recorte; mensagem vazia atualizada. (4) **Série temporal consolidada (Exportar GeoJSON)**: o botão **"Série temporal por ponto"** agora abre o **diálogo completo** `gtOpenTsConfigDialog` (Clicar no mapa / Pontos ativos / Escolher da base / Extrair lat-lon) em vez do export-direto-no-clique; removidos o botão **"TS nos pontos ativos do viewport"** e o campo **Intervalo(h)** (`gtTsStart`/`gtTsEnd`) — o diálogo já tem período próprio (`gtTsCfgStart/End`); rótulos "em ponto" → "por ponto" (label, título do diálogo, tooltip). Paths antigos `export-timeseries`/`_gtRunTimeSeriesAtActivePoints` ficaram como código morto inofensivo (guarda de null). **Diálogo simplificado** (`gtOpenTsConfigDialog`): removidos a seção **Coordenada** (lat/lon `gtTsCfgLat/Lon`) e os botões **Pontos ativos** / **Escolher da base** / **Extrair (lat/lon)** + handlers — o diálogo fica só com **Painéis-alvo + Período de extração + Clicar no mapa + Cancelar**. **Gráfico multi-camada**: a TS de ponto agora plota **uma curva por camada raster ATIVA re-amostrável** — além da primária do painel, cada camada extra do FTP (que guarda `source: {modeloId, variavelId, data}`) vira uma série. `gtSampleTimeSeries` ganhou `opts.source`/`opts.layerName` (usa um slot virtual; pula o Python helper quando há source); o popup reúne `gtExtraLayers` visíveis com `.source` e amostra em paralelo, reusando `tsList`/legenda/chips/CSV. Camadas de cálculo (sem `source`) e vetoriais ficam de fora. Aditivo: sem camadas extras, comportamento idêntico. **Rótulos `CamadaN`** na legenda (mesma numeração da árvore/calculadora, via `gtAllLayers().filter(geotiff/primary)`: primária = Camada1, extras seguem). **Camadas de cálculo também plotadas**: `gtCreateLayerFromExpression` agora guarda `calcSpec = {expr, ast, tokens→fonte}` (cada token vira a fonte re-amostrável: primária do slot ou `.source` da raster, com recursão p/ cálculo aninhado); a nova `gtSampleCalcTimeSeries` re-amostra cada token e **reavalia a expressão por passo** (**alinha por TEMPO DE VALIDADE** `.time`, não por passo — rodadas diferentes têm o mesmo passo em validades distintas, então a média só bisecta as fontes no gráfico quando casada por validade; NoData se alguma fonte falta no passo). **Importante:** camadas de cálculo criadas ANTES desta versão não têm `calcSpec` — precisam ser recriadas para entrar no gráfico. **Anotação livre na TELA (caneta):** módulo global novo — botão **✏️ no header** liga/desliga um `<canvas>` `position:fixed` cobrindo toda a janela (z 100050, acima dos diálogos) + barra flutuante: caneta/borracha (`destination-out`), paleta de 10 cores + cor custom, slider de espessura (1–30px), desfazer, limpar e concluir; `Esc` sai. Strokes em coords de tela (px), redesenhados a cada movimento (`scrToggleDraw`/`_scr.strokes`). Independente de modo/painel. (5) `package.json`/`package-lock.json` 2.11.0 → 2.11.1; marker `20260601-12300-pngmenu` → `20260601-13100-calcalign`.
-
-> **Mudanças v2.11.1 → v2.12.0 (release atual) — Base de dados + menu Monitoramento:** nova categoria de fonte de dados: **rotas de dados genéricos** (KML/GeoJSON), independente dos modelos meteorológicos. (1) **Aba "🗄 Base de dados"** no modal *Configurar modelos e variáveis*: é uma aba especial (`configActiveId === '__bases__'`, `dataset.special='bases'`) injetada em `renderConfigTabs` antes do "+ Novo modelo". Ao ativá-la, `showBasesPane(true)` esconde todos os filhos do `#modalBody` (form do modelo + tabela de variáveis) e mostra o painel `#cfgBasesPane`; também esconde os botões de rodapé só-de-modelo (Remover/Clonar modelo, + Adicionar variável). `renderBasesPane()` monta um **card por base** a partir de `configBasesDraft` (cópia editável de `basesDados`): ícone (emoji), nome, cor, **Rota**, **Template Nome Arq.**, **Sufixo do arquivo**, **Mapa-base** (esri/osm/topo/none) e **"Sempre trazer dados atualizados"** (no-store), com preview da **URL final** (`gtBaseUrl`) e botão Remover; "+ Nova base de dados" (`_gtAddBaseDraft`). Respeita o modo somente-leitura do modal (cada input/botão usa `_configEditing`; `applyConfigLock` re-renderiza o painel). `saveConfig` persiste `basesDados = configBasesDraft` (localStorage `sismom_bases_v1`) e atualiza nome/cor das camadas ativas. (2) **Menu "📡 Monitoramento"** na árvore ERMA: nova seção `<details data-section-id="monitoramento">` (entre Miscelânea e Camadas), reordenável como as demais (`gtSectionsOrder`). `gtRenderTreeMonit()` (chamado em `gtRenderTree`) renderiza **uma linha por base** seguindo o padrão pedido — **dropdown** (`<details>` com Fonte/última atualização/contagem + **↻ Atualizar agora**), **liga/desliga** (checkbox no summary), **cor** (color picker), **configuração** (⚙ → `gtOpenBaseConfig` abre o modal na aba Base de dados e foca o card), **remoção** (🗑) e **ordem** (grip de reorder via `gtMonitOrder`, key `gisele.tree.monit.order.v1`). (3) **Fetch + parse + render:** `gtMonitFetch(base)` busca `gtBaseUrl(base)` com `cache:'no-store'` + cache-buster `?_=Date.now()` quando `alwaysFresh` (default) → **sempre dados atualizados ao acessar**; decide o parser pelo sufixo/conteúdo: **`.kml`** → `gtParseKML` (DOMParser → `Placemark` → Point/LineString/Polygon → GeoJSON, props de `name`/`description`/`ExtendedData` `SimpleData`/`Data`), `.geojson`/`.json` → `JSON.parse`. `gtMonitAdd` remove camadas antigas da base, re-busca, cria layer `{type:'geojson', isMonit:true, monitConfig, _fetchedAt, color}` em `gtExtraLayers` (render reutiliza `drawGeoJSON` — pontos/linhas/polígonos), e aplica o **mapa-base da base** ao painel ativo (`gtMonitApplyMapProvider`, espelha o rádio de Background). Toggle reusa `gtToggleExtraLayer`/`gtRemoveExtraLayer`; cor reusa `gtSetMiscLayerColor`. (4) **Seed padrão:** `DEFAULT_BASES` traz **"🔥 Queimadas ativas"** (INPE/Programa Queimadas: rota `…/queimadas/eventos/ativos/`, template `eventos_ativos`, sufixo `.kml`, mapa-base esri) — aparece no Monitoramento out-of-the-box (desligada; o usuário liga). **Caveat CORS:** o fetch cross-origin do KML depende de o ambiente permitir (no Electron já funciona como os GeoTIFFs cross-origin; em `file://`/browser sem CORS pode falhar → toast de erro, sem quebrar a UI). **Aditivo/seguro:** nada do fluxo de modelos/miscelânea muda; `syncCurrentPaneToDraft` ganhou guarda p/ `__bases__`. (4b) **Atributos por evento/foco + popup + rótulo:** o KML do INPE traz uma tabela HTML no `<description>` de cada evento/foco — `gtParseKML` agora a desmembra em campos limpos via `_gtKmlDescToProps` (DOMParser `text/html` → pares `<td>rótulo</td><td>valor</td>`): Tipo, Data início/fim, Duração, Município, Estado, Máx. dias sem chuva, Total de focos, Dias com foco, Último foco, Frentes ativas e bloco PRODES/DETER (% Desmatamento/Vegetação/Transição); guarda também `_descHtml` (HTML sanitizado, sem `<script>`) e cria `_rotulo` (= município/tipo). Clicar numa feição (o hit-test `gtFindMiscFeatureAtLatLon` já cobre **polígono e ponto**) abre `gtOpenMonitFeatureInfo` — popup **read-only** com a tabela de atributos. No mapa, `style.labelProp='_rotulo'` + `labelPolygons` rotulam cada evento; `labelDedup` no `drawGeoJSON` evita rótulo duplicado de ponto+polígono coincidentes (gate por `style.labelDedup`, então camadas misc não mudam). O picker/click handler passou a aceitar `isMonit` além de `isMisc`. (4c) **Marcador 🔥 + rótulo acima:** o ponto do foco é desenhado como **chama vetorial** (`style.iconShape='flame'` no `drawPoint` — `arc` + 2 `quadraticCurveTo` p/ contorno em gota + miolo amarelo; **path, não emoji**, porque o canvas do Electron/Chromium não renderiza emoji colorido — vira "tofu"/invisível, que foi exatamente o bug reportado) em vez de círculo, e o rótulo (`_rotulo`) fica **acima e centralizado** sobre o marcador (`style.labelAbove`), com o dedup registrado pela posição do ponto (`_wantLabel(px,py)`) — elimina a sobreposição texto×ponto vista no círculo centralizado. `labelPolygons` desligado (rótulo vem do foco-ponto). Camadas misc/cidades não mudam (tudo via flag de estilo). (4d) **Linha do item de Monitoramento — engrenagem → atualizar:** o botão ⚙ (que abria a config da base via `gtOpenBaseConfig`) foi **removido da linha** do item; no lugar entrou **↻ Atualizar** que chama `gtMonitAdd(base)` (re-busca o dado mais recente, no-store, e re-renderiza). A configuração da base continua acessível pelo modal *Configurar modelos › Base de dados*. `gtOpenBaseConfig` ficou sem uso na árvore (mantido, inofensivo). (4e) **Config persistente em arquivo (Electron):** `Exportar` passou a incluir as **bases** de Monitoramento no payload (antes só `models`+`ui`) e, no Electron, **grava por padrão** em `%APPDATA%/GISELE/configuração/gisele-config.json` (IPC `gisele-config:save`/`load`/`dir` no `main.js`; bridge `window.GISELE_CONFIG` no `preload.js`; `userData` foi a opção escolhida pelo usuário); no browser cai no `_downloadConfigJson`. No início, `gtBootstrapConfigFromFile` (registrado no `window load`) chama `GISELE_CONFIG.load()` — o `load` varre a pasta e devolve o `gisele-config.json` (ou o `.json` mais recente) — e aplica via `applyImportedConfig` (models+bases+ui). Modo **"arquivo manda"** (escolha do usuário): toda inicialização carrega o arquivo, então edições no app só persistem entre sessões via `Exportar`. `applyImportedConfig` é o caminho único compartilhado por Importar e auto-import; `importConfigFile` agora só faz parse+gate e delega a ele. **Arquivos Electron** (`electron-app/main.js`, `electron-app/preload.js`) **não têm cópia na raiz** — editados só em `electron-app/`. **Visibilidade do caminho:** o Exportar mostra o caminho completo do arquivo (`r.path`) no toast; o painel Base de dados mostra a pasta real via `GISELE_CONFIG.dir()` + botão "Abrir pasta" (`gisele-config:open` → `shell.openPath`). Tudo isso só existe no app Electron **reconstruído** — em browser/build antigo `window.GISELE_CONFIG` é `undefined` e o Exportar cai no download. (4f) **Foco ativo × apagado (cor do miolo):** o parser marca cada feição com `_ativo` = a data de atividade (`Último foco`/`Data fim`/`Data início`) ser o **dia mais recente do dataset** (`_ref` = máx das datas YYYY-MM-DD; sem data → ativo). `drawPoint(coords,label,active)` pinta o **miolo amarelo** (`#ffd54f`) quando ativo e **cinza médio** (`#80868c`, override `style.iconColorOff`) quando apagado — contorno laranja igual nos dois. Acrescenta o campo `Situação` (Foco ativo no dia / Sem foco no dia corrente) ao popup. (4g) **Modal de config em 2 níveis:** o seletor "Base de dados" saiu da fileira de abas de modelos e virou uma **aba de topo** ao lado de "Configurar modelos e variáveis" (`#modalTopTabs`, antes do `#modalTabs`); `setCfgTopSection('modelos'|'bases')` + a flag `cfgTopSection` controlam o nível. Em "Base de dados", `showBasesPane(true)` esconde `#modalTabs` (sub-abas de modelos) + o formulário e mostra `#cfgBasesPane`; o H2 virou "Configurações". `applyConfigLock` re-renderiza o pane de bases por `cfgTopSection === 'bases'` (antes `configActiveId === '__bases__'` — sentinela agora não é mais setado; o `basesBtn` da fileira de abas foi removido). (4h) **Queimadas "recentes" + filtro Todas/Ativas/Inativas:** base padrão renomeada `Queimadas ativas` → `Queimadas recentes` (com migração no loader de `basesDados` p/ instalações já existentes no localStorage). O item do Monitoramento ganhou um dropdown **Mostrar: Todas / Ativas / Inativas** (`base.filtro`, persistido) que filtra as feições por `_ativo` via `gtMonitFilterData`/`gtMonitApplyFilter`: o layer guarda `_allData` (completo) e `layer.data` vira o subconjunto; re-`gtLayerPushToMap` aplica (o `addGeoJSON` substitui por id e redesenha). O contador da info passou a mostrar o **total** (de `_allData`), estável ao trocar o filtro (e por isso `gtMonitApplyFilter` não re-renderiza a árvore — evita colapsar o `<details>` aberto). A linha **Fonte** (URL longa) saiu da vista: virou um ícone **?** (`qBtn`, `cursor:help`, `title` com a URL + clique revela/oculta um `fonteBox`); o "Atualizado · N feições" segue visível ao lado. (5) `package.json`/`package-lock.json` 2.11.1 → 2.12.0; marker `20260601-13100-calcalign` → `20260601-20000-bands`.
-
-> **Render v2.12 — raster GeoTIFF interpolado (shaded, não pixelado):** `_drawOneRaster` (módulo SisMOM_Map) passou a desenhar com `imageSmoothingEnabled = true` + `imageSmoothingQuality = 'high'` e a partir de um bitmap **pré-upscalado bilinearmente** — `_smoothRasterBitmap(o)` (cacheado em `o._smooth` por overlay; alvo ~800px no menor lado, fator ≤8, teto 4096²). Isso suaviza o shading **inclusive na vertical** do fatiamento Mercator (que antes, com fatias de 1 linha, ficava em bandas). Controlado por **seletor no painel de config da camada** (logo abaixo de *Contornos*): **Sombreado: Suavizado | Bandas (shaded) | Pixel** — `gtSetRasterMode(mode)` (estado `gtRasterMode`, `localStorage gisele.raster.mode`) seta duas estáticas: `SisMOM_Map.rasterSmooth` (interpola, lida por `_drawOneRaster`; estática do factory → vale p/ todos os mapas/slots sem aplicar 1 a 1) e `SisMOM_GeoTIFF.setBands(n)` (quantiza a paleta em `GT_BANDS_N=16` faixas dentro de `aplicarPaleta`). **Bandas** = paleta discreta + interpolação das bordas → visual "shaded" de modelo (faixas de cor com contornos suaves) — resolve o "desfoque" dando definição sem pixelar. Trocar o modo **limpa os caches** `_gtImgDataCache`/`_gtBlobUrlCache` e re-renderiza via `gtRerenderAllRasters` (→ `gtRerenderSlot` por slot + re-push das geotiff extras + redraw), pois as bandas mudam o bitmap (o cache é por url+opts, sem a flag). **Bandas por nível [v2.12.1]:** as faixas do shaded seguem os **mesmos níveis do contorno** (campo *Níveis* custom, ou *N* no modo auto) — `gtUpdateBandLevels(slotIdx)` lê `gtContourLevels`/`gtContourCount`, calcula a lista via `gtComputeContourLevels` e chama `SisMOM_GeoTIFF.setBandLevels(lv)` (fallback `setBands(GT_BANDS_N=16)` equiespaçado quando não há níveis); em `aplicarPaleta`, `v` é mapeado à faixa pelos limites e recebe a cor do **ponto médio** da faixa. Mudar *Níveis*/*N* com o modo **Bandas** ativo re-renderiza o shaded na hora (handler dedicado nos inputs de contorno → `gtRerenderAllRasters`). Resultado: **contorno e shaded compartilham exatamente os mesmos níveis**. Não afeta a colorbar/legenda nem os tiles.
-
-> **Mudanças v2.12.1 → v2.13.0 (release atual):**
->
-> **METAR — Estações meteorológicas como base de Monitoramento:** (1) Nova base default `metar_br` (seed `DEFAULT_BASES`) do tipo `kind:'metar'`: busca dados em tempo real da API aviationweather.gov (`/api/data/metar`), parse próprio `gtDecodeMETAR` (temperatura, ponto de orvalho, umidade relativa, vento, visibilidade, nuvens, teto, pressão QNH, tempo presente) + `gtParseAWCMetar`/`gtParseMETARResponse`. (2) **Station model visual** (`drawStationModel` escalado por zoom): símbolo meteorológico clássico — cobertura de nuvens no centro, haste/bárbulas de vento (kt), temperatura em vermelho (sup-esq), ponto de orvalho em verde (inf-esq), pressão (3 dígitos, sup-dir) e ICAO abaixo; fontes e símbolo dimensionados por `gtStationScale` (persistido em `gisele.metar.scale`). (3) **251 estações** em `miscelaneas/estacoes_metar.json` (formato `{version, fonte, campos, estacoes[]}`): Brasil + Am. do Sul/Central/Caribe; `miscelaneas/estacoes_metar_br.csv` com subset BR. `gtLoadMetarStations` carrega o arquivo externo e cai no `METAR_STATIONS_BR` embutido se offline; `gtMetarRebuildIndex` reconstrói o map ICAO→props. (4) **Filtro de estações**: `gtMetarFilterSelection` / `gtMetarApplyFilter` — seleção salva em `base.selFilter`; "METAR (Am. do Sul · Central · Caribe)" é o nome após migração v3/v4 (guarda `_mk3`/`_mk4`). (5) Preview standalone `metar_station_model_preview.html` (escala dupla: zoom de cidade e de país). Bicópia raiz↔electron.
->
-> **Spatial Bookmarks (🔖 visões salvas):** módulo completo — (1) Botão `🔖` no header (`btnBookmarks`) abre painel lateral `gtOpenBookmarksPanel`. (2) `gtBmkAddCurrent(nome, topico, kind)` captura viewport M1 (`getViewport`), modelo/variável/passo/slot ativo (`_gtBmkCaptureModel`), visibilidade e opacidade de todas as camadas (`_gtBmkCaptureLayers`), layout de painéis e modelos por slot (`_gtBmkCapturePanels`). (3) `gtBmkRestore(id)` aplica viewport, restaura modelo (`_gtBmkApplyModel`), re-liga camadas pelo `_gtBmkLayerKey` (url-based para GeoTIFF/geojson, id-based para misc/monit) via `_gtBmkApplyLayers`, e restaura painéis. (4) Topics/categorias (`gtBmkTopics`, `gtBmkSetTopic`): agrupa bookmarks (ex.: "precipitação", "temperatura"). (5) `gtBmkList/Save/Remove`: CRUD em `localStorage` chave `gisele.bookmarks.v1`.
->
-> **Botões "🧹 Limpar" e "👁 Visualizar" no header:** substituem o antigo "Abrir GeoTIFF local" — `btnClearView` chama `gtBmkClearView` (remove camadas e desmarca visão ativa); `btnVisualizar` chama `gtVisualizarSelecao` (renderiza o modelo configurado na toolbar do painel ativo, sem precisar abrir arquivo).
->
-> **Exportar PDF cartográfico (botão PDF no header):** (1) `gtOpenPdfExportDialog` — dialog com título e subtítulo; (2) `gtExportMapComposePDF(opts)` captura o canvas do painel ativo via `toDataURL` (JPEG) e compõe PDF usando `_gtJpegToPdf` (gerador PDF-1.4 puro JS, sem libs externas — apenas `Blob` e `Uint8Array`); elementos cartográficos: legenda colorida (`_gtPdfLegend`, lista paleta+variável), seta-norte vetorial (`_gtPdfNorth`), barra de escala com distância calculada por Mercator (`_gtPdfScale`); título+subtítulo e data de geração no rodapé. Download direto como `.pdf`.
->
-> **Série temporal por polígono (📈 no Exportar GeoJSON):** (1) Novo botão "📈 Série temporal por polígono (máx/mín/méd)" no sub-menu Exportar GeoJSON. (2) `gtSamplePolygonTimeSeries(slotIdx, polygons, onProgress, opts)`: para cada passo temporal, baixa o GeoTIFF (`_gtFetchBufferOnly` + `_gtDecodeMaybeWorker`), mascara os pixels dentro dos polígonos (`_gtPolygonCellIndices` + `_gtAggregateInPolys`) e calcula max/min/mean ponderado por área; paralelismo configurável (`opts.concurrency`); cache dedicado `_gtTsRasterCache` (~1 GB LRU) evita re-download entre feições do mesmo passo. (3) `gtPolygonTSFromHighlightOrPicker`: aciona via feição destacada (clique no mapa) ou via seletor `gtOpenPolygonTSPicker` (lista camadas GeoJSON com polígonos). (4) Python helper: endpoint `/v1/timeseries/polygon` (`timeseries_polygon`, `_fetch_decoded`, `_zonal_mask`, `_zonal_stats`) com máscara NumPy e statspar rasterio — ~10× mais rápido para grades grandes; fallback JS transparente. (5) Gráfico plota curvas separadas (max/min/mean) no popup de série temporal; CSV exportável.
->
-> **Web Worker pool para decodificação GeoTIFF (decode paralelo):** (1) `SisMOM_GeoTIFF.__workerSrc`: fonte autocontida serializada (stringify de `TYPE_SIZES` + todas as funções internas + harness `onmessage`) para instanciar `new Worker(URL.createObjectURL(new Blob([src])))` sem arquivo externo. (2) `_gtGetDecPool()`: cria/retorna singleton pool com N workers (=`navigator.hardwareConcurrency`, teto 4); `_gtDecPump` despacha jobs pendentes. (3) `_gtDecodeMaybeWorker(buffer)`: submete ArrayBuffer ao pool; timeout de 30s → fallback síncrono na thread principal (guard `_fail`). Buffer é clonado (não transferido) para o fallback poder reusar. (4) Impacto prático: animação e série temporal com múltiplos passos paralelos não travam a UI durante decode CPU-bound.
->
-> **Cache de bitmaps renderizados (~1 GB LRU):** (1) `gtGetCachedBitmap(url, decoded, opts)`: aplica paleta → `createImageBitmap` → cacheia em `_gtBitmapCache` por chave `(url, opts)`. Cap ~1 GB / 512 entradas; LRU evict pelo mais antigo. (2) `_gtBlobUrlGetCached`: consulta sem gerar — permite pular `aplicarPaleta + putImageData + toBlob` na animação de passos já renderizados. (3) `_gtTsRasterCache` (separado, ~1 GB): guarda decoded rasters da série temporal para reusar entre feições sem re-download. (4) `_GT_BITMAP_MAX_BYTES` / `_GT_TS_RASTER_MAX_BYTES`: tetos em bytes (não só contagem) para memória mais previsível em grades grandes.
->
-> **Base de pontos (novo tipo de base de dados):** botão "+ Nova base de pontos" (`btnAddPointsBase` → `_gtAddPointsBaseDraft`) no modal de Configuração › Base de dados. Tipo `kind:'points'` carrega CSV ou GeoJSON com pontos do usuário (`gtFetchUserPoints`, `gtPointsParseCSV`, `gtPointsParseGeoJSON`). `miscelaneas/pontos_exemplo.csv` traz 4 pontos de exemplo (nome, lat, lon, tipo, obs). `gtOpenShapeClassConfig`: configura classificação visual de camadas de pontos/polígonos (campo + esquema de cores + itens ocultos).
->
-> **Documento ADEQUACAO_COPERNICUS.md:** análise de aderência GISELE × Plataforma COPERNICUS (MPSP/INPE) — diagnóstico dos 4 cards (Visualizador, Editor Vetorial, Gerador de Iframes, Portal de Importação), tabela de aderência (✅/🟡/❌), eixos comuns transversais e plano de adequação em fases. Conclui que GISELE cobre o Card 1 (Visualizador) com alta maturidade de UI; Cards 2–4 requerem construção de back-end novo. PDF gerado em `docs/ADEQUACAO_COPERNICUS.pdf`.
->
-> **Versão:** `package.json`/`package-lock.json` 2.12.1 → 2.13.0; marker `20260602-1300-monitproxy` → `20260602-3350-veccache`.
-
-> **Sessão 02/06/2026 — Identidade visual + organização do git + documentação (sem bump de versão):**
->
-> **Identidade visual GISELE (nova, em `brand/`):** logo completo (`gisele_logo.svg`, 1320×360), logomark (`gisele_logomark.svg` + variante mono `gisele_logomark_mono.svg`) e ícones do app (`gisele-icon-192.png`, `gisele-icon-512.png`). Os rascunhos intermediários da geração ficam ignorados (`.gitignore brand/*`, mantendo só os entregáveis). **Ainda não conectada ao app:** o `<head>` do HTML, o `manifest.webmanifest` e o build Electron seguem apontando para `sismom-icon-*`; o wiring (favicon/manifest/`icon.ico`/`icon.png`) fica para um passo futuro.
->
-> **Organização do git:** `.gitignore` ganhou `brand/*` (exceto entregáveis) e `api-client/*.csv` (saídas de extração). Ruído de fim-de-linha (CRLF) em `COMO-USAR.txt`/`SisMOM.bat`/`vendor/leaflet.css` revertido. Script `organizar-git.bat` (idempotente, raiz) faz a limpeza de locks + reverte o CRLF + apaga rascunhos do `brand/` + 2 commits temáticos (`feat(brand)` + `chore`). **Caveat de ambiente:** quando o repositório é acessado por mount de sandbox (FUSE), `unlink` é bloqueado — `git add/commit` não finaliza com segurança (corrompe o índice), então os commits devem rodar **nativamente no Windows** (por isso o `.bat`).
->
-> **Documentação sincronizada para v2.12.1:** `README.md` (rebrand SisMOM→GISELE + seção "Modo GeoTIFF e recursos avançados"), `docs/RELEASE_NOTES.md` (changelog 2.1.0→2.12.1 + histórico), `ESPECIFICACOES_GISELE.md` (RF-14..RF-22 + versão de referência v2.12.1), `COMO-USAR.txt`, `RESUMO_RETOMAR.md`, `electron-app/LEIA-ME-build.txt` (versão 2.12.1). PDFs em `docs/` regenerados (Manual, Handover, Especificações, Backend) e os legados "SisMOM" movidos para `docs/legacy/`.
+> **Commit pendente:** executar `commit-f22-temporal-profile.bat` no Windows para commitar F21 + F22 + melhorias do popup.
 
 ---
 
@@ -92,218 +30,287 @@
 - **Estado por aba** salvo em `localStorage` chaves `sismom_state_png` e `sismom_state_gtiff`. Restaurado em `_stateRestore` quando troca de tab.
 - **Multi-painel** (1/2/3/4 slots = M1..M4) via grid CSS no `.map-container`. Layout muda em `setLayout`.
 - **Decodificador GeoTIFF próprio** em `SisMOM_GeoTIFF.decodeTIFF(buffer)` (não usa lib externa — só UTIF para descompactação LZW se necessário).
-- **Sistema de paletas** em `aplicarPaleta(decoded, opts)`: Viridis, Jet, RdBu, Grayscale, Turbo, + 10 paletas matplotlib/ColorBrewer.
+- **`SisMOM_GeoTIFF` IIFE:** `const SisMOM_GeoTIFF = (function() { ... })()` — contém `makeRamp`, `GT_PALETTES`, `decodeTIFF`, `aplicarPaleta`, `isGeoTiffModel`, `setBands`, `setBandLevels`, `__workerSrc`. **`GT_PALETTES` é `const` interno — acessar sempre via `SisMOM_GeoTIFF.GT_PALETTES`**, nunca como global.
+- **Sistema de paletas** em `aplicarPaleta(decoded, opts)`: viridis, plasma, inferno, magma, cividis, jet, turbo, rdbu, rdylbu, spectral + coolwarm. Lookup: `pal[idx*3]`, `pal[idx*3+1]`, `pal[idx*3+2]`.
 - **Canvas custom `SisMOM_Map`** com projeção Mercator/PlateCarrée, tiles XYZ (Esri/OSM/OpenTopo), pan/zoom, anotações, overlays raster e GeoJSON.
 
 ---
 
-## 2. Funcionalidades operacionais (por categoria)
+## 2. Sessão 08/06/2026 — F21 + F22: Perfil vertical e temporal
 
-### 2.1. Carregamento e renderização
+### 2.1. Funções implementadas e suas localizações
 
-| Feature | Prompts originais (resumo) | Ferramentas |
+| Função | Linha aprox. | Descrição |
 |---|---|---|
-| Decodificação GeoTIFF nativa + paletas | "Implementar decodeGeoTIFF e paletas (Viridis, Jet, RdBu, Grayscale, Turbo)" | Read/Edit (figuras_SisMOM_v23.html), node --check |
-| Botão "Abrir GeoTIFF local" | "Botão Abrir GeoTIFF local (arquivo avulso)" | Edit, Read |
-| Multi-paletas extra (matplotlib/ColorBrewer) | "10 paletas extras" | Edit |
-| Cache de blob URL + ImageData por (url+opts) | "Cache de blob URL: evitar putImageData+toBlob por step (Eta gigante)" | Edit, Read, console diagnostic |
-| Heurística multi-sentinel NoData | "Múltiplos sentinels + min/max via percentil (Eta10 com 5.87e+9)" | Edit, Read |
-| Render por scanline em Mercator (256 strips) | "Renderizar bitmap por scanline em Mercator" | Edit |
-| Auto flip-Y quando tiepoint J indica linha de baixo | "Auto flipY quando tiepoint J indica linha de baixo" | Edit |
-| Ler GTRasterTypeGeoKey p/ ajustar bbox (PixelIsPoint/Area) | "Fix Eta: ler GTRasterTypeGeoKey p/ ajustar bbox" | Edit, console diagnostic |
-| Botão manual "Inverter Y" | "Botão 'Inverter Y' na sidebar" | Edit |
+| `gtOpenVProfileDialog(slotIdx)` | 4429 | Dialog de configuração (Instantâneo / Evolução Temporal) |
+| `gtSampleTemporalProfile(...)` | 4618 | Amostragem assíncrona nível×passo → matriz |
+| `gtRunTemporalProfile(...)` | 4664 | Progress dialog + dispatch para popup |
+| `gtOpenTemporalProfilePopup(result, opts)` | 4704 | Popup Canvas2D com shaded/isolinhas/both + zoom + gear |
+| `_buildGtUrlForNivel(slotIdx, passoH, nivel)` | 5156 | Monta URL GeoTIFF para dado nível (3 caminhos) |
+| `gtSampleVerticalProfile(...)` | 5189 | Amostragem assíncrona por nível (perfil instantâneo) |
+| `gtOpenVProfilePopup(result, opts)` | 5260 | Popup Canvas2D do perfil instantâneo |
+| `_gtFmtVpValue(v, unidade)` | 5592 | Formata valor numérico com unidade |
 
-### 2.2. Mapa base (tiles)
+### 2.2. Fluxo do perfil temporal
 
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Projeção Web Mercator + tiles XYZ | "Adicionar projeção Web Mercator + Camada de tiles XYZ (3 providers + seletor)" | Edit |
-| Mapa-base por painel Mi (toggle individual) | "Mapa-base + opacidade por Mi panel (toggle por slot)" | Edit |
-| **Mapa-base padrão por modelo** (NOVO) | "setar nas configurações o mapa que irá entrar por padrão para cada modelo" + "Consta a opção do mapa na configuração, porém a mesma não entra por padrão quando eu faço o swap" | Edit (cfgMapProvider HTML/JS, gtSelectPanel, captureControlsToActive), bicópia + node --check |
-| Atribuição (Esri, OSM) | "Atribuição de créditos (Esri, OSM)" | Edit |
+```
+gtOpenVProfileDialog
+  → modo "Evolução Temporal" selecionado
+  → OK: chama gtRunTemporalProfile(slotIdx, lat, lon, niveisArr, passoMin, passoMax, passoFreq, vizType, paleta, varName)
+      → abre progress dialog
+      → chama gtSampleTemporalProfile → itera (nivel, passo) via _buildGtUrlForNivel + _gtFetchAndDecode
+      → retorna { steps, niveis, matrix[nNiveis][nSteps], vmin, vmax, lat, lon }
+      → chama gtOpenTemporalProfilePopup(result, { vizType, paleta, varName, unidade, mNome, runDateStr })
+```
 
-### 2.3. Painel multi-Mi (slots M1..M4)
+### 2.3. Estrutura dos dados do perfil temporal
 
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Layout 1/2/3/4 painéis | (parte do design original) | Edit (CSS grid + setLayout) |
-| Painel direito como sidebar + Mi ativo | "Painel direito como sidebar + seleção de painel Mi ativo" | Edit, Read |
-| Listeners por slot (gtSlotState) | "Listeners do painel direito gravam em gtSlotState[gtActivePanel]" | Edit |
-| Pino "Painel Mi" para selecionar slot ativo | "Reposicionar botão Painel Mi para não sobrepor ícones do header" | Edit |
-| HUD horizontal por slot (zoom, lat/lon, valor) | "HUD horizontal com zoom + lat/lon + valor (canto inferior esq)" | Edit |
-| Recalcular passos ao trocar modelo/variável | "Recalcular passos ao trocar modelo/variável na toolbar GeoTIFF" | Edit |
+```javascript
+result = {
+    steps:  [0, 6, 12, ..., 72],        // horas de previsão
+    niveis: [100, 200, ..., 1000],       // pressão hPa, ordem crescente
+    matrix: [[...], [...], ...],          // matrix[ni][si] — ni=nivelIdx, si=stepIdx
+    vmin: float, vmax: float,
+    lat: float, lon: float
+}
+opts = {
+    vizType:    'shaded' | 'isoline' | 'both',
+    paleta:     'viridis' | 'plasma' | 'jet' | ...,
+    varName:    string,
+    unidade:    string,
+    mNome:      string,
+    runDateStr: 'YYYYMMDDHH'   // s.data do slot, para cálculo de datetime no eixo X
+}
+```
 
-### 2.4. Camadas extras + calculadora
+### 2.4. `_buildGtUrlForNivel` — 3 caminhos de URL
 
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Sobreposição GeoTIFF + GeoJSON local | "Sobreposição de camadas extras (GeoTIFF + GeoJSON)" | Edit (input file + addGeoJSON/addRasterOverlay) |
-| Adicionar do FTP (modelo+variável+data+passo) | "Sobreposição: adicionar modelo/variável como camada extra" | Edit |
-| Reordenar (↑/↓) | "Reordenação de camadas (↑/↓)" | Edit |
-| Olho/× nos chips | "Camada ativa + controles por camada" | Edit |
-| Calculadora raster v1 (A+B, A−B, A×B, A÷B, escalar) | "Calculadora de camadas (raster algebra)" | Edit |
-| **Calculadora v2 — expressão entre camadas** (NOVO) | "dentro do menu Ferramentas inserir uma aba Calculadora… cálculos entre camadas, que pode ser definido através de uma expressão (ex: Camada1*1000+Camada1)" | Edit (parser recursive-descent `gtParseExpr` + `gtCreateLayerFromExpression`, tokens clicáveis, sub-nó Ferramentas) |
-| **Calculadora v2 — per-layer (op + escalar)** (NOVO) | (idem prompt) | Edit (gtBuildLayerConfigPanel adiciona linha `🧮 Calc: camada [op] [esc] [Aplicar]`, monta expressão `CamadaN op esc`) |
+```javascript
+// Cobre: (1) modelo nativo GeoTIFF, (2) rota TIF própria, (3) derivação de PNG
+function _buildGtUrlForNivel(slotIdx, passoH, nivel) {
+    const isNativeGt = SisMOM_GeoTIFF.isGeoTiffModel(m);
+    const isGtMode   = appMode === 'gtiff';
+    if (isNativeGt)   → montarURL({ ..., tif:true })
+    if (isGtMode && hasOwnTifRoute) → _buildMTifModel + montarURL
+    if (isGtMode && !hasOwnTifRoute) → gtDeriveTifUrl(pngUrl)
+    else → montarURL({ ..., tif:true })
+}
+```
 
-### 2.5. Contornos (isolinhas)
+### 2.5. `gtOpenTemporalProfilePopup` — estrutura do popup
 
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Marching squares + UI por camada | "Contornos: marching squares + UI + por-camada" | Edit |
-| **keepFill = true por padrão** (NOVO) | "MOM-Regional. Está plotando os contornos, mas o shaded não" | Edit (3 locais: HTML checkbox + lógica primary + lógica extras) |
-| Contornos no topo + chip dedicado | "Contornos: stale após troca de modelo + sempre no topo + chip" | Edit |
-| Respeitam mesma máscara do shaded | "Fix: contornos respeitam mesma máscara que o shaded" | Edit |
-| Convenção de coordenada corner/center | "Fix: contornos deslocados — usar convenção de corner" + "Reverter pos() para convenção center (+0.5)" | Edit, diagnóstico console |
+**Posição:** canto inferior direito (`right:20px; bottom:20px`)
+**Dimensões:** 792×550 px (mínimo 480×352), redimensionável (`resize:both`)
+**Fonte:** `'Segoe UI', system-ui, -apple-system, Arial, sans-serif`
 
-### 2.6. Ferramentas de medição/análise
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ Perfil Temporal · ModeloNome · VarName  +0h→+72h  [viz▼][⚙][+Xh][⟲][×] │ ← header
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│                     <canvas id="gtVTPCanvas">                       │ ← chart
+│                                                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│ 📍 lat -16.8936° · lon -46.7369°      [Baixar CSV] [Salvar PNG]    │ ← footer bar
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Distância (Haversine) | "Ferramentas: distância, área, texto, linha" | Edit |
-| Área esférica | (idem) | Edit |
-| Retângulo + Círculo | "Ferramentas: retângulo + círculo + perfil de linha" | Edit |
-| Polilinha simples (draw-line) | (idem) | Edit |
-| Anotação de texto | (idem) | Edit |
-| Perfil ao longo de polilinha | (idem) — depois: "Melhorar o gráfico, fundo branco. Tem como o gráfico ser responsivo? Passar o mouse sobre o gráfico tráz a lat/lon do ponto" | Edit (gtOpenProfilePopup, _gtDrawProfileChart, ResizeObserver, tooltip) |
-| Salvar PNG do perfil | "Opção de salvar o gráfico no formato png" | Edit (toDataURL + download) |
-| Baixar CSV do perfil | (parte do design) | Edit |
-| Perfil usa camada ATIVA (não top) | "Mapeando totalmente errado a região onde eu estou traçando" | Edit + console diagnostic |
-| **Série temporal em ponto** (NOVO) | "dado um ponto marcado com o mouse na área do gráfico, gerar um gráfico, similar ao do caminho, para a evolução temporal da variável. eixo x tempo, eixo Y valor. usar a mesma função da rota, com as funções de salvamento do csv e gif" | Edit (gtSampleTimeSeries + gtOpenTimeSeriesPopup + _gtDrawTimeSeriesChart + _gtDownloadTimeSeriesCSV) |
-| **Fix horizonte da série temporal** | "Para o modelo Eta a série temporal foi extraída corretamente. Ao mudar para o modelo Global. não extraíu somente um horário" | Edit (trocar `Math.min(v.horizonte, m.maxPassos)` por `v.horizonte || m.maxPassos`) |
-| Wheel zoom funciona durante uso de ferramentas | "Permitir wheel zoom durante uso de ferramentas" + "Fix ferramentas indisponíveis após zoom" + "Fix: mousemove bloqueado mata preview de tools" + "Fix: wheel zoom assimétrico em latitude" + "Fix: wheel duplo (canvas + mapBody) em modo gtiff" — após o user uploadar vídeo: "Quando o zoom é feito com o +/- e navega com o mover/pan, mapeia corretamente, quando o zoom é feito com o scrool do mouse, ele perde a navegação" | Edit (e.stopPropagation no wheel handler do canvas, NÃO bloquear mousemove) |
-| Toolbar persistente no top do .map-header | "Mover toolbar pra .map-header em vez de viewport" | Edit |
+**IDs dos elementos:**
+- `gtVTProfPopup` — container principal
+- `gtVTPHeader` — cabeçalho arrastável
+- `gtVTPVizType` — `<select>` tipo de visualização (`color:#1f2937` explícito)
+- `gtVTPGear` — botão `⚙` que abre painel de paleta
+- `gtVTPXMode` — botão `+Xh`/`📅` toggle eixo X
+- `gtVTPZoomReset` — botão reset zoom (hidden quando sem zoom)
+- `gtVTPClose` — botão fechar
+- `gtVTPCanvas` — canvas principal
+- `gtVTPZoomBand` — div rubber-band de zoom
+- `gtVTPTip` — tooltip hover
+- `gtVTPPalPanel` — painel flutuante de paleta (8 radios)
+- `gtVTPDownload` — botão Baixar CSV (footer)
+- `gtVTPSavePNG` — botão Salvar PNG (footer, `canvas.toDataURL('image/png')`)
 
-### 2.7. Miscelâneas (camadas vetoriais de referência)
+**Estado interno da função:**
+```javascript
+let vizType    = 'shaded' | 'isoline' | 'both'
+let paleta     = 'viridis' | ... (8 opções)
+let xZoom      = null | { si0: float, si1: float }    // índices de passo
+let yZoom      = null | { pMin: float, pMax: float }  // pressão hPa
+let xAxisMode  = 'hours' | 'datetime'
+let dragState  = null | { startMx, startMy, endMx, endMy }
+```
 
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Diretório + manifest + plataformas offshore | "Incluir diretório para armazenar camadas de micelanias, em formatos diversos, tais como csv, gejson, shapefile. Exemplo as informações das plataformas de prospecção de petróleo. colocar uma opção de plotar a posição das mesmas, indicando a sigla, quando clicar sobre o ponto, abrir uma janela com as informações da plataforma" | Bash (mkdir miscelaneas/), Write (manifest.json), copy GeoJSON do upload |
-| Embed inline para file:// | "Em modo GeoTIFF, no painel direito procure o bloco Miscelâneas. Deve aparecer Plataformas offshore (Brasil) no dropdown. Não apareceu" | Bash + Python (substituir `<script type="application/json" id="gt-misc-*">` inline), reescrita do `gtLoadMiscManifest` para ler primeiro do DOM |
-| **Corais brasileiros (shapefile WCMC)** (NOVO) | "Arquivo zip com as informações, em shapefile, dos corais. Utilizar somente os que estão na costa brasileira. implementar a opção de visualização no micelanea" | Bash (unzip), Python pure (leitor `.shp/.dbf` sem GDAL/pyshp porque sandbox sem rede), filtro point-in-polygon real (bbox global da feature falhou por features atravessando antimeridiana), 11 polígonos válidos na costa BR |
-| **Hachura diagonal nos polígonos** (NOVO) | "preencher o shape com um achurado na diagornal" | Edit (CanvasPattern com cache local em `_hatchCache`, fill translúcido por baixo + pattern por cima) |
-| **Color picker no chip** (NOVO) | "possibilidade de mudar a cor do shape" | Edit (input type=color no chip → `gtSetMiscLayerColor` → recolore stroke/hachura/fill rgba preservando alpha) |
-| **Click no shape → popup info** (NOVO) | "quando clicar com o mouse em cima, abrir uma janela com a informação do shape" | Edit (`_gtPointInRing` ray-casting + extensão de `gtFindMiscFeatureAtLatLon` para Polygon/MultiPolygon respeitando buracos) |
+**`_draw()` — render interno:**
+- Margem: `{t:20, b:46, l:64, r:20}`
+- Eixo Y: escala log de pressão (`Math.log`)
+- Eixo X: índices de passo com zoom
+- Shaded: `ctx.createImageData(plotW, plotH)` + interpolação bilinear + `SisMOM_GeoTIFF.GT_PALETTES[paleta]`
+- Isolinhas: Marching Squares (`_marchSquares`) com LUT 16 casos, 10 níveis HSL
+- Both: shaded primeiro, depois isolinhas em `rgba(0,0,0,0.7)`
+- Salva `canvas._vtMeta` para uso no tooltip e nos handlers de zoom
 
-### 2.8. Animação + exportação de vídeo
+**`_stepToDateTime(stepH)` — conversão passo → datetime:**
+```javascript
+// runDateStr = 'YYYYMMDDHH'
+new Date(Date.UTC(yr, mo-1, dy, hr) + stepH*3600000)
+// → 'DD/MM HHZ'
+```
 
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Play/Pause/Stop + grid de passos | (design original) | Edit |
-| Setas ←/→ + Espaço | (idem) | Edit |
-| Velocidade configurável (0.2/0.5/1/2s) | (idem) | Edit |
-| Preservar zoom durante animação GeoTIFF | "Preservar zoom durante animação no modo GeoTIFF" | Edit |
-| Prefetch de próximos passos em idle | "Prefetch animação: decodificar + paletizar próximos passos em idle" | Edit (requestIdleCallback) |
-| Cache de blob URL por step | "Cache de blob URL: evitar putImageData+toBlob por step (Eta gigante)" | Edit |
-| **Salvar vídeo MP4 da evolução** (NOVO) | "Opção de salvamento de um vídeo (mp4) da evolução temporal da área visualizada. Essa opção também deve estar disponível na área png. Quando selecionado o vídeo, fazer a evolução do primeiro ao último passo somente 1 vez" | Edit (botão na sidebar + `gravarVideoEvolucaoTemporal`, MediaRecorder + canvas.captureStream, codec MP4 → WebM fallback) |
-| **Fix vídeo PNG canvas tainted** | "vídeo da área png continua não funcionando" | Edit (re-fetch via blob → ObjectURL → Image porque drawImage de img cross-origin tainta o canvas e captureStream emite frames pretos) |
-| **Pré-busca todos os frames + drawStepFrame síncrono** | "Não salvou a área selecionada e dos 10 frames, salvou apenas 3" | Edit (Phase 1: paralelo fetch via Promise.all → frames[stepIdx][slotIdx]; Phase 2: loop sem fetch) |
-| **Aspect ratio + force frame emission** | "capturou a região do zoom, mas não manteve a relação de aspecto e salvou apenas 3 quadros" | Edit (object-fit:contain math → calcula sub-rect dentro do box do `<img>`; `holdAndPaint` redesenha em RAF + pixel anti-dedup pra captureStream emitir frames a cada tick) |
+**Zoom:**
+- Rubber-band: mousedown/mousemove/mouseup no canvas → aplica `xZoom`/`yZoom`
+- Scroll: `wheel` com `{passive:false}` → zoom ao redor do cursor (fator 1.3/0.77)
+- Reset: duplo-clique ou botão `⟲ zoom`
 
-### 2.9. Configuração de modelos
-
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| CRUD de modelos + variáveis | (design original) | Edit |
-| Templates URL com placeholders ({yyyy}, {mm}, {dd}, {hh}, {N%4}, {F%3}, {prefixo}, …) | "Templates de URL e placeholders" | Edit (`montarURL` com placeholder system) |
-| Suporte file:// no template | "Suportar caminho local (file://) no template de endereço" | Edit |
-| tem_png / tem_tif + disp_png / disp_tif por variável | "Rotas distintas PNG/TIF + disponibilidade por modelo e variável" | Edit |
-| Templates TIF próprios (url_path_tif / file_name_tif) | (idem) | Edit |
-| Botão "Clonar modelo" | "Botão Clonar modelo na configuração" | Edit |
-| Exportar/Importar JSON da configuração | (design original) | Edit |
-| **mapProvider por modelo** (NOVO) | "setar nas configurações o mapa que irá entrar por padrão para cada modelo" | Edit (cfgMapProvider select + load/save em syncCurrentPaneToDraft + aplicar em gtSelectPanel) |
-| Filtrar modelos sem TIF no seletor GeoTIFF | "Filtrar modelos sem TIF no seletor GeoTIFF" | Edit (`_modeloFitsMode`) |
-
-### 2.10. Distribuição e empacotamento
-
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Build Electron Windows (NSIS + portable) | "Criar scripts de build automatizado" | Edit (electron-app/package.json), Bash |
-| Build Mac (.dmg / .zip Intel + Apple Silicon) | "Adicionar build Mac (.dmg / .zip) ao package.json" | Edit (electron-builder config) |
-| Build Linux (AppImage) | (parte do plano) | Edit |
-| HTML standalone sempre incluído via postdist hook | "Standalone sempre incluído via postdist hook" | Edit (npm script) |
-| Multi-monitor via --displays / --all-displays / --no-frame / F11 / Ctrl+Q | "Suporte a --displays no main.js (multi-monitor)" | Edit (main.js do Electron) |
-| Atalho instalável (Windows .bat, Linux .desktop) | "Atalho instalável" | Write |
-| CORS handler no Electron | "CORS no Electron + diagnóstico de erros de fetch" | Edit (main.js webRequest.onBeforeSendHeaders/onHeadersReceived) |
-| Servidor HTTP local em Python + Node | "Servidor HTTP local: scripts Python/Node + launchers" | Write (tools/servir_dados/*.py / *.js / .sh / .bat) |
-
-### 2.11. Estado por aba + persistência
-
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Estado separado PNG vs GeoTIFF em localStorage | "Estado independente por aba (PNG/GIF vs GeoTIFF)" | Edit |
-| Default ao abrir: aba PNG/GIF + modelo Eta | "Default ao abrir: aba PNG/GIF + modelo Eta" | Edit |
-| Repopular selects ao trocar aba | "Repopular selects de modelo ao trocar aba (sem snap salvo)" | Edit (`atualizarSlotsControles`) |
-| **Fix swap PNG→GeoTIFF passo incompatível** (NOVO) | "Quando recarrega a plataforma, entra com o modelo Eta, e faz o swap para geotif, o modelo selecionado é o Global e o passo de tempo está do Eta, quebra o carregamento do campo" + "acho que tenho uma ideia do que está acontecendo, existe um cache que quando eu recarrego, o modelo selecionado para o geotif permanece a ultima seleção, mas o tempo é herdado da seleção png" | Edit (`atualizarMaxPassos` em setAppMode + forçar dentro de `_stateRestore` mesmo quando snap não tem passoAtual) |
-
-### 2.12. Documentação
-
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| Manual PDF GISELE (15 seções, 24 páginas) | "PDF manual de uso da aplicação" + várias atualizações ("atualizar o manual", "atualizar manual e commit") | Python + reportlab (`dev/gerar_manual_uso.py`) |
-| Rebrand SisMOM → GISELE | "Rebrand SisMOM Visualizador → GISELE" | Edit + Python script (`dev/patch_rebrand_gisele.py`) |
-| Manual com seções multi-monitor, servidor Linux | "Manual PDF: expandir instruções Linux do servidor HTTP" + "Atualizar manual PDF com seção multi-monitor" | Edit do .py + regenerar |
-| **ESPECIFICACOES_GISELE (.md + 18p PDF)** (NOVO) | "Gerar um relatório com as especificações para o desenvolvimento dessa plataforma do zero. Gerar um pdf" | Write `.md` + pandoc/xelatex |
-| **Manual v2.4 — seção 6 ERMA tree, seção 9 calculadora dupla, seção 11 checkbox Miscelânea** (NOVO) | "atualizar a documentação e commit" | Edit `dev/gerar_manual_uso.py` |
-
-### 2.13. UI v2.4+ (árvore ERMA-style)
-
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| **Painel direito como árvore ERMA com 4 grupos colapsáveis** (NOVO) | "Organizar o painel da direita como nesse exemplo da plataforma erma utilizando dropdown menu Background... Miscelânea... Camadas... Ferramentas..." | Edit (HTML tree skeleton + `gtRenderLayerChips` re-render por grupo) |
-| **Sub-menu "Configuração da Camada" por nó** (NOVO) | "Essas funcionalidades devem estar disponíveis em um segundo nivel de menu, associado à cada camada Regional Eta .... \|_ Configuração da Camada" + "Os controles da camada já estão presentes na Configuração da Camada, pode remover os campos persistentes" | Edit (`#gtLayerConfigPanel` único movido por `appendChild` entre `#gtLayerConfigHome` invisível e `.gt-tree-config-host`; layout vertical em `gtBuildLayerConfigPanel`) |
-| **Fix toggle recursivo do sub-menu** | "O menu Configuração de Camada abre não está respondendo e depois de aberto não fecha" | Edit (click handler em `summary` com `e.preventDefault()` no lugar do toggle event — toggle re-renderiza re-criando `details open=true` e entrando em loop) |
-| **Botão Collapse/Expand folders** (NOVO) | "Colocar um botão Collapse folders" | Edit (toolbar topo da árvore, alterna `details[open]` de todos os grupos, rótulo dinâmico) |
-| **Fix "Adicionar Modelo" invisível** | "Funcionalidade de Adicionar Modelo não está responsiva" | Edit (form `#gtAddFromModelForm` movido fisicamente por `appendChild` para dentro do nó Ferramentas; antes ficava dentro de `.gt-old-controls` `<details>` fechado) |
-| **Calculadora dupla** (NOVO) | "dentro do menu Ferramentas inserir uma aba Calculadora com as opções algébricas básicas (+,-,x,/), colocar essas opções também na configuração da camada. Na configuração da camada, o cálculo será executado na camada específica, no menu ferramentas, estará disponível para cálculos entre camadas, que pode ser definido através de uma expressão (ex: Camada1*1000+Camada1)" | Edit (parser recursive-descent + AST `num/ident/bin/neg` + `gtCreateLayerFromExpression`; tokens clicáveis no sub-nó Ferramentas; linha `🧮 Calc` em `gtBuildLayerConfigPanel`) |
-| **Background com radios mutex** (NOVO em v2.4) | "no executável, o geotif entra sem o mapa de background. O satélite (Esri) está selecionado, mas não está sendo plotado" | Edit (default `mapEnabled: true` + `mapProvider: 'esri'` em `gtSlotState`; radio change chama `_gtApplyMapView` imediatamente) |
-| **Miscelânea com checkboxes que add/remove** (NOVO em v2.4) | (parte da reestruturação ERMA) | Edit (`onchange` da checkbox chama `gtPushMiscLayer` / `gtRemoveMiscLayer` reusando engine antiga) |
-| **Fix Miscelâneas v1: gtLayerPushToMap retorna early sem `maps`** | "Não está plotando os corais e plataformas" | Edit (criar mapa do slot mesmo sem TIF, com bbox default Brasil) |
-| **Fix Miscelâneas v2: ordem canvas display vs createMap** | "Continua não plotando" | Edit (`box.classList.add('gt-map-active')` ANTES de `cvEl.style.display=''` ANTES de `void cvEl.offsetWidth` ANTES de `gtSlotEnsureMap`) |
-| **Fix Miscelâneas v3: expor resize() na API** | (idem) | Edit (`SisMOM_Map` retorna `resize` + `getCanvasRect`; chamado após push do extra layer) |
-| **Fix Miscelâneas v4: ReferenceError gtFindMiscLayerByConfigId** | "nenhuma das duas seleções estão funcionando, não plota nenhuma informação" (com console screenshot) | Edit (restaurar função `gtFindMiscLayerByConfigId(id)` que tinha sido removida em #153; tree handler ainda chamava → ReferenceError abortava todo o handler) |
-| **Remover "Abrir TIF local (inspeção)" do menu Ferramentas** (NOVO) | "Remover do menu 'Ferramentas' 'Abrir TIF local (inspeção)'" | Edit (remover `<details class="gt-tree-tif-inspect">` da árvore; aba dedicada no header continua) |
-| **Bump v2.4.0 (dist file lock)** | "Travou na geração da dist" + screenshot do `output file is locked for writing` | Edit (`electron-app/package.json` 2.0.0 → 2.4.0 para forçar nome de artifact novo; `rebuild-electron.bat` com `taskkill /F /IM GISELE-*.exe`) |
-| **--strict-cors flag (Electron)** | "Avaliar webSecurity:false caso CORS bloqueie" | Edit (`electron-app/main.js`: default `webSecurity:false`, `--strict-cors` reativa `true`; log `CORS mode:` em `launch.log`) |
-| **Preset FTP CPTEC na configuração** | "Configurar modelo .tif via FTP" | Edit (botão "Preset FTP CPTEC" marca PNG+TIF, deriva `/fig/` → `/geotiff/`, nome `{prefixo}-{F%4}.tif`) |
-
-### 2.14. Importar / Exportar dados (v2.6+)
-
-| Feature | Prompts originais | Ferramentas |
-|---|---|---|
-| **Calculadora Temporal (per-layer)** | "Na calculadora da camada, incluir a possibilidade de manipulação de camadas de tempos distintos de uma mesma rodada... t1+t2+t3 ou t1..t3" | Edit (parser estende gtParseExpr com function calls + ranges; `gtCreateLayerFromTimeExpression` + `gtEvalTimeAst` + `_gtExpandRangeIdx`; modal de progresso `gtOpenTimeCalcProgress`) |
-| **Fix HUD lat/lon/valor — default ON + toggle ERMA** | "A informação lat, lon e valor do ponto do cursor do mouse não está mais disponível" | Edit (`gtNavHudEnabled = true` default; checkbox `#gtTreeShowNavHud` na toolbar da árvore espelhando o legacy) |
-| **Exportar GeoJSON (raster→point cloud)** | "inserir na ferramenta a opção de salvar o dado em formato geojson de uma área selecionada ou todo o campo" | Edit (`gtExportLayerToGeoJsonPointCloud`, `gtDownloadGeoJson`, sub-nó na árvore Ferramentas, 5 modos de recorte) |
-| **Exportar série temporal de ponto → GeoJSON** | "incluir uma ferramenta para salvar um geojson da evolução temporal de um ponto" | Edit (`gtSampleTimeSeriesToGeoJson` reusa `gtSampleTimeSeries`; tool `export-timeseries`) |
-| **Fix visual draft de polígono/retângulo export** | "problema para mapear a área para exportar o dado" + "Ainda com problema" | Edit (gtMakeAnnotProvider reconhece `export-polygon`/`export-rect`; isDragTool flag; rótulo `📤`) |
-| **FIX bbox object: minX/maxY (não array)** | (causa do "object is not iterable") | Edit (`decoded.bbox` é `{minX,minY,maxX,maxY}` — destructuring de array falhava; agora usa campos + valida + iteração top-down) |
-| **Parser shapefile .shp puro JS** | "upload shapefile para extração da informação" | Edit (`_gtParseShpBuffer` ~110 linhas: Polygon, PolygonZ, PolygonM; outer/hole por orientação; multi-part); smoke test Node passou |
-| **ZIP reader via DecompressionStream** | (idem) | Edit (`_gtExtractFromZip`: EOCD + central dir + LFH + DecompressionStream `deflate-raw`; suporta stored e deflate) |
-| **Preview + dialog de confirmação no upload** | "Quando o usuário fizer um upload do shape, geojson.... plotar sobre o mapa e pedir para confirmar a extração" | Edit (`_gtShowPolygonPreview` + `gtOpenConfirmExtractDialog`; fit ao bbox; cleanup de previews; Enter/Esc) |
-| **Dialog fora da área do mapa** | "Colocar o box da informação fora da área de visualização do gráfico" | Edit (overlay sem backdrop fullscreen; card `position:fixed; top:14px; right:14px; pointer-events:auto`) |
-| **Renderer `style.noVertices`** | "as linhas estão bem grossas" + "deixar na mesma espessura para todas as linhas" | Edit (renderer polígono pula loop de circles em cada vértice quando `style.noVertices === true`; lineWidth uniforme 0.7) |
-| **Importar shapefile como camada extra** | "importar shapefile como camada extra" | Edit (`_gtParseShpBuffer` + zip reader; filtra por `tipo_dado='shapefile'` em `addGeoJSON`) |
+**Painel de paleta (gear):**
+- `getBoundingClientRect()` do botão gear → posiciona `gtVTPPalPanel` em `position:fixed`
+- Fecha ao clicar fora (`document.addEventListener('click', ...)`)
+- 8 radios: viridis, plasma, jet, rdbu, rdylbu, spectral, coolwarm, turbo
 
 ---
 
-## 3. Sessão 07/06/2026 — Campos de vento + resize + fixes de layout
+## 3. Dialog `gtOpenVProfileDialog` — estado atual
 
-**Build marker atual:** `20260607-0700-bases-fix` (pendente de commit)
+**Fonte:** `'Segoe UI', system-ui, -apple-system, Arial, sans-serif`
 
-### 3.1. Funcionalidades implementadas nesta sessão
+**Seção temporal (campos presentes):**
+- `vpPassoIni` / `vpPassoFim` — inputs passo inicial/final
+- `vpVizType` — select: Sombreado / Isolinhas / Sombreado + Contorno
+- **Paleta NÃO está no dialog** — gerenciada via engrenagem no popup
+- `const paleta = 'viridis';` no OK handler (padrão fixo)
 
-| Feature | Descrição | Status |
+**OK handler — ordem correta (crítico):**
+```javascript
+// Ler TODOS os valores ANTES de ov.remove()
+const passoIni = parseInt(document.getElementById('vpPassoIni').value) || 0;
+const passoFim = parseInt(document.getElementById('vpPassoFim').value) || passoMax;
+const vizType  = document.getElementById('vpVizType').value;
+const paleta   = 'viridis';
+ov.remove();  // só então remover o overlay
+gtRunTemporalProfile(...);
+```
+
+---
+
+## 4. Bugs corrigidos nesta sessão (histórico)
+
+| Bug | Causa | Fix |
 |---|---|---|
-| **Coluna Fórmula na tabela de variáveis** | Input `formula` por variável: expressão como `sqrt({U}^2+{V}^2)` usando `{ID}` refs. `_gtEvalFormula(formula, varDataMap)` avalia per-pixel com `new Function`. | ✅ feito |
-| **Campos vec_u / vec_v** | Colunas U-vent e V-vent na tabela de config: IDs das vars componentes zonal/meridional. | ✅ feito |
-| **Campo vetorial de vento (setas + streamlines)** | `SisMOM_Map.setVectorField(uDec, vDec, mode, opts)` + `clearVectorField()`. `drawVectorField()` interno: bilinear sampling, setas proporcionais (modo `arrows`), Euler integration (modo `stream`). Seletor "Vento" na toolbar GT (aparece só quando vec_u/vec_v preenchidos). | ✅ feito |
-| **Resize de colunas da tabela de variáveis** | Drag handles no `<th>`; persistido em `localStorage('gisele_vartbl_colw')`. `_initVarTableColResize()`. | ✅ feito |
-| **Resize do modal de configurações** | Handle SE no modal (`#modalConfigRszH`); persistido em `localStorage('gisele_modal_size')`. `_initModalResize()`. | ✅ feito |
-| **Scroll horizontal fino nas abas de modelos** | `scrollbar-width: thin` + webkit height 5px em `.modal-tabs`; resolve sobreposição da barra h sobre a barra v. | ✅ feito |
-| **Resize handle no lugar certo** | `position: relative` adicionado ao `.modal`; o handle `position:absolute; right:0;bottom:0` agora ancora ao modal (antes ancorava ao backdrop). | ✅ feito |
-| **Fonte maior nas abas de modelos** | `.modal-tab { font-size: 15px; padding: 11px 16px }` (era 13.5px / 8px 14px). | ✅ feito |
-| **Fix Base de dados sumiu** | `showBasesPane(true)` convertera `#modalBody` em flex-container (body.style.display='flex') quebrando o layout. Revertido para show/hide simples: `pane.style.display = on ? '' : 'none'`. Scroll já funciona via `.modal-body { overflow-y: auto }` — o `<footer>` está FORA do `#modalBody`. Removido também o `display:none;display:flex` duplicado no HTML do `#cfgBasesPane`. | ✅ feito |
+| `_buildGtUrlForNivel is not defined` | Patch anterior sobrescreveu a função ao substituir bloco de código | Reinserção da função antes de `/* Amostra o valor */` |
+| `GT_PALETTES is not defined` | `GT_PALETTES` é `const` dentro da IIFE, não é global | Usar `SisMOM_GeoTIFF.GT_PALETTES` |
+| Popup temporal não abria | `ov.remove()` chamado ANTES de ler `getElementById('vpPassoIni')` etc. — elementos já não existiam no DOM | Ler todos os valores antes de `ov.remove()` |
+| Assertion `function _buildGtUrlForNivel not in content` | `_buildGtUrlForNivel` estava entre o fim do popup e o marker `/* Amostra o valor */` — a região a ser substituída incluía a função | Mudar `old_popup_end_marker` para `/* Constrói a URL do GeoTIFF */` |
 
-### 3.2. Estrutura HTML do modal (referência rápida)
+---
+
+## 5. Localizações-chave no HTML (linhas aproximadas)
+
+| Elemento | Linha |
+|---|---|
+| `gtOpenVProfileDialog` | 4429 |
+| `gtSampleTemporalProfile` | 4618 |
+| `gtRunTemporalProfile` | 4664 |
+| `gtOpenTemporalProfilePopup` | 4704 |
+| `_buildGtUrlForNivel` | 5156 |
+| `gtSampleVerticalProfile` | 5189 |
+| `gtOpenVProfilePopup` | 5260 |
+| `_gtFmtVpValue` | 5592 |
+| `SisMOM_GeoTIFF` IIFE start | ~7655 |
+| `GT_PALETTES` definição | ~7670 |
+| `GT_PALETTES` exposto em `return` | ~8122 |
+| `_gtFetchAndDecode` | ~8311 |
+| `gtSampleDecodedAtLatLon` | ~12151 |
+
+---
+
+## 6. Histórico de versões e mudanças anteriores
+
+### v2.4 → v2.5
+Painel direito reorganizado em árvore ERMA-style (Background/Miscelânea/Camadas/Ferramentas) com sub-menu "Configuração da Camada" por nó. Nova Calculadora dupla: expressão livre entre camadas + operador-escalar per-layer. "Abrir TIF local" removido do menu Ferramentas.
+
+### v2.5 → v2.6
+(1) Calculadora Temporal per-layer (sintaxe `tN/hN`, ranges `t1..t24`, funções sum/mean/max/min/count). (2) Exportar GeoJSON (raster→nuvem de pontos): campo cheio, polígono/retângulo, camada vetorial. Série temporal de ponto → GeoJSON. (3) Importar Shapefile (.shp/.zip) — parser puro JS. (4) Fix HUD lat/lon/valor. (5) Botão 👁/⊘ por camada. (6) `style.noVertices` no renderer.
+
+### v2.6 → v2.7
+(1) Python helper opcional (FastAPI + rasterio) embed no Electron com fallback JS. (2) Slider de opacidade. (3) Marching squares otimizado (~8-15×). (4) Cache de contornos LRU cap 100.
+
+### v2.7 → v2.8
+(1) Estatísticas no GeoJSON exportado (min/max/soma/média/área). (2) Popup de resultado após export. (3) Reorganização Exportar GeoJSON (5 opções). (4) Popup de help "?" por seção. (5) Highlight visual da opção selecionada.
+
+### v2.8 → v2.9
+Python helper: cache decoded LRU 256 + endpoint `/v1/render/png`. Polígonos do usuário: storage localStorage + submenu Ferramentas + drawing flow `save-only`/`export`. Reorganização UI massiva: DnD reorder, boot colapsado, gear+trash inline nas camadas. Multi-painel: bbox sync, lock por painel (🔒), perfil combinado, série temporal paralela. Gráficos interativos: chips de legenda com toggle, zoom rubber-band, clipping.
+
+### v2.9 → v2.10
+Cidades brasileiras (240 cidades, agrupadas por UF, lazy-load). Cliente Python `gisele_ts` para scripts/notebooks.
+
+### v2.10.0 → v2.11.0
+Fix multipainel MERGE com fallback automático de data. Desenho no modo PNG (toolbar por painel, canvas de anotações normalizadas, replicação por lock). Anotação livre na tela (caneta global). Série temporal multi-camada com camadas de cálculo (`calcSpec`). Fix MERGE, barra de abas, bug `ov.remove`.
+
+### v2.11.1 → v2.12.0
+Base de dados (nova categoria): tipo `kind:'points'`/`'metar'`/genérico, modal 2 níveis. Menu Monitoramento na árvore ERMA. Fetch + parse KML/GeoJSON. Queimadas padrão (INPE/INPE). Station model METAR visual. Bookmarks (visões salvas). Botões Limpar/Visualizar no header. Exportar PDF cartográfico. Série temporal por polígono. Web Worker pool para decodificação. Cache de bitmaps ~1 GB LRU.
+
+### v2.12.1 → v2.13.0 (release base desta sessão)
+METAR: 251 estações + station model visual (chama vetorial, não emoji). Spatial Bookmarks completo. Exportar PDF. Série temporal por polígono. Worker pool decode. Cache bitmaps. Base de pontos (`kind:'points'`). `ADEQUACAO_COPERNICUS.md`.
+
+### Sessão 07/06/2026
+Vento vetorial (`vec_u`/`vec_v`, setas/streamlines). Coluna Fórmula per-variável. Resize colunas tabela + resize modal. Fix Base de dados (showBasesPane flex→display simples). Scroll horizontal fino nas abas.
+
+### Sessão 08/06/2026 (atual)
+F21 + F22 completos + 5 melhorias no popup temporal (ver seções 2 e 3 acima).
+
+---
+
+## 7. Funcionalidades operacionais (tabela por categoria)
+
+### 7.1 Carregamento e renderização
+
+| Feature | Status |
+|---|---|
+| Decodificação GeoTIFF nativa + paletas (viridis/plasma/jet/rdbu/turbo/...) | ✅ |
+| Cache de blob URL + ImageData por (url+opts) | ✅ |
+| Heurística multi-sentinel NoData + min/max percentil | ✅ |
+| Render por scanline em Mercator | ✅ |
+| Auto flip-Y + GTRasterTypeGeoKey | ✅ |
+| Shaded suavizado/bandas/pixel (seletor por camada) | ✅ |
+| Bandas seguem níveis do contorno (`setBandLevels`) | ✅ |
+| Web Worker pool decode (N workers = hardwareConcurrency, teto 4) | ✅ |
+| Cache bitmaps renderizados ~1 GB LRU | ✅ |
+
+### 7.2 Ferramentas de análise GeoTIFF
+
+| Feature | Status |
+|---|---|
+| Perfil vertical instantâneo (`gtOpenVProfileDialog` modo Instantâneo) | ✅ |
+| Perfil vertical temporal — matriz nível×passo (`gtOpenTemporalProfilePopup`) | ✅ |
+| Visualização: Sombreado / Isolinhas / Sombreado+Contorno | ✅ |
+| Zoom 2D: rubber-band + scroll + reset | ✅ |
+| Eixo X alternável: horas de previsão / data/hora de validade | ✅ |
+| Paleta via gear icon (sem redimensionar o gráfico) | ✅ |
+| Download CSV da matriz | ✅ |
+| Salvar PNG do gráfico | ✅ |
+| Série temporal em ponto (multi-painel, multi-camada) | ✅ |
+| Série temporal por polígono (max/min/mean) | ✅ |
+| Perfil ao longo de polilinha | ✅ |
+| Calculadora raster (expressão livre + per-layer) | ✅ |
+| Calculadora temporal (tN, ranges, sum/mean/max/min) | ✅ |
+| Exportar GeoJSON (campo cheio / polígono / retângulo / camada / área total) | ✅ |
+| Exportar PDF cartográfico | ✅ |
+
+### 7.3 Camadas e miscelâneas
+
+| Feature | Status |
+|---|---|
+| Miscelâneas: plataformas offshore, corais, cidades BR | ✅ |
+| Monitoramento: fetch KML/GeoJSON, Queimadas INPE, METAR | ✅ |
+| Polígonos do usuário: salvar/carregar/visualizar | ✅ |
+| Importar shapefile (.shp / .zip) | ✅ |
+| Camadas extras do FTP (modelo+variável como overlay) | ✅ |
+| Vento vetorial (setas / streamlines, vec_u/vec_v) | ✅ |
+| Base de dados customizável (modal "Base de dados") | ✅ |
+
+---
+
+## 8. Estrutura HTML do modal de configurações (referência rápida)
 
 ```
 .modal (display:flex; flex-direction:column; position:relative; overflow:hidden; max-height:92vh)
@@ -314,13 +321,13 @@
   .modal-body #modalBody          ← flex:1; min-height:0; overflow-y:auto; padding:16px 18px
     .form-grid                    ← formulário do modelo (hidden quando bases)
     .var-table-wrap               ← tabela de variáveis (hidden quando bases)
-    #cfgBasesPane                 ← pane de bases (hidden por padrão, display:'' quando ativo)
-      #cfgBasesTabs               ← abas das bases
-      #cfgBasesList               ← lista de cards de bases
+    #cfgBasesPane                 ← pane de bases (display:none por padrão, '' quando ativo)
   footer.modal-footer             ← FORA do #modalBody (sibling direto de .modal)
 ```
 
-### 3.3. Commits pendentes (rodar na ordem no Windows)
+---
+
+## 9. Commits pendentes (executar no Windows na ordem)
 
 | BAT | Conteúdo |
 |---|---|
@@ -328,6 +335,18 @@
 | `commit-resize.bat` | feat: resize colunas da tabela + resize modal |
 | `commit-scroll-fix.bat` | fix: scroll bases + resize handle + barra abas fina + font abas |
 | `commit-bases-fix.bat` | fix: Base de dados sumiu (showBasesPane simplificado) |
+| `commit-f22-temporal-profile.bat` | feat+fix: F21 perfil vertical + F22 temporal completo (vizType/paleta/zoom/gear/X-mode/PNG) |
 
-> **Importante:** os BATs devem ser executados **em sequência** no Windows (clique duplo ou terminal CMD na pasta `C:\Projetos\Visualizador`). Cada um faz `git read-tree HEAD` (seguro em FUSE), `git add` e `git commit + push`.
+> Executar sequencialmente no Windows (clique duplo ou CMD `cd C:\Projetos\Visualizador`).
 
+---
+
+## 10. Próximos desenvolvimentos sugeridos
+
+- **Colorbars / legenda no popup temporal** — barra de cores com rampa horizontal no rodapé do canvas
+- **Animação do perfil temporal** — botão play para percorrer os passos de previsão frame a frame
+- **Múltiplos pontos simultâneos** — plotar perfis de vários pontos sobrepostos no mesmo popup
+- **Perfil temporal para múltiplas variáveis** — ex.: temperatura e umidade no mesmo gráfico (eixo duplo)
+- **Export do popup como PNG em alta resolução** — via canvas offscreen 2× ou 3× para relatórios
+- **Integração com Python helper** — `gtSampleTemporalProfile` atualmente faz fetch serial; paralelizar via `/v1/timeseries/point` do helper ou fetch paralelo por nível
+- **Sincronização do perfil temporal com o mapa** — clicar no popup destaca o passo no mapa principal
