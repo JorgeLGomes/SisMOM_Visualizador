@@ -921,8 +921,11 @@
             background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
         }
         .map-config select[data-cfg="modelo"] { flex: 1.2; min-width: 110px; }
-        .map-config input[type="date"] { flex: 1.1; min-width: 130px; }
+        .map-config input[type="date"] { width: 108px; flex: none; min-width: 0; }
         .map-config select[data-cfg="variavel"] { flex: 1.2; min-width: 110px; }
+        .map-config .date-nivel-wrap { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .map-config .hora-label { font-size: 11px; white-space: nowrap; color: var(--text-muted,#8ca0bc); min-width: 26px; font-family: ui-monospace,monospace; }
+        .map-config select[data-cfg="nivel"] { width: 74px; flex: none; min-width: 0; }
         .map-config .sync-btn {
             width: 28px; height: 28px;
             display: grid; place-items: center;
@@ -2526,7 +2529,13 @@
                 <select data-cfg="modelo" aria-label="Modelo">
                     <!-- populated dynamically from modelos config -->
                 </select>
-                <input type="date" data-cfg="data" aria-label="Data">
+                <div class="date-nivel-wrap">
+                    <input type="date" data-cfg="data" aria-label="Data">
+                    <span data-cfg="hora-label" class="hora-label" title="Hora da rodada">00Z</span>
+                    <select data-cfg="nivel" aria-label="Nível de pressão (hPa)" title="Nível de pressão — variável 3D" style="display:none">
+                        <!-- populated when variable has is3d=true -->
+                    </select>
+                </div>
                 <button type="button" class="sync-btn" data-cfg="sync" aria-pressed="false" title="Sincronizar data com Mapa 1" aria-label="Sincronizar com Mapa 1">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                 </button>
@@ -4368,6 +4377,1226 @@
         }
     }
 
+    // Sincroniza o <select data-cfg="nivel"> de um slot: mostra/oculta e popula
+    // conforme a variável activa seja ou não 3D.
+    function _syncSlotNivelUI(slotIdx) {
+        try {
+            const el = slotEl(slotIdx);
+            const nivelSel = el ? el.querySelector('[data-cfg="nivel"]') : null;
+            if (!nivelSel) return;
+            const s = state.slots[slotIdx];
+            const v = (typeof getVariavel === 'function') ? getVariavel(s.modelo, s.variavel) : null;
+            const is3d = !!(v && v.is3d);
+            if (!is3d) { nivelSel.style.display = 'none'; return; }
+            const m = modelos[s.modelo];
+            const nivStr = (m && m.niveis) || '';
+            const nivArr = nivStr.split(',').map(function(n){ return n.trim(); }).filter(Boolean);
+            if (nivArr.length) {
+                nivelSel.innerHTML = nivArr.map(function(niv){
+                    return '<option value="' + niv + '">' + niv + ' hPa</option>';
+                }).join('');
+            } else {
+                nivelSel.innerHTML = '<option value="" disabled selected>— configure Níveis no modelo —</option>';
+            }
+            nivelSel.style.display = '';
+            const gt = getGtSlotState(slotIdx);
+            if (gt.nivelAtual && nivelSel.querySelector('option[value="' + gt.nivelAtual + '"]')) {
+                nivelSel.value = String(gt.nivelAtual);
+            } else if (nivelSel.options.length && nivelSel.options[0].value) {
+                gt.nivelAtual = nivelSel.options[0].value;
+                nivelSel.value = gt.nivelAtual;
+            }
+        } catch (_) {}
+    }
+
+    /* Atualiza o span hora-label (ex: "12Z") a partir de s.data */
+    function _updateHoraLabel(slotIdx) {
+        try {
+            var el = slotEl(slotIdx);
+            var span = el ? el.querySelector('[data-cfg="hora-label"]') : null;
+            if (!span) return;
+            var s = state.slots[slotIdx];
+            var hh = (s && s.data && s.data.length >= 10) ? s.data.slice(8, 10) : '00';
+            span.textContent = hh + 'Z';
+        } catch (_) {}
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PERFIL VERTICAL POR PONTO — F21
+    // ══════════════════════════════════════════════════════════════════════
+
+    /* Abre o dialog de configuração do perfil vertical */
+    function gtOpenVProfileDialog(slotIdx) {
+        const s = state.slots[slotIdx];
+        const v = s && getVariavel(s.modelo, s.variavel);
+        if (!v || !v.is3d) {
+            alert('Perfil vertical disponível apenas para variáveis 3D.\n\nSelecione uma variável com "É variável 3D" marcado nas configurações.'); return;
+        }
+        const m = modelos[s.modelo];
+        const nivStr = (m && m.niveis) || '';
+        const nivArr = nivStr.split(',').map(n => n.trim()).filter(Boolean);
+        if (!nivArr.length) {
+            alert('O modelo não tem níveis configurados.\n\nAdicione os níveis de pressão (campo "Níveis") nas configurações do modelo.'); return;
+        }
+
+        try { const old = document.getElementById('gtVProfDlg'); if (old) old.remove(); } catch (_) {}
+        const ov = document.createElement('div');
+        ov.id = 'gtVProfDlg';
+        ov.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100002;font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif";
+
+        const varName = (v.nome || s.variavel);
+        const optionsHtml = nivArr.map(n => `<option value="${n}">${n} hPa</option>`).join('');
+
+        // Passo range defaults
+        let passoFreq = 6, passoMax = 72;
+        try { passoFreq = state.stepFreq || 6; passoMax = state.maxPassos || 72; } catch(_){}
+
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#ffffff;color:#1f2937;border:1px solid #d4dbe6;border-radius:8px;padding:16px 18px;width:440px;max-width:95vw;box-shadow:0 14px 40px rgba(0,0,0,0.35)';
+        card.innerHTML = `
+<div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:10px">📊 Perfil Vertical — ${varName}</div>
+<div style="display:flex;gap:0;margin-bottom:12px;border:1px solid #d4dbe6;border-radius:5px;overflow:hidden">
+  <button id="vpModeInstant" type="button" style="flex:1;padding:6px;font-size:12px;font-weight:600;cursor:pointer;border:0;background:#0a6e8a;color:#fff">Perfil instantâneo</button>
+  <button id="vpModeTemporal" type="button" style="flex:1;padding:6px;font-size:12px;font-weight:600;cursor:pointer;border:0;background:#f3f4f6;color:#374151">Evolução temporal</button>
+</div>
+<div style="font-size:11px;color:#6a7c8e;margin-bottom:8px">
+  Níveis disponíveis: <strong>${nivArr.join(', ')} hPa</strong>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+  <label style="font-size:11px;color:#374151;font-weight:600">Nível inicial (hPa)
+    <select id="vpNivMin" style="display:block;width:100%;margin-top:3px;padding:4px 6px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;background:#fff">${optionsHtml}</select>
+  </label>
+  <label style="font-size:11px;color:#374151;font-weight:600">Nível final (hPa)
+    <select id="vpNivMax" style="display:block;width:100%;margin-top:3px;padding:4px 6px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;background:#fff">${optionsHtml}</select>
+  </label>
+</div>
+
+<!-- Seção instantâneo -->
+<div id="vpSecInstant">
+  <div style="margin-bottom:12px">
+    <label style="font-size:11px;color:#374151;font-weight:600">Escala do eixo Y</label>
+    <div style="display:flex;gap:12px;margin-top:4px">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+        <input type="radio" name="vpScale" value="log" checked> Log (pressão)
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+        <input type="radio" name="vpScale" value="linear"> Linear
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- Seção temporal (oculta por padrão) -->
+<div id="vpSecTemporal" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+    <label style="font-size:11px;color:#374151;font-weight:600">Passo inicial (h)
+      <input id="vpPassoIni" type="number" min="0" step="1" style="display:block;width:100%;margin-top:3px;padding:4px 6px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;box-sizing:border-box">
+    </label>
+    <label style="font-size:11px;color:#374151;font-weight:600">Passo final (h)
+      <input id="vpPassoFim" type="number" min="0" step="1" style="display:block;width:100%;margin-top:3px;padding:4px 6px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;box-sizing:border-box">
+    </label>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px">
+    <label style="font-size:11px;color:#374151;font-weight:600">Visualização
+      <select id="vpVizType" style="display:block;width:100%;margin-top:3px;padding:4px 6px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;background:#fff">
+        <option value="shaded">Sombreado</option>
+        <option value="isoline">Isolinhas</option>
+        <option value="both">Sombreado + Contorno</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+  <label style="font-size:11px;color:#374151;font-weight:600">Latitude
+    <input id="vpLat" type="number" step="0.0001" placeholder="ex: -23.5" style="display:block;width:100%;margin-top:3px;padding:4px 6px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;box-sizing:border-box">
+  </label>
+  <label style="font-size:11px;color:#374151;font-weight:600">Longitude
+    <input id="vpLon" type="number" step="0.0001" placeholder="ex: -46.6" style="display:block;width:100%;margin-top:3px;padding:4px 6px;font-size:12px;border:1px solid #d4dbe6;border-radius:4px;box-sizing:border-box">
+  </label>
+</div>
+<div style="margin-bottom:12px">
+  <button id="vpBtnClick" type="button" style="padding:5px 10px;font-size:11px;background:#0a6e8a;color:#fff;border:0;border-radius:4px;cursor:pointer;font-weight:600" title="Clique no mapa para escolher o ponto">📍 Clicar no mapa</button>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:8px">
+  <button id="vpBtnCancel" type="button" style="padding:6px 12px;font-size:12px;background:#f3f4f6;color:#374151;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer">Cancelar</button>
+  <button id="vpBtnOk" type="button" style="padding:6px 14px;font-size:12px;background:#0a6e8a;color:#fff;border:0;border-radius:4px;cursor:pointer;font-weight:600">Gerar perfil</button>
+</div>`;
+        ov.appendChild(card);
+        document.body.appendChild(ov);
+
+        // Defaults
+        const selMin = document.getElementById('vpNivMin');
+        const selMax = document.getElementById('vpNivMax');
+        selMin.value = nivArr[nivArr.length - 1];
+        selMax.value = nivArr[0];
+        document.getElementById('vpPassoIni').value = passoFreq;
+        document.getElementById('vpPassoFim').value = passoMax;
+
+        // Modo toggle
+        let modoTemporal = false;
+        const btnInstant  = document.getElementById('vpModeInstant');
+        const btnTemporal = document.getElementById('vpModeTemporal');
+        const secInstant  = document.getElementById('vpSecInstant');
+        const secTemporal = document.getElementById('vpSecTemporal');
+        const activeSt    = 'background:#0a6e8a;color:#fff';
+        const inactiveSt  = 'background:#f3f4f6;color:#374151';
+
+        btnInstant.onclick = () => {
+            modoTemporal = false;
+            btnInstant.style.cssText  += activeSt;
+            btnTemporal.style.cssText += inactiveSt;
+            btnInstant.style.background  = '#0a6e8a'; btnInstant.style.color  = '#fff';
+            btnTemporal.style.background = '#f3f4f6'; btnTemporal.style.color = '#374151';
+            secInstant.style.display  = '';
+            secTemporal.style.display = 'none';
+        };
+        btnTemporal.onclick = () => {
+            modoTemporal = true;
+            btnTemporal.style.background = '#0a6e8a'; btnTemporal.style.color = '#fff';
+            btnInstant.style.background  = '#f3f4f6'; btnInstant.style.color  = '#374151';
+            secInstant.style.display  = 'none';
+            secTemporal.style.display = '';
+        };
+
+        // Fechar
+        document.getElementById('vpBtnCancel').onclick = () => ov.remove();
+
+        // "Clicar no mapa"
+        document.getElementById('vpBtnClick').onclick = () => {
+            const mapEl = slotEl(slotIdx);
+            const cv = mapEl && mapEl.querySelector('.map-canvas-gt');
+            const gtm = _gtSlotMap[slotIdx];
+            if (!cv || !gtm || typeof gtm.canvasToLatLon !== 'function') {
+                alert('Abra um mapa GeoTIFF ativo no painel para usar "Clicar no mapa".'); return;
+            }
+            ov.style.display = 'none';
+            const banner = document.createElement('div');
+            banner.textContent = '📍 Clique no mapa para escolher o ponto (Esc cancela)';
+            banner.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100060;background:#0a6e8a;color:#fff;padding:8px 14px;border-radius:6px;font:600 13px ui-sans-serif,system-ui;box-shadow:0 4px 16px rgba(0,0,0,.4)';
+            document.body.appendChild(banner);
+            let done = false;
+            const cleanup = () => { if (done) return; done = true; try { banner.remove(); } catch(_){} try { cv.removeEventListener('click', onClick, true); } catch(_){} document.removeEventListener('keydown', onKey, true); ov.style.display = ''; };
+            const onClick = (e) => { e.preventDefault(); e.stopPropagation(); const r = cv.getBoundingClientRect(); let ll = null; try { ll = gtm.canvasToLatLon(e.clientX - r.left, e.clientY - r.top); } catch(_){} cleanup(); if (ll && isFinite(ll.lat) && isFinite(ll.lon)) { document.getElementById('vpLat').value = (+ll.lat).toFixed(5); document.getElementById('vpLon').value = (+ll.lon).toFixed(5); } };
+            const onKey = (e) => { if (e.key === 'Escape') cleanup(); };
+            cv.addEventListener('click', onClick, true);
+            document.addEventListener('keydown', onKey, true);
+        };
+
+        // Gerar
+        document.getElementById('vpBtnOk').onclick = () => {
+            const lat = parseFloat(document.getElementById('vpLat').value);
+            const lon = parseFloat(document.getElementById('vpLon').value);
+            if (!isFinite(lat) || !isFinite(lon)) { alert('Informe latitude e longitude válidas (ou clique no mapa).'); return; }
+            const nivMinV = parseFloat(selMin.value);
+            const nivMaxV = parseFloat(selMax.value);
+            const allNums = nivArr.map(Number);
+            const pMin = Math.min(nivMinV, nivMaxV);
+            const pMax = Math.max(nivMinV, nivMaxV);
+            const filtered = allNums.filter(p => p >= pMin && p <= pMax).sort((a, b) => a - b);
+            if (!filtered.length) { alert('Nenhum nível no intervalo selecionado.'); return; }
+            const scale = document.querySelector('input[name="vpScale"]:checked').value;
+            let passoH = 0;
+            try { passoH = getEffectivePasso(slotIdx) || state.passoAtual || 0; } catch(_){}
+            // Ler valores ANTES de remover o dialog do DOM
+            const passoIni = parseInt(document.getElementById('vpPassoIni').value) || 0;
+            const passoFim = parseInt(document.getElementById('vpPassoFim').value) || passoMax;
+            const vizType  = document.getElementById('vpVizType').value;
+            const paleta   = 'viridis'; // padrão; ajustável via engrenagem no popup
+            ov.remove();
+            if (modoTemporal) {
+                console.log('[vprofile-temporal] pIni=' + passoIni + ' pFim=' + passoFim + ' freq=' + passoFreq + ' niveis=' + filtered);
+                gtRunTemporalProfile(slotIdx, lat, lon, filtered, passoIni, passoFim, passoFreq, vizType, paleta, varName);
+            } else {
+                console.log('[vprofile] slotIdx=' + slotIdx + ' passoH=' + passoH + ' niveis=' + filtered);
+                gtRunVerticalProfile(slotIdx, lat, lon, filtered, scale, passoH, varName);
+            }
+        };
+    }
+
+    /* Amostra matriz nivel×passo para evolução temporal */
+    async function gtSampleTemporalProfile(slotIdx, lat, lon, niveisArr, passoMin, passoMax, passoFreq, onProgress) {
+        const s = state.slots[slotIdx];
+        const m = s && modelos[s.modelo];
+        const v = s && getVariavel(s.modelo, s.variavel);
+        if (!s || !m || !v) throw new Error('slot/modelo/variável inválido');
+        // Gerar lista de passos
+        const steps = [];
+        const freq = Math.max(1, passoFreq || 6);
+        for (let p = passoMin; p <= passoMax; p += freq) steps.push(p);
+        if (!steps.length) throw new Error('Nenhum passo no intervalo especificado');
+        // matrix[iNivel][iStep] = value | null
+        const nNiveis = niveisArr.length;
+        const nSteps  = steps.length;
+        const matrix  = niveisArr.map(() => new Array(nSteps).fill(null));
+        let done = 0, total = nNiveis * nSteps;
+        let vmin = Infinity, vmax = -Infinity;
+        for (let si = 0; si < nSteps; si++) {
+            const passoH = steps[si];
+            for (let ni = 0; ni < nNiveis; ni++) {
+                const nivel = niveisArr[ni];
+                const url = _buildGtUrlForNivel(slotIdx, passoH, nivel);
+                if (url) {
+                    try {
+                        let decoded = _gtTsRasterGet(url) || gtCacheGet(url);
+                        if (!decoded) { decoded = await _gtFetchAndDecode(url); _gtTsRasterPut(url, decoded); }
+                        const sm = gtSampleDecodedAtLatLon(decoded, lat, lon);
+                        if (sm && sm.valid && !sm.noData) {
+                            const val = sm.value;
+                            matrix[ni][si] = val;
+                            if (val < vmin) vmin = val;
+                            if (val > vmax) vmax = val;
+                        }
+                    } catch (e) {
+                        console.warn('[vprofile-temp] p=' + passoH + ' n=' + nivel, e && e.message);
+                    }
+                }
+                done++;
+                if (onProgress) onProgress(done, total);
+            }
+        }
+        if (!isFinite(vmin)) { vmin = 0; vmax = 1; }
+        if (vmin === vmax) { vmin -= 0.5; vmax += 0.5; }
+        return { steps, niveis: niveisArr, matrix, vmin, vmax, lat, lon };
+    }
+
+    /* Lança o processo completo de perfil temporal */
+    async function gtRunTemporalProfile(slotIdx, lat, lon, niveisArr, passoMin, passoMax, passoFreq, vizType, paleta, varName) {
+        const nSteps = Math.floor((passoMax - passoMin) / Math.max(1, passoFreq)) + 1;
+        const total  = niveisArr.length * nSteps;
+        const prog = document.createElement('div');
+        prog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100003;background:#fff;border:1px solid #d4dbe6;border-radius:8px;padding:20px 24px;font-family:ui-sans-serif,system-ui;font-size:13px;color:#374151;box-shadow:0 12px 32px rgba(0,0,0,.3);min-width:240px;text-align:center';
+        prog.innerHTML = '<div style="font-weight:700;margin-bottom:8px">Calculando perfil temporal…</div><div id="_vtPrgTxt" style="font-size:11px;color:#6a7c8e">0 / ' + total + ' combinações</div>';
+        let cancelled = false;
+        const btnCancelProg = document.createElement('button');
+        btnCancelProg.textContent = 'Cancelar'; btnCancelProg.style.cssText = 'margin-top:10px;padding:4px 10px;font-size:11px;background:#f3f4f6;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer';
+        btnCancelProg.onclick = () => { cancelled = true; prog.remove(); };
+        prog.appendChild(btnCancelProg);
+        document.body.appendChild(prog);
+        let result = null;
+        try {
+            result = await gtSampleTemporalProfile(slotIdx, lat, lon, niveisArr, passoMin, passoMax, passoFreq, (done, tot) => {
+                const el = document.getElementById('_vtPrgTxt');
+                if (el) el.textContent = done + ' / ' + tot + ' combinações';
+            });
+        } catch (e) {
+            console.error('[vprofile-temp]', e);
+            prog.remove();
+            if (!cancelled) alert('Erro ao calcular perfil temporal:\n' + (e && e.message));
+            return;
+        }
+        prog.remove();
+        if (cancelled) return;
+        const s = state.slots[slotIdx];
+        const v = s && getVariavel(s.modelo, s.variavel);
+        const unidade = (v && v.unidade) || '';
+        const mNome   = (s && modelos[s.modelo] && modelos[s.modelo].nome) || (s && s.modelo) || '';
+        const runDateStr = (s && s.data) || '';
+        try {
+            gtOpenTemporalProfilePopup(result, { vizType, paleta, varName, unidade, mNome, runDateStr });
+        } catch (epop) {
+            console.error('[vprofile-temp] popup err:', epop);
+            alert('Erro ao abrir gráfico temporal: ' + (epop && epop.message));
+        }
+    }
+
+    /* Popup com o gráfico Canvas2D do perfil vertical×tempo */
+    function gtOpenTemporalProfilePopup(result, opts) {
+        opts = opts || {};
+        try { const old = document.getElementById('gtVTProfPopup'); if (old) old.remove(); } catch(_){}
+
+        const { steps, niveis, matrix, vmin, vmax, lat, lon } = result;
+        let vizType  = opts.vizType  || 'shaded';
+        let paleta   = opts.paleta   || 'viridis';
+        const varName    = opts.varName    || '';
+        const unidade    = opts.unidade    || '';
+        const mNome      = opts.mNome      || '';
+        const runDateStr = opts.runDateStr || '';
+        const nNiveis  = niveis.length;
+        const nSteps   = steps.length;
+        const latFmt   = (+lat).toFixed(4);
+        const lonFmt   = (+lon).toFixed(4);
+
+        // Estado de zoom e eixo
+        let xZoom = null;      // { si0, si1 } — índices de passo (podem ser float)
+        let yZoom = null;      // { pMin, pMax }
+        let xAxisMode = 'hours'; // 'hours' | 'datetime'
+        let dragState = null;  // rubber-band
+
+        const pop = document.createElement('div');
+        pop.id = 'gtVTProfPopup';
+        pop.style.cssText = [
+            'position:fixed','right:20px','bottom:20px',
+            'width:792px','height:550px','min-width:480px','min-height:352px',
+            'max-width:95vw','max-height:90vh',
+            'background:#ffffff','border:1px solid #d4dbe6','border-radius:8px',
+            'box-shadow:0 12px 40px rgba(0,0,0,0.35)','z-index:100005',
+            "font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif",
+            'color:#1f2937','display:flex','flex-direction:column','resize:both','overflow:hidden'
+        ].join(';');
+
+        const paletteNames = ['viridis','plasma','jet','rdbu','rdylbu','spectral','coolwarm','turbo'];
+        const vizOpts = [
+            {v:'shaded',l:'Sombreado'},{v:'isoline',l:'Isolinhas'},{v:'both',l:'Shad + Contorno'}
+        ];
+
+        pop.innerHTML =
+            '<div id="gtVTPHeader" style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;display:flex;align-items:center;gap:6px;flex:0 0 auto;font-family:inherit;user-select:none">'
+          + '<strong style="color:#0f172a;font-size:13px">Perfil Temporal</strong>'
+          + '<span style="color:#c4cdd6">·</span>'
+          + '<span style="font-size:11px;color:#6a7c8e">' + (mNome ? mNome + ' · ' : '') + varName + '</span>'
+          + '<span style="font-size:11px;color:#94a3b8">+' + steps[0] + 'h→+' + steps[steps.length-1] + 'h</span>'
+          + '<div style="margin-left:auto;display:flex;align-items:center;gap:4px">'
+          + '<select id="gtVTPVizType" style="font-size:11px;padding:2px 6px;border:1px solid #d4dbe6;border-radius:4px;background:#fff;color:#1f2937;font-family:inherit;cursor:pointer">'
+          + vizOpts.map(function(o){ return '<option value="'+o.v+'"'+(o.v===vizType?' selected':'')+'>'+o.l+'</option>'; }).join('')
+          + '</select>'
+          + '<button id="gtVTPGear" title="Paleta de cores" style="background:#f8fafc;border:1px solid #d4dbe6;border-radius:4px;color:#374151;font-size:13px;padding:2px 6px;cursor:pointer;line-height:1.2;font-family:inherit">⚙</button>'
+          + '<button id="gtVTPXMode" title="Alternar eixo X" style="background:#f8fafc;border:1px solid #d4dbe6;border-radius:4px;color:#374151;font-size:11px;padding:2px 7px;cursor:pointer;font-family:inherit;min-width:36px">+Xh</button>'
+          + '<button id="gtVTPZoomReset" style="display:none;font-size:10px;padding:2px 6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;cursor:pointer;color:#1d4ed8;font-family:inherit">⟲ zoom</button>'
+          + '<button id="gtVTPClose" title="Fechar" style="background:transparent;border:0;color:#64748b;font-size:22px;cursor:pointer;line-height:1;padding:0 4px">&times;</button>'
+          + '</div>'
+          + '</div>'
+          + '<div id="gtVTPChartWrap" style="flex:1 1 auto;position:relative;background:#ffffff;overflow:hidden">'
+          + '<canvas id="gtVTPCanvas" style="display:block;width:100%;height:100%;cursor:crosshair"></canvas>'
+          + '<div id="gtVTPZoomBand" style="position:absolute;display:none;pointer-events:none;background:rgba(37,99,235,0.1);border:1px solid rgba(37,99,235,0.45)"></div>'
+          + '<div id="gtVTPTip" style="position:absolute;display:none;pointer-events:none;background:#0f172a;color:#fff;padding:6px 9px;border-radius:5px;font-size:11px;font-family:ui-monospace,monospace;box-shadow:0 4px 12px rgba(0,0,0,.25);line-height:1.6;white-space:nowrap;z-index:10"></div>'
+          + '</div>'
+          + '<div id="gtVTPPalPanel" style="display:none;position:fixed;z-index:100010;background:#fff;border:1px solid #d4dbe6;border-radius:6px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.2);min-width:130px;font-family:inherit">'
+          + '<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:7px;text-transform:uppercase;letter-spacing:.5px">Paleta de cores</div>'
+          + paletteNames.map(function(p){
+              return '<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:2px 0;color:#1f2937">'
+                   + '<input type="radio" name="gtVTPalRad" value="'+p+'"'+(p===paleta?' checked':'')+' style="cursor:pointer"> '
+                   + p.charAt(0).toUpperCase()+p.slice(1)+'</label>';
+            }).join('')
+          + '</div>'
+          + '<div style="padding:8px 12px;border-top:1px solid #e5e7eb;flex:0 0 auto;display:flex;gap:8px;align-items:center">'
+          + '<span style="color:#475569;font-size:11px">📍 lat <strong>' + latFmt + '°</strong> · lon <strong>' + lonFmt + '°</strong></span>'
+          + '<span style="margin-left:auto"></span>'
+          + '<button id="gtVTPDownload" style="padding:5px 12px;background:#2563eb;border:0;color:#fff;border-radius:5px;cursor:pointer;font-size:12px;font-family:inherit">Baixar CSV</button>'
+          + '<button id="gtVTPSavePNG" style="padding:5px 12px;background:#0ea5e9;border:0;color:#fff;border-radius:5px;cursor:pointer;font-size:12px;font-family:inherit">Salvar PNG</button>'
+          + '</div>';
+
+        document.body.appendChild(pop);
+
+        const canvas       = document.getElementById('gtVTPCanvas');
+        const tip          = document.getElementById('gtVTPTip');
+        const zoomBand     = document.getElementById('gtVTPZoomBand');
+        const zoomResetBtn = document.getElementById('gtVTPZoomReset');
+        const palPanel     = document.getElementById('gtVTPPalPanel');
+        const _showReset   = function() { zoomResetBtn.style.display = (xZoom||yZoom) ? '' : 'none'; };
+
+        // Fechar
+        document.getElementById('gtVTPClose').onclick = function() { pop.remove(); };
+
+        // Arrastar cabeçalho
+        (function() {
+            var dx=0,dy=0,dragging=false;
+            var hdr = document.getElementById('gtVTPHeader');
+            hdr.style.cursor = 'move';
+            hdr.addEventListener('mousedown', function(e) {
+                if (['INPUT','BUTTON','SELECT'].indexOf(e.target.tagName)>=0) return;
+                dragging=true; dx=e.clientX-pop.offsetLeft; dy=e.clientY-pop.offsetTop; pop.style.transform='none';
+            });
+            document.addEventListener('mousemove', function(e) { if(!dragging) return; pop.style.left=(e.clientX-dx)+'px'; pop.style.top=(e.clientY-dy)+'px'; });
+            document.addEventListener('mouseup', function() { dragging=false; });
+        })();
+
+        // Viz type
+        document.getElementById('gtVTPVizType').onchange = function() { vizType=this.value; _draw(); };
+
+        // Gear / palette panel
+        var gearBtn = document.getElementById('gtVTPGear');
+        gearBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (palPanel.style.display !== 'none') { palPanel.style.display='none'; return; }
+            var r = gearBtn.getBoundingClientRect();
+            palPanel.style.top  = (r.bottom+4)+'px';
+            palPanel.style.left = r.left+'px';
+            palPanel.style.display = '';
+        };
+        palPanel.addEventListener('click', function(e) { e.stopPropagation(); });
+        document.addEventListener('click', function() { palPanel.style.display='none'; });
+        palPanel.querySelectorAll('input[name="gtVTPalRad"]').forEach(function(radio) {
+            radio.onchange = function() { paleta=this.value; _draw(); };
+        });
+
+        // X-axis mode
+        var xModeBtn = document.getElementById('gtVTPXMode');
+        xModeBtn.onclick = function() {
+            xAxisMode = xAxisMode==='hours' ? 'datetime' : 'hours';
+            xModeBtn.textContent = xAxisMode==='hours' ? '+Xh' : '📅';
+            _draw();
+        };
+
+        // Zoom reset
+        zoomResetBtn.onclick = function() { xZoom=null; yZoom=null; _showReset(); _draw(); };
+
+        // CSV download
+        document.getElementById('gtVTPDownload').onclick = function() {
+            var csv = 'nivel_hPa,' + steps.map(function(p){return '+'+p+'h';}).join(',') + '\n';
+            for (var ni=0; ni<nNiveis; ni++) {
+                csv += niveis[ni] + ',' + matrix[ni].map(function(v){return v!=null?v.toFixed(4):'';}).join(',') + '\n';
+            }
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+            a.download = 'perfil_temporal_' + varName.replace(/\s+/g,'_') + '_' + latFmt + '_' + lonFmt + '.csv';
+            a.click();
+        };
+        document.getElementById('gtVTPSavePNG').onclick = function() {
+            try {
+                var cv = document.getElementById('gtVTPCanvas');
+                var dataUrl = cv.toDataURL('image/png');
+                var a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = 'perfil_temporal_' + varName.replace(/\s+/g,'_') + '_' + latFmt + '_' + lonFmt + '.png';
+                a.click();
+            } catch(e) { alert('Erro ao salvar PNG: ' + (e && e.message)); }
+        };
+
+        // ─── Marching Squares ────────────────────────────────────────────────
+        function _marchSquares(grid, nRows, nCols, threshold, xOfC, yOfR) {
+            var segs = [];
+            function edgePt(edge, tl,tr,br,bl, x0,y0,x1,y1) {
+                var f;
+                if (edge==='T') { f=Math.abs(tr-tl)<1e-10?0.5:(threshold-tl)/(tr-tl); return [x0+f*(x1-x0),y0]; }
+                if (edge==='R') { f=Math.abs(br-tr)<1e-10?0.5:(threshold-tr)/(br-tr); return [x1,y0+f*(y1-y0)]; }
+                if (edge==='B') { f=Math.abs(br-bl)<1e-10?0.5:(threshold-bl)/(br-bl); return [x0+f*(x1-x0),y1]; }
+                if (edge==='L') { f=Math.abs(bl-tl)<1e-10?0.5:(threshold-tl)/(bl-tl); return [x0,y0+f*(y1-y0)]; }
+            }
+            var LUT=[
+                [],[['L','B']],[['B','R']],[['L','R']],[['T','R']],
+                [['T','R'],['L','B']],[['T','B']],[['T','L']],[['T','L']],[['T','B']],
+                [['T','L'],['R','B']],[['T','R']],[['R','L']],[['R','B']],[['B','L']],[]
+            ];
+            for (var r=0; r<nRows-1; r++) {
+                for (var c=0; c<nCols-1; c++) {
+                    var tl=grid[r][c],tr=grid[r][c+1],br=grid[r+1][c+1],bl=grid[r+1][c];
+                    if (tl==null||tr==null||br==null||bl==null||!isFinite(tl)||!isFinite(tr)||!isFinite(br)||!isFinite(bl)) continue;
+                    var st=((tl>threshold?1:0)<<3)|((tr>threshold?1:0)<<2)|((br>threshold?1:0)<<1)|(bl>threshold?1:0);
+                    if (!st||st===15) continue;
+                    var x0=xOfC(c),x1=xOfC(c+1),y0=yOfR(r),y1=yOfR(r+1);
+                    var cases=LUT[st];
+                    for (var ci=0;ci<cases.length;ci++) {
+                        var p1=edgePt(cases[ci][0],tl,tr,br,bl,x0,y0,x1,y1);
+                        var p2=edgePt(cases[ci][1],tl,tr,br,bl,x0,y0,x1,y1);
+                        if (p1&&p2) segs.push([p1,p2]);
+                    }
+                }
+            }
+            return segs;
+        }
+
+        // ─── Helper: datetime a partir do passo ────────────────────────────
+        function _stepToDateTime(stepH) {
+            if (!runDateStr || runDateStr.length < 10) return '+'+stepH+'h';
+            try {
+                var yr=parseInt(runDateStr.slice(0,4)), mo=parseInt(runDateStr.slice(4,6));
+                var dy=parseInt(runDateStr.slice(6,8)), hr=parseInt(runDateStr.slice(8,10));
+                var dt = new Date(Date.UTC(yr,mo-1,dy,hr) + stepH*3600000);
+                return String(dt.getUTCDate()).padStart(2,'0')+'/'+
+                       String(dt.getUTCMonth()+1).padStart(2,'0')+' '+
+                       String(dt.getUTCHours()).padStart(2,'0')+'Z';
+            } catch(_) { return '+'+stepH+'h'; }
+        }
+
+        // ─── Render ──────────────────────────────────────────────────────────
+        function _draw() {
+            try {
+                var W = canvas.offsetWidth, H = canvas.offsetHeight;
+                if (!W || !H) return;
+                canvas.width = W; canvas.height = H;
+                var ctx = canvas.getContext('2d');
+                ctx.clearRect(0,0,W,H);
+
+                var margin = {t:20,b:46,l:64,r:20};
+                var plotW  = W - margin.l - margin.r;
+                var plotH  = H - margin.t - margin.b;
+
+                if (!nNiveis || !nSteps) {
+                    ctx.fillStyle='#6a7c8e'; ctx.font='13px ui-sans-serif,system-ui'; ctx.textAlign='center';
+                    ctx.fillText('Sem dados',W/2,H/2); return;
+                }
+
+                // Visible ranges
+                var _si0 = xZoom ? Math.max(0, xZoom.si0) : 0;
+                var _si1 = xZoom ? Math.min(nSteps-1, xZoom.si1) : nSteps-1;
+                var _pMin = yZoom ? Math.max(1, yZoom.pMin) : niveis[0];
+                var _pMax = yZoom ? Math.min(1200, yZoom.pMax) : niveis[nNiveis-1];
+
+                // Coordinate functions
+                var logMin = Math.log(Math.max(1,_pMin)), logMax = Math.log(Math.max(1,_pMax));
+                var yOfP = function(p) { return logMin===logMax ? margin.t+plotH/2 : margin.t+(Math.log(Math.max(1,p))-logMin)/(logMax-logMin)*plotH; };
+                var pOfY = function(py) { return Math.exp(logMin+(py-margin.t)/plotH*(logMax-logMin)); };
+                var xOfStep = function(si) { return margin.l + (_si1===_si0 ? 0.5 : (si-_si0)/(_si1-_si0)) * plotW; };
+
+                canvas._vtMeta = {margin:margin,plotW:plotW,plotH:plotH,si0:_si0,si1:_si1,pMin:_pMin,pMax:_pMax,yOfP:yOfP,pOfY:pOfY,xOfStep:xOfStep,niveis:niveis,steps:steps,matrix:matrix,vmin:vmin,vmax:vmax,unidade:unidade};
+
+                // Background
+                ctx.fillStyle='#f9fafb'; ctx.fillRect(margin.l,margin.t,plotW,plotH);
+
+                var doShaded  = vizType==='shaded'  || vizType==='both';
+                var doIsoline = vizType==='isoline' || vizType==='both';
+
+                // ── SHADED ──────────────────────────────────────────────────
+                if (doShaded) {
+                    var _gtPals = (typeof SisMOM_GeoTIFF!=='undefined' && SisMOM_GeoTIFF.GT_PALETTES) || {};
+                    var pal = _gtPals[paleta] || _gtPals['viridis'] || new Uint8Array(256*3).fill(180);
+                    var imgD = ctx.createImageData(plotW, plotH);
+                    var range = vmax-vmin || 1;
+                    var nivY  = niveis.map(function(p){return yOfP(p)-margin.t;});
+                    for (var py=0; py<plotH; py++) {
+                        var pAtPx = pOfY(margin.t+py);
+                        var ni0=0;
+                        for (var ni=1; ni<nNiveis; ni++) { if (niveis[ni]<=pAtPx) ni0=ni; else break; }
+                        var ni1=Math.min(ni0+1,nNiveis-1);
+                        var rowFrac=0;
+                        if (ni0!==ni1) { var y0=nivY[ni0],y1=nivY[ni1]; rowFrac=y1===y0?0:(py-y0)/(y1-y0); }
+                        rowFrac=Math.max(0,Math.min(1,rowFrac));
+                        for (var px=0; px<plotW; px++) {
+                            var stFrac = _si0+(px/(plotW-1))*(_si1-_si0);
+                            var sc0=Math.max(0,Math.min(nSteps-1,Math.floor(stFrac)));
+                            var sc1=Math.min(nSteps-1,sc0+1);
+                            var sf=stFrac-sc0;
+                            var v00=matrix[ni0][sc0],v01=matrix[ni0][sc1],v10=matrix[ni1][sc0],v11=matrix[ni1][sc1];
+                            var val=null;
+                            if (v00!=null&&v01!=null&&v10!=null&&v11!=null) {
+                                val=v00*(1-rowFrac)*(1-sf)+v01*(1-rowFrac)*sf+v10*rowFrac*(1-sf)+v11*rowFrac*sf;
+                            } else {
+                                var c00=v00!=null?1:0,c01=v01!=null?1:0,c10=v10!=null?1:0,c11=v11!=null?1:0;
+                                var cnt=c00+c01+c10+c11;
+                                val=cnt>0?((v00||0)*c00+(v01||0)*c01+(v10||0)*c10+(v11||0)*c11)/cnt:null;
+                            }
+                            if (val!=null) {
+                                var t=Math.max(0,Math.min(1,(val-vmin)/range));
+                                var idx=Math.round(t*255), base=4*(py*plotW+px);
+                                imgD.data[base]=pal[idx*3]; imgD.data[base+1]=pal[idx*3+1]; imgD.data[base+2]=pal[idx*3+2]; imgD.data[base+3]=255;
+                            }
+                        }
+                    }
+                    ctx.putImageData(imgD,margin.l,margin.t);
+                    // Colorbar labels
+                    ctx.font='9px ui-monospace,monospace'; ctx.textAlign='right'; ctx.fillStyle='#374151';
+                    ctx.fillText(_gtFmtVpValue(vmin,unidade), margin.l-3, margin.t+plotH);
+                    ctx.fillText(_gtFmtVpValue(vmax,unidade), margin.l-3, margin.t+10);
+                    ctx.fillText(_gtFmtVpValue((vmin+vmax)/2,unidade), margin.l-3, margin.t+plotH/2);
+                }
+
+                // ── ISOLINHAS ────────────────────────────────────────────────
+                if (doIsoline) {
+                    var nContours=10, iRange=vmax-vmin||1;
+                    var xOfC=function(c){return xOfStep(c);}; var yOfR=function(r){return yOfP(niveis[r]);};
+                    ctx.save(); ctx.beginPath(); ctx.rect(margin.l,margin.t,plotW,plotH); ctx.clip();
+                    for (var ci2=1; ci2<=nContours; ci2++) {
+                        var thr=vmin+(ci2/(nContours+1))*iRange;
+                        var tn=(thr-vmin)/iRange, hue=Math.round((1-tn)*240);
+                        ctx.strokeStyle = doShaded ? 'rgba(0,0,0,0.7)' : 'hsl('+hue+',70%,40%)';
+                        ctx.lineWidth = doShaded ? 1.6 : 1.2;
+                        var segs=_marchSquares(matrix,nNiveis,nSteps,thr,xOfC,yOfR);
+                        ctx.beginPath();
+                        for (var si2=0;si2<segs.length;si2++){ctx.moveTo(segs[si2][0][0],segs[si2][0][1]);ctx.lineTo(segs[si2][1][0],segs[si2][1][1]);}
+                        ctx.stroke();
+                        if (!doShaded && segs.length>0) {
+                            var ms=segs[Math.floor(segs.length/2)];
+                            var lx=(ms[0][0]+ms[1][0])/2, ly=(ms[0][1]+ms[1][1])/2;
+                            if (lx>=margin.l&&lx<=margin.l+plotW&&ly>=margin.t&&ly<=margin.t+plotH) {
+                                ctx.font='9px ui-monospace,monospace'; ctx.textAlign='center';
+                                ctx.fillStyle='hsl('+hue+',70%,25%)';
+                                ctx.fillText(_gtFmtVpValue(thr,unidade),lx,ly-2);
+                            }
+                        }
+                    }
+                    ctx.restore();
+                }
+
+                // ── BORDA ────────────────────────────────────────────────────
+                ctx.strokeStyle='#475569'; ctx.lineWidth=1.5;
+                ctx.strokeRect(margin.l,margin.t,plotW,plotH);
+
+                // ── GRID + LABELS Y ──────────────────────────────────────────
+                ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=0.7;
+                ctx.fillStyle='#1f2937'; ctx.font='11px ui-monospace,monospace'; ctx.textAlign='right';
+                for (var ni2=0; ni2<niveis.length; ni2++) {
+                    var p2=niveis[ni2], py2=yOfP(p2);
+                    if (py2<margin.t-2||py2>margin.t+plotH+2) continue;
+                    ctx.beginPath(); ctx.moveTo(margin.l+1,py2); ctx.lineTo(margin.l+plotW-1,py2); ctx.stroke();
+                    ctx.fillText(p2+' hPa', margin.l-4, py2+4);
+                }
+
+                // ── LABELS X ─────────────────────────────────────────────────
+                ctx.textAlign='center'; ctx.fillStyle='#1f2937'; ctx.font='10px ui-monospace,monospace';
+                var visCount=_si1-_si0+1, maxLbl=Math.max(1,Math.floor(plotW/50));
+                var lFreq=Math.max(1,Math.ceil(visCount/maxLbl));
+                for (var si3=Math.ceil(_si0); si3<=Math.floor(_si1); si3+=lFreq) {
+                    var px3=xOfStep(si3); if (px3<margin.l-2||px3>margin.l+plotW+2) continue;
+                    ctx.beginPath(); ctx.strokeStyle='#475569'; ctx.lineWidth=1;
+                    ctx.moveTo(px3,margin.t+plotH); ctx.lineTo(px3,margin.t+plotH+4); ctx.stroke();
+                    var lbl = xAxisMode==='datetime' ? _stepToDateTime(steps[si3]) : '+'+steps[si3]+'h';
+                    ctx.fillStyle='#1f2937'; ctx.fillText(lbl, px3, margin.t+plotH+16);
+                }
+                ctx.font='11px ui-sans-serif,system-ui'; ctx.fillStyle='#64748b'; ctx.textAlign='center';
+                ctx.fillText(xAxisMode==='datetime' ? 'Data/hora de validade (UTC)' : 'Passo de previsão', margin.l+plotW/2, H-5);
+
+                // Label eixo Y
+                ctx.save(); ctx.translate(13,margin.t+plotH/2); ctx.rotate(-Math.PI/2);
+                ctx.textAlign='center'; ctx.fillStyle='#64748b'; ctx.font='11px ui-sans-serif,system-ui';
+                ctx.fillText('Pressão (hPa)',0,0); ctx.restore();
+
+                if (xZoom||yZoom) {
+                    ctx.font='9px ui-sans-serif,system-ui'; ctx.fillStyle='rgba(37,99,235,0.7)'; ctx.textAlign='right';
+                    ctx.fillText('🔍 zoom',margin.l+plotW,margin.t-4);
+                }
+
+            } catch(err) {
+                try {
+                    var W2=canvas.offsetWidth, H2=canvas.offsetHeight;
+                    if (W2&&H2) {
+                        var ctx2=canvas.getContext('2d');
+                        ctx2.fillStyle='#fff'; ctx2.fillRect(0,0,W2,H2);
+                        ctx2.fillStyle='#b91c1c'; ctx2.font='12px ui-sans-serif'; ctx2.textAlign='center';
+                        ctx2.fillText('Erro: '+(err&&err.message),W2/2,H2/2);
+                    }
+                } catch(_){}
+                console.error('[temporal _draw]', err);
+            }
+        }
+
+        // ── Tooltip ──────────────────────────────────────────────────────────
+        canvas.addEventListener('mousemove', function(e) {
+            var meta=canvas._vtMeta; if (!meta) return;
+            if (dragState) {
+                var r=canvas.getBoundingClientRect();
+                dragState.endMx=e.clientX-r.left; dragState.endMy=e.clientY-r.top;
+                var bx0=Math.max(meta.margin.l,Math.min(dragState.startMx,dragState.endMx));
+                var bx1=Math.min(meta.margin.l+meta.plotW,Math.max(dragState.startMx,dragState.endMx));
+                var by0=Math.max(meta.margin.t,Math.min(dragState.startMy,dragState.endMy));
+                var by1=Math.min(meta.margin.t+meta.plotH,Math.max(dragState.startMy,dragState.endMy));
+                zoomBand.style.left=bx0+'px'; zoomBand.style.top=by0+'px';
+                zoomBand.style.width=Math.max(0,bx1-bx0)+'px'; zoomBand.style.height=Math.max(0,by1-by0)+'px';
+                zoomBand.style.display='block'; tip.style.display='none'; return;
+            }
+            var rr=canvas.getBoundingClientRect();
+            var mx=e.clientX-rr.left, my=e.clientY-rr.top;
+            var m=meta.margin;
+            if (mx<m.l||mx>m.l+meta.plotW||my<m.t||my>m.t+meta.plotH) { tip.style.display='none'; return; }
+            var bestNi=0, bestD=Infinity;
+            for (var ni=0;ni<meta.niveis.length;ni++) { var d=Math.abs(meta.yOfP(meta.niveis[ni])-my); if(d<bestD){bestD=d;bestNi=ni;} }
+            var stFrac=meta.si0+(mx-m.l)/meta.plotW*(meta.si1-meta.si0);
+            var bestSi=Math.max(0,Math.min(nSteps-1,Math.round(stFrac)));
+            var val=meta.matrix[bestNi][bestSi];
+            var xLbl=xAxisMode==='datetime'?_stepToDateTime(meta.steps[bestSi]):'+'+meta.steps[bestSi]+'h';
+            tip.innerHTML='<b>'+meta.niveis[bestNi]+' hPa</b> · '+xLbl+'<br>'+varName+': <b>'+(val!=null?_gtFmtVpValue(val,meta.unidade):'&mdash;')+'</b>';
+            var tw=170; var tx=mx+12, ty=my-44;
+            if (tx+tw>m.l+meta.plotW) tx=mx-tw-6; if (ty<0) ty=my+8;
+            tip.style.left=tx+'px'; tip.style.top=ty+'px'; tip.style.display='block';
+        });
+        canvas.addEventListener('mouseleave', function() { tip.style.display='none'; if(!dragState) zoomBand.style.display='none'; });
+
+        // ── Zoom: rubber-band ─────────────────────────────────────────────────
+        canvas.addEventListener('mousedown', function(e) {
+            var meta=canvas._vtMeta; if (!meta) return;
+            var r=canvas.getBoundingClientRect();
+            var mx=e.clientX-r.left, my=e.clientY-r.top;
+            if (mx<meta.margin.l||mx>meta.margin.l+meta.plotW||my<meta.margin.t||my>meta.margin.t+meta.plotH) return;
+            e.preventDefault();
+            dragState={startMx:mx,startMy:my,endMx:mx,endMy:my};
+            zoomBand.style.left=mx+'px'; zoomBand.style.top=my+'px';
+            zoomBand.style.width='0'; zoomBand.style.height='0';
+            zoomBand.style.display='block';
+        });
+        document.addEventListener('mouseup', function() {
+            if (!dragState) return;
+            var meta=canvas._vtMeta;
+            if (meta) {
+                var mx0=Math.min(dragState.startMx,dragState.endMx), mx1=Math.max(dragState.startMx,dragState.endMx);
+                var my0=Math.min(dragState.startMy,dragState.endMy), my1=Math.max(dragState.startMy,dragState.endMy);
+                var dx2=mx1-mx0, dy2=my1-my0;
+                if (dx2>8) {
+                    var sr=meta.si1-meta.si0;
+                    var ns0=meta.si0+Math.max(0,mx0-meta.margin.l)/meta.plotW*sr;
+                    var ns1=meta.si0+Math.min(meta.plotW,mx1-meta.margin.l)/meta.plotW*sr;
+                    if (ns1-ns0>0.3) xZoom={si0:ns0,si1:ns1};
+                }
+                if (dy2>8) {
+                    var p0=meta.pOfY(Math.max(meta.margin.t,my0)), p1=meta.pOfY(Math.min(meta.margin.t+meta.plotH,my1));
+                    if (Math.abs(p1-p0)>5) yZoom={pMin:Math.min(p0,p1),pMax:Math.max(p0,p1)};
+                }
+                if (dx2>8||dy2>8) { _showReset(); _draw(); }
+            }
+            dragState=null; zoomBand.style.display='none';
+        });
+
+        // ── Zoom: scroll ──────────────────────────────────────────────────────
+        canvas.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            var meta=canvas._vtMeta; if (!meta) return;
+            var r=canvas.getBoundingClientRect();
+            var mx=e.clientX-r.left, my=e.clientY-r.top;
+            if (mx<meta.margin.l||mx>meta.margin.l+meta.plotW||my<meta.margin.t||my>meta.margin.t+meta.plotH) return;
+            var fac=e.deltaY>0?1.3:0.77;
+            var pM=meta.pOfY(my);
+            var np0=Math.max(1,pM+(meta.pMin-pM)*fac), np1=Math.min(1200,pM+(meta.pMax-pM)*fac);
+            if (np1-np0>5) yZoom={pMin:np0,pMax:np1};
+            var sm=meta.si0+(mx-meta.margin.l)/meta.plotW*(meta.si1-meta.si0);
+            var ns0=Math.max(0,sm+(meta.si0-sm)*fac), ns1=Math.min(nSteps-1,sm+(meta.si1-sm)*fac);
+            if (ns1-ns0>0.3) xZoom={si0:ns0,si1:ns1};
+            _showReset(); _draw();
+        },{passive:false});
+
+        // ── Double-click: reset ───────────────────────────────────────────────
+        canvas.addEventListener('dblclick', function() { xZoom=null; yZoom=null; _showReset(); _draw(); });
+
+        // Render + resize
+        var ro=new ResizeObserver(function(){_draw();});
+        ro.observe(canvas);
+        _draw();
+    }
+
+
+    /* Constrói a URL do GeoTIFF para um dado nível de pressão (cobre 3 caminhos) */
+    function _buildGtUrlForNivel(slotIdx, passoH, nivel) {
+        try {
+            const s = state.slots[slotIdx];
+            const m = s && modelos[s.modelo];
+            if (!s || !m) return null;
+            const nivStr = String(nivel);
+            const isNativeGt = typeof SisMOM_GeoTIFF !== 'undefined' && SisMOM_GeoTIFF.isGeoTiffModel(m);
+            const isGtMode   = typeof appMode !== 'undefined' && appMode === 'gtiff';
+            if (isNativeGt) {
+                return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passoH, nivel: nivStr, tif: true });
+            }
+            if (isGtMode) {
+                const hasOwnTifRoute = (m.url_path_tif && !m.same_url_for_tif) || (m.file_name_tif && !m.same_name_for_tif);
+                if (hasOwnTifRoute) {
+                    const mTif = (typeof _buildMTifModel === 'function') ? _buildMTifModel(m) : m;
+                    const orig = modelos[s.modelo];
+                    modelos[s.modelo] = mTif;
+                    try {
+                        return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passoH, nivel: nivStr });
+                    } finally { modelos[s.modelo] = orig; }
+                } else {
+                    const pngUrl = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passoH, nivel: nivStr });
+                    return (typeof gtDeriveTifUrl === 'function') ? gtDeriveTifUrl(pngUrl) : pngUrl;
+                }
+            }
+            return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passoH, nivel: nivStr, tif: true });
+        } catch (e) {
+            console.warn('[vprofile] _buildGtUrlForNivel nivel=' + nivel, e && e.message);
+            return null;
+        }
+    }
+
+    /* Amostra o valor da variável 3D em cada nível para um ponto lat/lon */
+    async function gtSampleVerticalProfile(slotIdx, lat, lon, niveisArr, passoH, onProgress) {
+        const s = state.slots[slotIdx];
+        const m = s && modelos[s.modelo];
+        const v = s && getVariavel(s.modelo, s.variavel);
+        if (!s || !m || !v) throw new Error('slot/modelo/variável inválido');
+        const samples = [];
+        const total = niveisArr.length;
+        let done = 0;
+        for (const nivel of niveisArr) {
+            const url = _buildGtUrlForNivel(slotIdx, passoH, nivel);
+            console.log('[vprofile] nivel=' + nivel + ' url=' + url);
+            let value = null;
+            if (url) {
+                try {
+                    let decoded = _gtTsRasterGet(url) || gtCacheGet(url);
+                    if (!decoded) { decoded = await _gtFetchAndDecode(url); _gtTsRasterPut(url, decoded); }
+                    const sm = gtSampleDecodedAtLatLon(decoded, lat, lon);
+                    value = (sm && sm.valid && !sm.noData) ? sm.value : null;
+                    console.log('[vprofile] nivel=' + nivel + ' value=' + value);
+                } catch (e) {
+                    console.warn('[vprofile] nivel', nivel, 'err', e && e.message);
+                }
+            }
+            samples.push({ nivel, value });
+            done++;
+            if (onProgress) onProgress(done, total);
+        }
+        return { samples, lat, lon };
+    }
+
+    /* Lança o processo completo: amostragem → popup */
+    async function gtRunVerticalProfile(slotIdx, lat, lon, niveisArr, scale, passoH, varName) {
+        // Popup de progresso
+        const prog = document.createElement('div');
+        prog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100003;background:#fff;border:1px solid #d4dbe6;border-radius:8px;padding:20px 24px;font-family:ui-sans-serif,system-ui;font-size:13px;color:#374151;box-shadow:0 12px 32px rgba(0,0,0,.3);min-width:220px;text-align:center';
+        prog.innerHTML = '<div style="font-weight:700;margin-bottom:8px">Calculando perfil…</div><div id="_vpPrgTxt" style="font-size:11px;color:#6a7c8e">0 / ' + niveisArr.length + ' níveis</div>';
+        let cancelled = false;
+        const btnCancelProg = document.createElement('button');
+        btnCancelProg.textContent = 'Cancelar'; btnCancelProg.style.cssText = 'margin-top:10px;padding:4px 10px;font-size:11px;background:#f3f4f6;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer';
+        btnCancelProg.onclick = () => { cancelled = true; prog.remove(); };
+        prog.appendChild(btnCancelProg);
+        document.body.appendChild(prog);
+
+        let result = null;
+        try {
+            result = await gtSampleVerticalProfile(slotIdx, lat, lon, niveisArr, passoH, (done, total) => {
+                const el = document.getElementById('_vpPrgTxt');
+                if (el) el.textContent = done + ' / ' + total + ' níveis';
+            });
+        } catch (e) {
+            console.error('[vprofile]', e);
+            prog.remove();
+            if (!cancelled) alert('Erro ao calcular perfil vertical:\n' + (e && e.message));
+            return;
+        }
+        prog.remove();
+        if (cancelled) return;
+
+        const s = state.slots[slotIdx];
+        const v = s && getVariavel(s.modelo, s.variavel);
+        const unidade = (v && v.unidade) || '';
+        const mNome = (s && modelos[s.modelo] && modelos[s.modelo].nome) || (s && s.modelo) || '';
+        try {
+            gtOpenVProfilePopup(result, { scale, varName, unidade, mNome, passoH });
+        } catch (epop) {
+            console.error('[vprofile] popup err:', epop);
+            alert('Erro ao abrir gráfico de perfil: ' + (epop && epop.message));
+        }
+    }
+
+    /* Popup com o gráfico Canvas2D do perfil vertical */
+    function gtOpenVProfilePopup(result, opts) {
+        opts = opts || {};
+        try { const old = document.getElementById('gtVProfPopup'); if (old) old.remove(); } catch(_){}
+
+        const { samples, lat, lon } = result;
+        const scale    = opts.scale || 'log';
+        const varName  = opts.varName || '';
+        const unidade  = opts.unidade || '';
+        const mNome    = opts.mNome || '';
+        const passoH   = opts.passoH != null ? opts.passoH : '';
+
+        const pop = document.createElement('div');
+        pop.id = 'gtVProfPopup';
+        pop.style.cssText = [
+            'position:fixed','left:50%','top:50%','transform:translate(-50%,-50%)',
+            'width:680px','height:480px','min-width:440px','min-height:320px',
+            'max-width:95vw','max-height:90vh',
+            'background:#ffffff','border:1px solid #d4dbe6','border-radius:8px',
+            'box-shadow:0 12px 40px rgba(0,0,0,0.35)','z-index:100005',
+            'font-family:ui-sans-serif,system-ui,sans-serif','color:#1f2937',
+            'display:flex','flex-direction:column',
+            'resize:both','overflow:hidden'
+        ].join(';');
+
+        const latFmt  = (+lat).toFixed(4);
+        const lonFmt  = (+lon).toFixed(4);
+        const passoTxt = (passoH !== '' && passoH !== null && passoH !== undefined) ? (' · +' + passoH + 'h') : '';
+
+        pop.innerHTML =
+            '<div id="gtVPHeader" style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;display:flex;align-items:center;gap:8px;flex:0 0 auto;flex-wrap:wrap">'
+          +   '<strong style="color:#0f172a">Perfil Vertical</strong>'
+          +   '<span style="color:#475569">·</span>'
+          +   '<span style="font-size:11px;color:#6a7c8e">' + (mNome ? mNome + ' · ' : '') + varName + passoTxt + '</span>'
+          +   '<span style="color:#475569">·</span>'
+          +   '<span style="font-size:11px;color:#6a7c8e">📍 ' + latFmt + ', ' + lonFmt + '</span>'
+          +   '<div style="margin-left:auto;display:flex;align-items:center;gap:6px">'
+          +     '<label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="vpScaleToggle" value="log" ' + (scale==='log'?'checked':'') + '> Log</label>'
+          +     '<label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="vpScaleToggle" value="linear" ' + (scale==='linear'?'checked':'') + '> Linear</label>'
+          +     '<button id="gtVPDownload" title="Baixar CSV" style="background:transparent;border:1px solid #d4dbe6;border-radius:4px;color:#374151;font-size:11px;padding:2px 7px;cursor:pointer">⬇ CSV</button>'
+          +     '<button id="gtVPClose" title="Fechar" style="background:transparent;border:0;color:#475569;font-size:22px;cursor:pointer;line-height:1;padding:0 6px">&times;</button>'
+          +   '</div>'
+          + '</div>'
+          + '<div id="gtVPChartWrap" style="flex:1 1 auto;position:relative;background:#ffffff;overflow:hidden">'
+          +   '<canvas id="gtVPCanvas" style="display:block;width:100%;height:100%;cursor:crosshair"></canvas>'
+          +   '<div id="gtVPZoomBand" style="position:absolute;display:none;pointer-events:none;background:rgba(37,99,235,0.15);border:1px solid rgba(37,99,235,0.5);left:0;right:0"></div>'
+          +   '<button id="gtVPZoomReset" title="Resetar zoom (duplo-clique no gráfico)" style="position:absolute;top:4px;right:4px;display:none;font-size:10px;padding:2px 7px;background:#f3f4f6;border:1px solid #d4dbe6;border-radius:4px;cursor:pointer;color:#374151">⟲ Reset zoom Y</button>'
+          +   '<div id="gtVPTip" style="position:absolute;display:none;pointer-events:none;background:#0f172a;color:#fff;padding:6px 9px;border-radius:5px;font-size:11px;font-family:ui-monospace,monospace;box-shadow:0 4px 12px rgba(0,0,0,0.25);line-height:1.6;white-space:nowrap;z-index:10"></div>'
+          + '</div>';
+
+        document.body.appendChild(pop);
+
+        const canvas = document.getElementById('gtVPCanvas');
+        const tip    = document.getElementById('gtVPTip');
+
+        // Fechar / arrastar / fechar ao click fora
+        document.getElementById('gtVPClose').onclick = () => pop.remove();
+        (function() {
+            let dx=0,dy=0,dragging=false;
+            const hdr = document.getElementById('gtVPHeader');
+            hdr.style.cursor = 'move';
+            hdr.addEventListener('mousedown', e => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+                dragging=true; dx=e.clientX-pop.offsetLeft; dy=e.clientY-pop.offsetTop;
+                pop.style.transform='none';
+            });
+            document.addEventListener('mousemove', e => { if (!dragging) return; pop.style.left=(e.clientX-dx)+'px'; pop.style.top=(e.clientY-dy)+'px'; });
+            document.addEventListener('mouseup', () => dragging=false);
+        })();
+
+        // CSV
+        document.getElementById('gtVPDownload').onclick = () => {
+            let csv = 'nivel_hPa,' + varName + (unidade ? '_' + unidade : '') + '\n';
+            for (const sm of samples) csv += sm.nivel + ',' + (sm.value != null ? sm.value.toFixed(4) : '') + '\n';
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+            a.download = 'perfil_vertical_' + varName.replace(/\s+/g,'_') + '_' + latFmt + '_' + lonFmt + '.csv';
+            a.click();
+        };
+
+        // ─── Renderização do canvas ───
+        let curScale = scale;
+        let yZoom = null;   // null = sem zoom; { pMin, pMax } em hPa
+        const zoomBand    = document.getElementById('gtVPZoomBand');
+        const zoomResetBtn = document.getElementById('gtVPZoomReset');
+        const _showReset = () => { if (zoomResetBtn) zoomResetBtn.style.display = yZoom ? 'block' : 'none'; };
+
+        function _draw() {
+            const W = canvas.offsetWidth, H = canvas.offsetHeight;
+            if (!W || !H) return;
+            canvas.width = W; canvas.height = H;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,W,H);
+
+            const margin = { t: 20, b: 44, l: 64, r: 24 };
+            const plotW  = W - margin.l - margin.r;
+            const plotH  = H - margin.t - margin.b;
+
+            // Dados válidos
+            const valid = samples.filter(s => s.value != null && isFinite(s.value));
+            if (!valid.length) {
+                ctx.fillStyle='#6a7c8e'; ctx.font='13px ui-sans-serif,system-ui';
+                ctx.textAlign='center'; ctx.fillText('Sem dados válidos no ponto selecionado',W/2,H/2);
+                ctx.textAlign='left'; return;
+            }
+
+            // Escalas
+            const pressuresAll = valid.map(s => s.nivel);       // todos os niveis válidos, crescente
+            // Limites Y: respeita zoom se activo
+            const pMinFull = pressuresAll[0], pMaxFull = pressuresAll[pressuresAll.length-1];
+            const pMin = yZoom ? Math.max(pMinFull, yZoom.pMin) : pMinFull;
+            const pMax = yZoom ? Math.min(pMaxFull, yZoom.pMax) : pMaxFull;
+            const pressures = pressuresAll.filter(p => p >= pMin && p <= pMax);
+            const visibleSamples = valid.filter(s => s.nivel >= pMin && s.nivel <= pMax);
+            // Eixo X calculado sobre os samples VISÍVEIS (zoom Y pode alterar faixa de valores)
+            let xMin = Infinity, xMax = -Infinity;
+            for (const s of visibleSamples) { if (s.value < xMin) xMin=s.value; if (s.value > xMax) xMax=s.value; }
+            if (!isFinite(xMin)) { xMin = 0; xMax = 1; }
+            const xPad = (xMax - xMin) * 0.08 || 1;
+            xMin -= xPad; xMax += xPad;
+
+            // Mapeamento Y: pressão cresce para baixo (pMax = bottom, pMin = top)
+            const yOfP = (p) => {
+                if (curScale === 'log') {
+                    const lMin = Math.log(pMin||1), lMax = Math.log(pMax||1);
+                    return lMin === lMax ? margin.t + plotH/2 : margin.t + (Math.log(p) - lMin) / (lMax - lMin) * plotH;
+                } else {
+                    return pMin === pMax ? margin.t + plotH/2 : margin.t + (p - pMin) / (pMax - pMin) * plotH;
+                }
+            };
+            // Inverso: pixel Y → pressão (para zoom por drag/scroll)
+            const pOfY = (py) => {
+                if (curScale === 'log') {
+                    const lMin = Math.log(pMin||1), lMax = Math.log(pMax||1);
+                    return Math.exp(lMin + (py - margin.t) / plotH * (lMax - lMin));
+                } else {
+                    return pMin + (py - margin.t) / plotH * (pMax - pMin);
+                }
+            };
+            const xOfV = (v) => margin.l + (v - xMin) / (xMax - xMin) * plotW;
+            // Expõe geometria para interações
+            canvas._vpGeom = { margin, plotW, plotH, pMin, pMax, pMinFull, pMaxFull, yOfP, pOfY, xOfV };
+
+            // Fundo e grid
+            ctx.fillStyle = '#f9fafb';
+            ctx.fillRect(margin.l, margin.t, plotW, plotH);
+
+            // Grid X (5 linhas verticais)
+            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+            for (let i=0; i<=5; i++) {
+                const px = margin.l + (i/5)*plotW;
+                ctx.beginPath(); ctx.moveTo(px, margin.t); ctx.lineTo(px, margin.t+plotH); ctx.stroke();
+            }
+            // Grid Y — nas pressões reais disponíveis
+            for (const p of pressures) {
+                const py = yOfP(p);
+                ctx.beginPath(); ctx.moveTo(margin.l, py); ctx.lineTo(margin.l+plotW, py); ctx.stroke();
+            }
+
+            // Eixos
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(margin.l, margin.t); ctx.lineTo(margin.l, margin.t+plotH); ctx.lineTo(margin.l+plotW, margin.t+plotH); ctx.stroke();
+
+            ctx.fillStyle = '#1f2937'; ctx.font = '11px ui-sans-serif,system-ui,sans-serif';
+
+            // Labels X (eixo de valor)
+            ctx.textAlign = 'center';
+            for (let i=0; i<=5; i++) {
+                const val = xMin + (i/5)*(xMax-xMin);
+                const px = xOfV(val);
+                ctx.beginPath(); ctx.moveTo(px, margin.t+plotH); ctx.lineTo(px, margin.t+plotH+4); ctx.strokeStyle='#475569'; ctx.lineWidth=1; ctx.stroke();
+                ctx.fillText(_gtFmtVpValue(val, unidade), px, margin.t+plotH+16);
+            }
+            // Rótulo eixo X
+            ctx.font = '11px ui-sans-serif,system-ui,sans-serif';
+            ctx.fillStyle = '#6a7c8e';
+            ctx.fillText(unidade ? varName + ' (' + unidade + ')' : varName, margin.l + plotW/2, H - 4);
+
+            // Labels Y (eixo de pressão)
+            ctx.textAlign = 'right';
+            ctx.font = '11px ui-monospace,monospace';
+            for (const p of pressures) {
+                const py = yOfP(p);
+                ctx.strokeStyle = '#475569'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(margin.l-4, py); ctx.lineTo(margin.l, py); ctx.stroke();
+                ctx.fillStyle = '#1f2937';
+                ctx.fillText(p + ' hPa', margin.l-6, py+4);
+            }
+
+            // Linha principal
+            const col = '#2563eb';
+            ctx.save();
+            ctx.beginPath(); ctx.rect(margin.l, margin.t, plotW, plotH); ctx.clip();
+            ctx.strokeStyle = col; ctx.lineWidth = 2.2;
+            ctx.beginPath(); let started = false;
+            for (const sm of visibleSamples) {
+                const px = xOfV(sm.value), py = yOfP(sm.nivel);
+                if (!started) { ctx.moveTo(px, py); started = true; } else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+
+            // Pontos
+            ctx.fillStyle = col;
+            for (const sm of visibleSamples) {
+                ctx.beginPath(); ctx.arc(xOfV(sm.value), yOfP(sm.nivel), 3.5, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.restore();
+
+            // Guarda escala atual para tooltip
+            canvas._vpMeta = { valid: visibleSamples, xMin, xMax, pMin, pMax, margin, plotW, plotH, yOfP, xOfV, unidade };
+        }
+
+        // Tooltip
+        canvas.addEventListener('mousemove', e => {
+            const meta = canvas._vpMeta; if (!meta) return;
+            const r = canvas.getBoundingClientRect();
+            const mx = e.clientX - r.left, my = e.clientY - r.top;
+            const { valid, margin, plotW, plotH, yOfP, xOfV } = meta;
+            // Encontrar o ponto mais próximo em Y
+            let best = null, bestDist = Infinity;
+            for (const sm of valid) {
+                const py = yOfP(sm.nivel);
+                const d = Math.abs(my - py);
+                if (d < bestDist) { bestDist = d; best = sm; }
+            }
+            if (!best || bestDist > 30 || mx < margin.l || mx > margin.l + plotW || my < margin.t || my > margin.t + plotH) {
+                tip.style.display = 'none'; return;
+            }
+            const px = xOfV(best.value);
+            const valTxt = best.value != null ? _gtFmtVpValue(best.value, meta.unidade) : '—';
+            tip.innerHTML = '<span style="color:#93c5fd">' + best.nivel + ' hPa</span>  ' + valTxt;
+            tip.style.display = 'block';
+            // Posicionar tooltip sem sair do popup
+            const tipW = 140, tipH = 28;
+            let tx = px + 10, ty = yOfP(best.nivel) - tipH/2;
+            if (tx + tipW > plotW + margin.l) tx = px - tipW - 10;
+            tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
+        });
+        // mouseleave gerenciado pelo bloco de zoom abaixo
+
+        // ─── Zoom no eixo Y ───
+        // Reset button
+        if (zoomResetBtn) zoomResetBtn.addEventListener('click', () => { yZoom = null; _showReset(); _draw(); });
+
+        // Scroll wheel: zoom Y centrado na posição do cursor
+        canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const g = canvas._vpGeom; if (!g) return;
+            const r = canvas.getBoundingClientRect();
+            const my = e.clientY - r.top;
+            // Pressão sob o cursor (antes do zoom)
+            const pCursor = g.pOfY(my);
+            if (!isFinite(pCursor)) return;
+            const factor = e.deltaY < 0 ? 0.65 : 1.54;   // in / out
+            const curPMin = g.pMin, curPMax = g.pMax;
+            const span = curPMax - curPMin;
+            // Novo span (em escala linear de pressão)
+            const newSpan = Math.max(1, span * factor);
+            // Manter a pressão sob o cursor fixa
+            const frac = (pCursor - curPMin) / (span || 1);
+            let newPMin = pCursor - frac * newSpan;
+            let newPMax = pCursor + (1 - frac) * newSpan;
+            // Clampar aos extremos dos dados
+            newPMin = Math.max(g.pMinFull, newPMin);
+            newPMax = Math.min(g.pMaxFull, newPMax);
+            if (newPMax - newPMin < 0.5) return;  // evita over-zoom
+            // Se span == full range, limpar zoom
+            if (newPMin <= g.pMinFull && newPMax >= g.pMaxFull) { yZoom = null; }
+            else { yZoom = { pMin: newPMin, pMax: newPMax }; }
+            _showReset(); _draw();
+        }, { passive: false });
+
+        // Drag vertical: rubber-band para selecionar range de pressão
+        let _vpDrag = null;
+        canvas.addEventListener('mousedown', e => {
+            if (e.button !== 0) return;
+            const g = canvas._vpGeom; if (!g) return;
+            const r = canvas.getBoundingClientRect();
+            const mx = e.clientX - r.left, my = e.clientY - r.top;
+            if (mx < g.margin.l || mx > g.margin.l + g.plotW || my < g.margin.t || my > g.margin.t + g.plotH) return;
+            _vpDrag = { y0: my, y1: my, g };
+            e.preventDefault();
+        });
+        canvas.addEventListener('mousemove', e => {
+            if (!_vpDrag) return;
+            const r = canvas.getBoundingClientRect();
+            const my = e.clientY - r.top;
+            const g = _vpDrag.g;
+            _vpDrag.y1 = Math.max(g.margin.t, Math.min(g.margin.t + g.plotH, my));
+            if (Math.abs(_vpDrag.y1 - _vpDrag.y0) >= 4 && zoomBand) {
+                zoomBand.style.display = 'block';
+                zoomBand.style.top  = Math.min(_vpDrag.y0, _vpDrag.y1) + 'px';
+                zoomBand.style.height = Math.abs(_vpDrag.y1 - _vpDrag.y0) + 'px';
+                zoomBand.style.left = g.margin.l + 'px';
+                zoomBand.style.width = g.plotW + 'px';
+                zoomBand.style.right = 'auto';
+            }
+        });
+        canvas.addEventListener('mouseup', e => {
+            if (!_vpDrag) return;
+            const dy = Math.abs(_vpDrag.y1 - _vpDrag.y0);
+            if (zoomBand) zoomBand.style.display = 'none';
+            if (dy >= 6) {
+                const g = _vpDrag.g;
+                const p0 = g.pOfY(Math.min(_vpDrag.y0, _vpDrag.y1));
+                const p1 = g.pOfY(Math.max(_vpDrag.y0, _vpDrag.y1));
+                const newPMin = Math.max(g.pMinFull, Math.min(p0, p1));
+                const newPMax = Math.min(g.pMaxFull, Math.max(p0, p1));
+                if (newPMax - newPMin >= 0.5) {
+                    yZoom = { pMin: newPMin, pMax: newPMax };
+                    _showReset(); _draw();
+                }
+            }
+            _vpDrag = null;
+        });
+        canvas.addEventListener('mouseleave', e => { tip.style.display = 'none'; if (_vpDrag) { _vpDrag = null; if (zoomBand) zoomBand.style.display = 'none'; } });
+
+        // Duplo-clique: reset zoom
+        canvas.addEventListener('dblclick', () => { yZoom = null; _showReset(); _draw(); });
+
+        // Escala toggle
+        pop.querySelectorAll('input[name="vpScaleToggle"]').forEach(rb => {
+            rb.addEventListener('change', () => { curScale = rb.value; _draw(); });
+        });
+
+        // ResizeObserver para redesenhar
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(() => _draw()).observe(canvas);
+        }
+        requestAnimationFrame(_draw);
+    }
+
+    /* Formata valor do perfil com unidade */
+    function _gtFmtVpValue(v, unidade) {
+        if (v == null || !isFinite(v)) return '—';
+        const abs = Math.abs(v);
+        const dec = abs >= 1000 ? 0 : abs >= 100 ? 1 : abs >= 10 ? 2 : abs >= 1 ? 3 : 4;
+        return v.toFixed(dec) + (unidade ? ' ' + unidade : '');
+    }
+
+
     function atualizarSlotsControles() {
         for (let i = 0; i < NUM_SLOTS; i++) {
             const el = slotEl(i);
@@ -4381,7 +5610,9 @@
             s.subsistema = (modelos[s.modelo] || {}).subsistema || '';
             populateVariavelSelect(selVar, s.modelo, s.variavel);
             s.variavel = selVar.value;
+            _syncSlotNivelUI(i);
             inpData.value = s.data ? dataFTPtoISO(s.data) : '';
+            _updateHoraLabel(i);
             if (btnSync) {
                 btnSync.setAttribute('aria-pressed', s.sync ? 'true' : 'false');
                 inpData.disabled = !!s.sync;
@@ -4406,6 +5637,7 @@
             populateVariavelSelect(selVar, s.modelo, preferred);
             s.variavel = selVar.value;
             s.lastVarByModel[value] = s.variavel;
+            _syncSlotNivelUI(slotIdx);
             atualizarMaxPassos();
             clearImageBuffer(slotIdx);   // remove imagem antiga (evita lingering)
             if (slotIdx === 0) {
@@ -4431,6 +5663,10 @@
         } else if (cfg === 'data') {
             s.data = formatarData(value);
             if (slotIdx === 0) { propagateDateFromSlot0(); inicioRodada = true; }
+        } else if (cfg === 'nivel') {
+            getGtSlotState(slotIdx).nivelAtual = value;
+            renderTudo();
+            return;
         } else if (cfg === 'variavel') {
             const oldV = getVariavel(s.modelo, s.variavel);
             const wasAnalysis = oldV && Number(oldV.frequencia) === 0;
@@ -4449,6 +5685,7 @@
                     if (inp) inp.value = dataFTPtoISO(s.data);
                 }
             }
+            _syncSlotNivelUI(slotIdx);
             atualizarMaxPassos();
             clearImageBuffer(slotIdx);   // remove imagem antiga
         }
@@ -5743,6 +6980,8 @@
         atualizarSlotsControles();
         atualizarMaxPassos();
         renderTudo();
+        // Ressincroniza seletores de nível: modelo pode ter mudado is3d, niveis, etc.
+        try { for (var _ni = 0; _ni < NUM_SLOTS; _ni++) _syncSlotNivelUI(_ni); } catch (_) {}
         closeConfigModal();
         showToast('Configuração salva');
     }
@@ -11143,6 +12382,9 @@
             + '<button type="button" class="schud-btn" data-tool="timeseries" title="Série temporal por ponto (clique no mapa para amostrar todos os passos)">'
             +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>'
             + '</button>'
+            + '<button type="button" class="schud-btn" data-tool="vprofile" title="Perfil vertical por ponto — variável 3D (clique no mapa para escolher o ponto)">'
+            +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><polyline points="5 8 12 3 19 8"/><line x1="5" y1="21" x2="19" y2="21"/><polyline points="8 16 12 21 16 16"/></svg>'
+            + '</button>'
             + '<button type="button" class="schud-btn" data-action="ts-polygon" title="Série temporal por polígono (máx/mín/média no polígono ao longo do tempo)">'
             +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 5v8l-8 5-8-5V8z"/><path d="M8 13l2-2 2 2 3-4"/></svg>'
             + '</button>'
@@ -11163,6 +12405,10 @@
                 // Abre dialog de configuração (lat/lon + período + painéis-alvo) antes de
                 // ativar a ferramenta. O dialog decide se aciona click no mapa ou usa lat/lon direto.
                 try { gtOpenTsConfigDialog(slotIdx); } catch (e) { console.error('ts dialog', e); gtSetSlotTool(slotIdx, tool); }
+                return;
+            }
+            if (tool === 'vprofile') {
+                try { gtOpenVProfileDialog(slotIdx); } catch (e) { console.error('vprofile dialog', e); }
                 return;
             }
             if (action === 'ts-polygon') {
