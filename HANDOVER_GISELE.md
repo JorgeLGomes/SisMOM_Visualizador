@@ -2,6 +2,7 @@
 
 **Repositório:** `C:\Projetos\Visualizador`
 **Versão atual:** v2.13.0 — Build marker `f22-temporal-profile`
+**Commit HEAD:** `427aa2a feat(gt): F22 — perfil vertical temporal`
 **Arquivos críticos (sempre em lockstep — md5 idêntico):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
@@ -17,7 +18,12 @@
 > md5sum figuras_SisMOM_v23.html electron-app/figuras_SisMOM_v23.html
 > ```
 
-> **Commit pendente:** executar `commit-f22-temporal-profile.bat` no Windows para commitar F21 + F22 + melhorias do popup.
+> **Estado do git (08/06/2026):** HTML commitado em `427aa2a`. Pendente de commit: `HANDOVER_GISELE.md`, `commit-f22-temporal-profile.bat` e PDFs em `docs/`. Rodar no Windows:
+> ```
+> git add HANDOVER_GISELE.md commit-f22-temporal-profile.bat docs/
+> git commit -m "docs: HANDOVER atualizado sessao 08/06/2026 (F22 temporal profile)"
+> git push origin main
+> ```
 
 ---
 
@@ -327,17 +333,25 @@ F21 + F22 completos + 5 melhorias no popup temporal (ver seções 2 e 3 acima).
 
 ---
 
-## 9. Commits pendentes (executar no Windows na ordem)
+## 9. Estado dos commits (08/06/2026)
 
-| BAT | Conteúdo |
+### Commits realizados (em ordem cronológica relevante)
+
+| Hash | Conteúdo |
 |---|---|
-| `commit-wind-vector.bat` | feat: campo vetorial + coluna fórmula + vec_u/vec_v |
-| `commit-resize.bat` | feat: resize colunas da tabela + resize modal |
-| `commit-scroll-fix.bat` | fix: scroll bases + resize handle + barra abas fina + font abas |
-| `commit-bases-fix.bat` | fix: Base de dados sumiu (showBasesPane simplificado) |
-| `commit-f22-temporal-profile.bat` | feat+fix: F21 perfil vertical + F22 temporal completo (vizType/paleta/zoom/gear/X-mode/PNG) |
+| `bda9463` | v2.13.0 — METAR + Bookmarks + PDF export + série temporal por polígono + Worker decode + cache bitmaps |
+| `b0cdbb3` | feat(gt): campo vetorial de vento + coluna fórmula + resize modal/tabela + F21 + F22 (commit cumulativo) |
+| `427aa2a` | feat(gt): F22 — perfil temporal completo (vizType/paleta/gear/zoom/X-mode/PNG/bottom-bar) ← **HEAD** |
 
-> Executar sequencialmente no Windows (clique duplo ou CMD `cd C:\Projetos\Visualizador`).
+### Pendente de commit (documentação)
+
+```bat
+git add HANDOVER_GISELE.md commit-f22-temporal-profile.bat docs/
+git commit -m "docs: HANDOVER atualizado sessao 08/06/2026 (F22 temporal profile)"
+git push origin main
+```
+
+> Os BATs `commit-resize.bat`, `commit-scroll-fix.bat`, `commit-bases-fix.bat` podem ser ignorados — suas mudanças já estão capturadas em `b0cdbb3`.
 
 ---
 
