@@ -1543,6 +1543,7 @@
         .var-table .col-formula { width: 150px; font-family: var(--font-mono); font-size: 11px; }
         .var-table .col-vecu { width: 68px; font-size: 11px; }
         .var-table .col-vecv { width: 68px; font-size: 11px; }
+        .var-table .col-3d { width: 32px; text-align: center; }
         .var-table .col-actions { width: 36px; text-align: center; }
         /* ── Resize handles ── */
         .var-table thead th { position: relative; }
@@ -1945,6 +1946,9 @@
         <label style="display:inline-flex;align-items:center;gap:4px">Variável
             <select id="gtVariavelSel" style="min-width:160px;font-size:12px"></select>
         </label>
+        <label id="gtNivelWrap" style="display:none;align-items:center;gap:4px" title="Nível de pressão da variável 3D">Nível
+            <select id="gtNivelSel" style="font-size:12px"></select>
+        </label>
         <label style="display:inline-flex;align-items:center;gap:4px">Data
             <input type="date" id="gtDataInp" style="font-size:12px">
         </label>
@@ -2021,7 +2025,11 @@
                     <input type="checkbox" id="cfgRequires2FA" style="width:auto;flex:0 0 auto">
                     <span>🔒 Exigir 2FA para acessar este modelo <em style="opacity:.7;font-style:normal;font-size:11px">(efeito só quando 2FA estiver ativo em Segurança)</em></span>
                 </label>
-                <label for="cfgExtensao">Sufixo do arquivo</label>
+                <label for="cfgMaxPassos">Máx. passos</label>
+                <input type="number" id="cfgMaxPassos" min="1" max="999" step="1">
+                <label for="cfgUrlPath">Template do endereço (PNG/GIF)</label>
+                <input type="text" id="cfgUrlPath" placeholder="https://.../{yyyy}{mm}{dd}{hh}/{escopo1}/{escopo2}/fig">
+                <label for="cfgExtensao">Sufixo do arquivo (PNG/GIF)</label>
                 <select id="cfgExtensao">
                     <option value=".png">.png</option>
                     <option value=".gif">.gif</option>
@@ -2030,11 +2038,18 @@
                     <option value=".tif">.tif</option>
                     <option value=".tiff">.tiff</option>
                 </select>
-                <label for="cfgMaxPassos">Máx. passos</label>
-                <input type="number" id="cfgMaxPassos" min="1" max="999" step="1">
-                <label for="cfgUrlPath">Template do endereço (PNG/GIF)</label>
-                <input type="text" id="cfgUrlPath" placeholder="https://.../{yyyy}{mm}{dd}{hh}/{escopo1}/{escopo2}/fig">
-                <label for="cfgFileName">Template Nome Arq. (PNG/GIF)</label>
+                <label for="cfgTifTemplate" style="display:flex;align-items:center;gap:8px">
+                    <span>Template TIF (diretório/arquivo)</span>
+                    <label style="font-weight:normal;font-size:11px;color:var(--text-muted);display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="cfgSameTif" checked> usar o mesmo do PNG</label>
+                </label>
+                <input type="text" id="cfgTifTemplate" placeholder="https://.../{yyyy}{mm}{dd}{hh}/geotiff/{prefixo}-{F%3}{ext}" title="Template completo do TIF. Digite o caminho + nome do arquivo numa só linha. O sistema detecta automaticamente onde o diretório termina e o nome do arquivo começa. Use {ext} para substituição automática pelo Sufixo TIF.">
+                <div id="cfgTifSplitPreview" class="tif-split-preview" style="display:none"></div>
+                <label for="cfgExtensaoTif">Sufixo do arquivo TIF</label>
+                <select id="cfgExtensaoTif">
+                    <option value=".tif" selected>.tif</option>
+                    <option value=".tiff">.tiff</option>
+                </select>
+                <label for="cfgFileName">Template Nome Arq.</label>
                 <input type="text" id="cfgFileName" placeholder="{prefixo}{f%3}{ext}">
                 <label style="grid-column:1/-1;display:flex;gap:14px;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-subtle)">
                     <span style="font-weight:600;color:var(--text)">Formatos disponíveis no FTP:</span>
@@ -2048,17 +2063,11 @@
                     <option value="osm">OpenStreetMap</option>
                     <option value="topo">OpenTopoMap (relevo)</option>
                 </select>
-                <label for="cfgExtensaoTif">Sufixo do arquivo TIF</label>
-                <select id="cfgExtensaoTif">
-                    <option value=".tif" selected>.tif</option>
-                    <option value=".tiff">.tiff</option>
-                </select>
-                <label for="cfgTifTemplate" style="display:flex;align-items:center;gap:8px">
-                    <span>Template TIF (diretório/arquivo)</span>
-                    <label style="font-weight:normal;font-size:11px;color:var(--text-muted);display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="cfgSameTif" checked> usar o mesmo do PNG</label>
+                <label style="grid-column:1/-1;margin-top:4px;padding-top:6px;border-top:1px dashed var(--border-subtle);display:flex;align-items:center;gap:8px">
+                    <span>Níveis de pressão (hPa) — variáveis 3D</span>
+                    <span style="font-weight:normal;font-size:11px;color:var(--text-muted)">separados por vírgula</span>
                 </label>
-                <input type="text" id="cfgTifTemplate" placeholder="https://.../{yyyy}{mm}{dd}{hh}/geotiff/{prefixo}-{F%3}.tif" title="Template completo do TIF. Digite o caminho + nome do arquivo numa só linha. O sistema detecta automaticamente onde o diretório termina e o nome do arquivo começa.">
-                <div id="cfgTifSplitPreview" class="tif-split-preview" style="display:none"></div>
+                <input type="text" id="cfgNiveis" placeholder="1000,925,850,700,500,300,250,200,150,100" title="Lista de níveis de pressão (hPa) disponíveis para variáveis 3D deste modelo. Use vírgulas como separador." style="grid-column:1/-1">
                 <div style="grid-column:1/-1;display:flex;gap:6px;align-items:center;padding:6px 0;border-top:1px dashed var(--border-subtle)">
                     <span style="color:var(--text-muted);font-size:11px;font-weight:600">Atalhos:</span>
                     <button type="button" class="btn btn-ghost" id="btnCfgPresetCptecTif" title="Preenche os templates com o padrão do FTP do CPTEC: PNG em /fig/, TIF em /geotiff/" style="font-size:11px;padding:3px 8px">Preset FTP CPTEC (PNG /fig/ → TIF /geotiff/)</button>
@@ -2099,6 +2108,7 @@
                             <th class="col-formula" title="Fórmula opcional de conversão (ex: sqrt({U}^2+{V}^2)). Use {ID} para referenciar outra variável.">Fórmula</th>
                             <th class="col-vecu" title="ID da variável componente U (zonal) para campo vetorial">U-vent</th>
                             <th class="col-vecv" title="ID da variável componente V (meridional) para campo vetorial">V-vent</th>
+                            <th class="col-3d" title="Variável 3D: usa níveis de pressão do modelo e placeholder {nivel} no template de arquivo">3D</th>
                             <th class="col-actions"></th>
                         </tr>
                     </thead>
@@ -3597,7 +3607,7 @@
         return { path: '', name: combined };
     }
 
-    function montarURL({ modelo, data, variavel, passo }) {
+    function montarURL({ modelo, data, variavel, passo, nivel, tif }) {
         const m = modelos[modelo];
         if (!m) return null;
         const v = getVariavel(modelo, variavel);
@@ -3628,7 +3638,8 @@
         const prefixo = v.arquivo || '';
         const fct3 = 'f' + String(passo_h).padStart(3, '0');
         const passo4 = pad(file_idx, 4);
-        const ext = m.extensao || '.png';
+        // tif:true → {ext} usa extensao_tif (para URLs TIF quando não há substituição de modelo)
+        const ext = tif ? (m.extensao_tif || m.extensao || '.tif') : (m.extensao || '.png');
         // Data de VALIDADE da previsão = condição inicial (rodada) + horas de previsão.
         // passo_h = file_idx * freq, ou seja, índice da figura × Freq(h) da variável.
         const _valid = new Date(dataFTPtoDate(data).getTime() + passo_h * 3600000);
@@ -3647,6 +3658,7 @@
             return String(s == null ? '' : s)
                 .replace(/\{N(?:%(\d+))?\}/g, (_, w) => String(file_idx).padStart(w ? parseInt(w, 10) : 1, '0'))
                 .replace(/\{F(?:%(\d+))?\}/g, (_, w) => String(passo_h).padStart(w ? parseInt(w, 10) : 1, '0'))
+                .replace(/\{nivel\}/g, nivel != null ? String(nivel) : '')
                 .replace(/\{escopo1\}/g, escopo1)
                 .replace(/\{escopo2\}/g, escopo2)
                 .replace(/\{prefixo\}/g, prefixo)
@@ -3940,6 +3952,8 @@
         if (_gtS && (_isNativeGt || _isGtMode)) {
             // Se o modo gtiff e o modelo NÃO é nativo TIF, deriva a URL
             let urlTif = url;
+            // Nível de pressão para variáveis 3D
+            const _nivel3d = (() => { try { const _v = getVariavel(_gtS.modelo, _gtS.variavel); return (_v && _v.is3d) ? (getGtSlotState(slotIdx).nivelAtual || '') : undefined; } catch(_){} })();
             if (_isGtMode && !_isNativeGt) {
                 try {
                     // Se o modelo tem rota TIF própria, monta com substituição temporária do modelo
@@ -3954,12 +3968,18 @@
                         modelos[_gtS.modelo] = mTif;
                         try {
                             const passo = getEffectivePasso(slotIdx);
-                            urlTif = montarURL({ modelo: _gtS.modelo, data: _gtS.data, variavel: _gtS.variavel, passo });
+                            urlTif = montarURL({ modelo: _gtS.modelo, data: _gtS.data, variavel: _gtS.variavel, passo, nivel: _nivel3d });
                         } finally { modelos[_gtS.modelo] = orig; }
                     } else {
                         urlTif = (typeof gtDeriveTifUrl === 'function') ? gtDeriveTifUrl(url) : url;
                     }
                 } catch (e) { console.error('deriva tif para slot', slotIdx, e); }
+            } else if (_isNativeGt && _nivel3d !== undefined) {
+                // Modelo nativo TIF com variável 3D: reconstrói URL com nivel
+                try {
+                    const passo = getEffectivePasso(slotIdx);
+                    urlTif = montarURL({ modelo: _gtS.modelo, data: _gtS.data, variavel: _gtS.variavel, passo, nivel: _nivel3d, tif: true });
+                } catch (_) {}
             }
             return carregarGeoTIFFParaSlot(slotIdx, urlTif);
         }
@@ -4010,7 +4030,7 @@
         const _isGtMode = (typeof appMode !== 'undefined' && appMode === 'gtiff');
         const target = s._anaAlignTarget || s.data;
         if (_isGtMode || _isNativeGt || !target || target.length < 10) {
-            return carregarImagem(slotIdx, montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo }));
+            return carregarImagem(slotIdx, montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo, nivel: _getSlotNivel(slotIdx) }));
         }
         const inpEl = () => (slotEl(slotIdx) ? slotEl(slotIdx).querySelector('[data-cfg="data"]') : null);
         // Cache por alvo: evita re-probing em re-renders com o mesmo alvo de validade.
@@ -4019,7 +4039,7 @@
                 s.data = s._anaCache.r;
                 s._anaResolved = (s._anaCache.r !== target);
                 const ic = inpEl(); if (ic) ic.value = dataFTPtoISO(s.data);
-                return carregarImagem(slotIdx, montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo }));
+                return carregarImagem(slotIdx, montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo, nivel: _getSlotNivel(slotIdx) }));
             }
             const le = slotLoading(slotIdx), ee = slotError(slotIdx);
             if (le) le.classList.remove('visible');
@@ -4138,7 +4158,8 @@
         } else {
             carregarImagem(i, montarURL({
                 modelo: s.modelo,
-                data: s.data, variavel: s.variavel, passo
+                data: s.data, variavel: s.variavel, passo,
+                nivel: _getSlotNivel(i)
             }));
         }
     }
@@ -4924,7 +4945,7 @@
             const caminhoCell = tip.querySelector('[data-info="caminho"]');
             const arquivoCell = tip.querySelector('[data-info="arquivo"]');
             const stripEl = el.querySelector('[data-info="filenameStrip"]');
-            const url = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: epSnap });
+            const url = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: epSnap, nivel: _getSlotNivel(i) });
             if (url) {
                 const lastSlash = url.lastIndexOf('/');
                 const path = lastSlash >= 0 ? url.slice(0, lastSlash) : '';
@@ -5507,6 +5528,9 @@
         if (mapProvSel) mapProvSel.value = (['none','esri','osm','topo'].indexOf(m.mapProvider) >= 0) ? m.mapProvider : 'esri';
         const extTifSel = document.getElementById('cfgExtensaoTif');
         if (extTifSel) extTifSel.value = m.extensao_tif || '.tif';
+        // ── Níveis de pressão para variáveis 3D ──
+        const niveisInp = document.getElementById('cfgNiveis');
+        if (niveisInp) niveisInp.value = Array.isArray(m.niveis) ? m.niveis.join(',') : (m.niveis || '');
         // ── Template TIF unificado: campo único com auto-split diretório/arquivo ──
         const sameTifCb = document.getElementById('cfgSameTif');
         const tifInp    = document.getElementById('cfgTifTemplate');
@@ -5527,10 +5551,16 @@
             const sp = _tifTemplateSplit(val);
             if (!sp.path && !sp.name) { tifPrev.style.display = 'none'; return; }
             tifPrev.style.display = '';
+            // Detecta {ext} no nome e resolve para o sufixo TIF atual
+            const extTifVal = (document.getElementById('cfgExtensaoTif') || {}).value || '.tif';
+            const nameResolved = sp.name ? sp.name.replace(/\{ext\}/g, '<em style="color:var(--accent-green,#4caf50);font-style:normal">' + escAttr(extTifVal) + '</em>') : '';
+            // Aviso se o nome tem extensão PNG/GIF hardcoded
+            const warnPng = sp.name && /\.(png|gif|jpe?g)(\?|$)/i.test(sp.name);
             tifPrev.innerHTML =
                 (sp.path ? '<span class="tsp-dir">📁 ' + escAttr(sp.path) + '</span>' : '') +
                 (sp.path && sp.name ? '<span class="tsp-sep">+</span>' : '') +
-                (sp.name ? '<span class="tsp-file">📄 ' + escAttr(sp.name) + '</span>' : '');
+                (sp.name ? '<span class="tsp-file">📄 ' + nameResolved + '</span>' : '') +
+                (warnPng ? '<span style="color:#f87171;font-size:10px;font-weight:600;flex-basis:100%">⚠ arquivo TIF com sufixo PNG/GIF — use {ext} ou .tif</span>' : '');
         }
         function updTifVis() {
             const hide = sameTifCb.checked;
@@ -5554,7 +5584,7 @@
             if (stCb) stCb.checked = false;  // rota própria para TIF
             const urlPng = (inpUrl && inpUrl.value) || 'https://ftp1.cptec.inpe.br/pesquisa/SisMOM/sismom_fig/sismom_oper/{data}/{escopo2}/{escopo1}/fig';
             const urlTif = urlPng.replace(/\/fig(\b|$)/g, '/geotiff$1').replace(/\/fig\//g, '/geotiff/');
-            if (tifI) tifI.value = (urlTif.endsWith('/') ? urlTif : urlTif + '/') + '{prefixo}-{F%4}.tif';
+            if (tifI) tifI.value = (urlTif.endsWith('/') ? urlTif : urlTif + '/') + '{prefixo}-{F%4}{ext}';
             updTifVis();
             try { showToast && showToast('Preset CPTEC aplicado'); } catch (_) {}
         };
@@ -5600,6 +5630,7 @@
             <td class="col-formula"><input data-vrow="${idx}" data-vfield="formula" value="${escAttr(v.formula||'')}" placeholder="ex: sqrt({U}^2+{V}^2)" title="Fórmula de conversão (opcional). Use {ID} para referenciar outra variável."></td>
             <td class="col-vecu"><input data-vrow="${idx}" data-vfield="vec_u" value="${escAttr(v.vec_u||'')}" placeholder="ID var U" title="Componente U (zonal) para campo vetorial"></td>
             <td class="col-vecv"><input data-vrow="${idx}" data-vfield="vec_v" value="${escAttr(v.vec_v||'')}" placeholder="ID var V" title="Componente V (meridional) para campo vetorial"></td>
+            <td class="col-3d" style="text-align:center"><input type="checkbox" data-vrow="${idx}" data-vfield="is3d" ${v.is3d === true ? 'checked' : ''} title="Variável 3D — usa níveis de pressão e placeholder {nivel} no template do arquivo"></td>
             <td class="col-actions">
                 <button class="btn-del" data-del-row="${idx}" title="Remover" aria-label="Remover">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -5631,6 +5662,9 @@
         const _mpSel = document.getElementById('cfgMapProvider');
         if (_mpSel && _mpSel.value) m.mapProvider = _mpSel.value;
         m.extensao_tif = document.getElementById('cfgExtensaoTif').value || '.tif';
+        // Níveis de pressão para variáveis 3D
+        const _niveisInp = document.getElementById('cfgNiveis');
+        m.niveis = _niveisInp ? _niveisInp.value.trim() : (m.niveis || '');
         // Template TIF unificado: auto-split em url_path_tif + file_name_tif
         const _sameTif = !!document.getElementById('cfgSameTif').checked;
         m.same_url_for_tif  = _sameTif;
@@ -5679,7 +5713,7 @@
     function addVarRow() {
         const tbody = document.getElementById('varTableBody');
         const idx = tbody.querySelectorAll('tr').length;
-        const v = { id: '', label: '', unidade: '', arquivo: '', frequencia: 1, passo_inicio: 0, horizonte: 120, disp_png: true, disp_tif: false, formula: '', vec_u: '', vec_v: '' };
+        const v = { id: '', label: '', unidade: '', arquivo: '', frequencia: 1, passo_inicio: 0, horizonte: 120, disp_png: true, disp_tif: false, formula: '', vec_u: '', vec_v: '', is3d: false };
         tbody.appendChild(makeVarRow(v, idx));
         tbody.lastChild.querySelector('input').focus();
     }
@@ -6961,9 +6995,17 @@
             undefRaw: '', clipBelow: null, clipAbove: null,
             // mapEnabled default TRUE para que o usuário veja o satélite Esri
             // automaticamente ao entrar no modo GeoTIFF. Provider default 'esri'.
-            mapEnabled: true, mapProvider: 'esri', opacity: 0.85, vecMode: 'off'
+            mapEnabled: true, mapProvider: 'esri', opacity: 0.85, vecMode: 'off', nivelAtual: null
         };
         return gtSlotState[i];
+    }
+    // Retorna o nível de pressão atual do slot, ou undefined se a variável não for 3D.
+    function _getSlotNivel(slotIdx) {
+        try {
+            const _s = state.slots[slotIdx];
+            const _v = (typeof getVariavel === 'function') ? getVariavel(_s.modelo, _s.variavel) : null;
+            return (_v && _v.is3d) ? (getGtSlotState(slotIdx).nivelAtual || '') : undefined;
+        } catch (_) { return undefined; }
     }
     const _gtSlotMap = [];
     // Retorna o mapa do painel Mi ativo (fallback ao mapa legado do modal).
@@ -9318,10 +9360,11 @@
         let completed = 0;
         let nextIdx = 0;
 
+        const _nivel3dTs = (v.is3d && typeof getGtSlotState === 'function') ? (getGtSlotState(slotIdx).nivelAtual || '') : undefined;
         function _buildUrlFor(passo_h) {
             try {
                 if (isNativeGt) {
-                    return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
+                    return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dTs, tif: true });
                 }
                 if (hasOwnTifRoute) {
                     const mTif = Object.assign({}, m, {
@@ -9331,10 +9374,10 @@
                     });
                     const orig = modelos[s.modelo];
                     modelos[s.modelo] = mTif;
-                    try { return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h }); }
+                    try { return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dTs }); }
                     finally { modelos[s.modelo] = orig; }
                 }
-                const urlPng = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
+                const urlPng = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dTs });
                 return (typeof gtDeriveTifUrl === 'function') ? gtDeriveTifUrl(urlPng) : urlPng;
             } catch (e) { console.warn('[gtSampleTimeSeries] passo', passo_h, 'url err', e); return null; }
         }
@@ -9508,15 +9551,16 @@
         if (passoMin != null) idxMin = Math.max(_idxMinDefP, Math.round(passoMin / freq));
         if (passoMax != null) idxMax = Math.min(fileMax, Math.floor(passoMax / freq));
         if (idxMin > idxMax) throw new Error('intervalo de passos inválido.');
+        const _nivel3dPoly = (v.is3d && typeof getGtSlotState === 'function') ? (getGtSlotState(slotIdx).nivelAtual || '') : undefined;
         const _buildUrlFor = function (passo_h) {
             try {
-                if (isNativeGt) return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
+                if (isNativeGt) return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dPoly, tif: true });
                 if (hasOwnTifRoute) {
                     const mTif = Object.assign({}, m, { url_path: m.same_url_for_tif ? m.url_path : (m.url_path_tif || m.url_path), file_name: m.same_name_for_tif ? m.file_name : (m.file_name_tif || m.file_name), extensao: m.extensao_tif || '.tif' });
                     const orig = modelos[s.modelo]; modelos[s.modelo] = mTif;
-                    try { return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h }); } finally { modelos[s.modelo] = orig; }
+                    try { return montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dPoly }); } finally { modelos[s.modelo] = orig; }
                 }
-                const urlPng = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h });
+                const urlPng = montarURL({ modelo: s.modelo, data: s.data, variavel: s.variavel, passo: passo_h, nivel: _nivel3dPoly });
                 return (typeof gtDeriveTifUrl === 'function') ? gtDeriveTifUrl(urlPng) : urlPng;
             } catch (_) { return null; }
         };
@@ -17904,7 +17948,7 @@
         const hasOwnTifRoute = !isNativeGt && ((m.url_path_tif && !m.same_url_for_tif) || (m.file_name_tif && !m.same_name_for_tif));
         function _buildUrl(passo_h) {
             if (isNativeGt) {
-                return montarURL({ modelo: src.modeloId, data: src.data, variavel: src.variavelId, passo: passo_h });
+                return montarURL({ modelo: src.modeloId, data: src.data, variavel: src.variavelId, passo: passo_h, tif: true });
             }
             if (hasOwnTifRoute) {
                 const mTif = Object.assign({}, m, {
@@ -20797,6 +20841,33 @@
             const isGeo = m && (typeof SisMOM_GeoTIFF !== 'undefined' && SisMOM_GeoTIFF.isGeoTiffModel(m));
             hint.textContent = isGeo ? '' : '(URL .tif será derivada da extensão .png/.gif)';
         }
+        // Mostra seletor de nível apenas quando a variável é 3D
+        try {
+            const _vs3 = document.getElementById('gtVariavelSel');
+            const _nivelWrap = document.getElementById('gtNivelWrap');
+            const _nivelSel  = document.getElementById('gtNivelSel');
+            if (_nivelWrap && _nivelSel && _vs3) {
+                const _vconf3 = (typeof getVariavel === 'function') ? getVariavel(s.modelo, _vs3.value) : null;
+                const _is3d   = !!(_vconf3 && _vconf3.is3d);
+                _nivelWrap.style.display = _is3d ? 'inline-flex' : 'none';
+                if (_is3d) {
+                    const _m3 = modelos[s.modelo];
+                    const _nivStr = (_m3 && _m3.niveis) || '';
+                    const _nivArr = _nivStr.split(',').map(function(n){ return n.trim(); }).filter(Boolean);
+                    const _curOpts = Array.from(_nivelSel.options).map(function(o){ return o.value; }).join(',');
+                    if (_curOpts !== _nivArr.join(',')) {
+                        _nivelSel.innerHTML = _nivArr.map(function(niv){ return '<option value="' + niv + '">' + niv + ' hPa</option>'; }).join('');
+                    }
+                    const _gt3 = getGtSlotState(0);
+                    if (_gt3.nivelAtual != null && _nivelSel.querySelector('option[value="' + _gt3.nivelAtual + '"]')) {
+                        _nivelSel.value = String(_gt3.nivelAtual);
+                    } else if (_nivelSel.options.length) {
+                        _gt3.nivelAtual = _nivelSel.options[0].value;
+                        _nivelSel.value = _gt3.nivelAtual;
+                    }
+                }
+            }
+        } catch (_) {}
         // Mostra seletor de vento apenas quando a variável tem vec_u e vec_v configurados
         try {
             const _vs = document.getElementById('gtVariavelSel');
@@ -20824,12 +20895,23 @@
             if (m && Array.isArray(m.variaveis) && m.variaveis.length) {
                 state.slots[0].variavel = m.variaveis[0].id;
             }
+            // Mudança de modelo: reseta nível para forçar seleção do primeiro nível do novo modelo
+            getGtSlotState(0).nivelAtual = null;
             // Recalcula state.maxPassos/stepFreq + snap do passoAtual e repinta o painel PASSOS DE TEMPO
             try { atualizarMaxPassos(); } catch (_) {}
             gtSyncToolbarFromState();
             try { renderTudo(); } catch (_) {}
         }); }
         if (vs) vs.addEventListener('change', () => {
+            // Transição 2D→3D: reseta nível para usar o primeiro da lista
+            // Transição 3D→3D: mantém o nível atual
+            try {
+                const _oldV = (typeof getVariavel === 'function') ? getVariavel(state.slots[0].modelo, state.slots[0].variavel) : null;
+                const _newV = (typeof getVariavel === 'function') ? getVariavel(state.slots[0].modelo, vs.value) : null;
+                if (_newV && _newV.is3d && !(_oldV && _oldV.is3d)) {
+                    getGtSlotState(0).nivelAtual = null; // força primeiro nível
+                }
+            } catch (_) {}
             state.slots[0].variavel = vs.value;
             try { atualizarMaxPassos(); } catch (_) {}
             gtSyncToolbarFromState();
@@ -20854,6 +20936,15 @@
         }
         if (bPrev) bPrev.addEventListener('click', () => stepPasso(-1));
         if (bNext) bNext.addEventListener('click', () => stepPasso(+1));
+        const nivelSel = document.getElementById('gtNivelSel');
+        if (nivelSel && !nivelSel._gtBound) {
+            nivelSel._gtBound = true;
+            nivelSel.addEventListener('change', () => {
+                const gt = getGtSlotState(0);
+                gt.nivelAtual = nivelSel.value;
+                try { renderTudo(); } catch (_) {}
+            });
+        }
         const vecSel = document.getElementById('gtVecModeSel');
         if (vecSel && !vecSel._gtBound) {
             vecSel._gtBound = true;
