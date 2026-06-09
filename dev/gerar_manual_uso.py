@@ -121,7 +121,7 @@ story += [
     Spacer(1, 0.6*cm),
     p('CPTEC / INPE', 'CoverMeta'),
     Spacer(1, 4*cm),
-    p('Versão 2.12.1 — build 20260601-20400-bandlevels', 'CoverMeta'),
+    p('Versão 2.14.0 — build 20260609-skewt-cape', 'CoverMeta'),
     p(f'Atualizado em {date.today().strftime("%d/%m/%Y")}', 'CoverMeta'),
 ]
 story.append(PageBreak())
@@ -143,7 +143,7 @@ sumario = [
     '12. Exportar dados como GeoJSON (v2.6+)',
     '13. Servidor HTTP local de dados',
     '14. Acelerador Python (helper local, v2.7+)',
-    '15. Novidades v2.8 a v2.12.1 (Monitoramento, multipainel, polígonos, sombreado)',
+    '15. Novidades v2.8 a v2.14.0 (Skew-T log-P + CAPE/CINE, performance, METAR, Bookmarks, PDF)',
     '16. Atalhos de teclado',
     '17. Solução de problemas',
 ]
@@ -290,7 +290,7 @@ story.append(h1('3. Visão geral da interface'))
 story.append(p('A janela do app está dividida em quatro regiões:'))
 story.append(tbl([
     ['Região', 'Conteúdo'],
-    ['Cabeçalho (topo)', 'Logo, abas PNG/GIF e GeoTIFF, ícones: configurar (engrenagem), tema claro/escuro, ajuda, abrir GeoTIFF local.'],
+    ['Cabeçalho (topo)', 'Logo, abas PNG/GIF e GeoTIFF; botões: 🧹 Limpar, 👁 Visualizar, engrenagem (configurar), tema claro/escuro, caneta (anotação na tela), 🔖 Bookmarks, PDF, ocultar painel.'],
     ['Barra lateral esquerda', 'Layout de mapas (1/2/3/4), controles de animação (Play, Stop, velocidade), tabela de passos de tempo, data da rodada do Mapa 1.'],
     ['Área central', 'Painéis Mi (M1, M2, M3, M4) com cabeçalho próprio (modelo, data, variável) e barra de zoom inferior. Cada painel mostra uma imagem ou GeoTIFF renderizado.'],
     ['Painel direito (sidebar)', 'Visível apenas em modo GeoTIFF: paleta, escala (min/max), NoData/Clip, lista de camadas, calculadora. Controla o painel Mi ativo.'],
@@ -724,6 +724,8 @@ story.append(tbl([
     ['T',  'Texto',          'Rótulo no mapa numa posição clicada.'],
     ['∿',  'Perfil',        'Amostra a camada ativa ao longo da polilinha e abre um gráfico.'],
     ['⏱', 'Série temporal', 'Clique único em um ponto — varre todos os passos do slot e abre gráfico tempo×valor.'],
+    ['⇕',  'Perfil vertical', 'Variável 3D num ponto: nível × valor (instantâneo ou evolução temporal).'],
+    ['◢',  'Skew-T log-P',  'Sondagem termodinâmica num ponto: T, Td, adiabáticas, razão de mistura, CAPE/CINE.'],
 ], col_widths=[1.2*cm, 3.2*cm, 11.5*cm]))
 story.append(h2('Ferramenta de perfil'))
 story.append(p(
@@ -761,6 +763,62 @@ story.append(bullets([
 ]))
 story.append(tip(
     'Variáveis de análise/observação (frequência = 0) não têm grade temporal — a ferramenta alerta e não plota.'
+))
+story.append(h2('Perfil vertical por ponto (variáveis 3D)'))
+story.append(p(
+    'Disponível para variáveis com níveis de pressão (3D). Ative a ferramenta de <b>perfil vertical</b>, '
+    'configure no diálogo a faixa de níveis (do inferior ao superior) e o ponto — digitando lat/lon ou '
+    'clicando em <b>Clicar no mapa</b>. O gráfico mostra o valor da variável em cada nível, com o eixo Y '
+    'em pressão (escala <b>log</b> ou <b>linear</b>, alternável no pop-up).'
+))
+story.append(bullets([
+    'Janela arrastável; opção de <b>fixar mín/máx do eixo X</b> pelo cadeado (🔒 fixo / 🔓 automático) para comparar pontos na mesma escala.',
+    'Ao <b>trocar a variável ou o nível</b>, o perfil é reamostrado automaticamente, com indicador de progresso no próprio gráfico.',
+    'Botão <b>seguir</b> (📍): clique novos pontos no mapa e o perfil se atualiza sem fechar a janela.',
+    'Exportar <b>CSV</b> e <b>PNG</b>.',
+]))
+story.append(h2('Evolução temporal do perfil vertical'))
+story.append(p(
+    'No mesmo diálogo, o modo <b>Evolução temporal</b> troca o eixo X de "valor" por "tempo": gera uma '
+    'seção <b>nível × tempo</b> num ponto, varrendo os passos da rodada. A renderização pode ser '
+    '<b>Sombreado</b> (interpolado), <b>Isolinhas</b> (marching squares) ou <b>Sombreado + Contorno</b>.'
+))
+story.append(bullets([
+    'Barra de cor (colorbar) e <b>seletor de paleta</b> (engrenagem no cabeçalho).',
+    'Eixo X alternável entre <b>horas de previsão</b> e <b>data/hora de validade</b>.',
+    'Zoom 2D: arrastar (rubber-band), roda do mouse, duplo-clique e botão de reset.',
+    'Janela arrastável, botão <b>seguir</b> (📍) e exportação <b>CSV</b> / <b>PNG</b>.',
+]))
+story.append(h2('Corte vertical (perfil 3D ao longo de uma linha)'))
+story.append(p(
+    'Para ver como a variável 3D varia ao longo de um caminho, trace uma <b>linha</b> e gere o '
+    '<b>corte vertical</b>: uma seção <b>pressão × distância</b> em que cada coluna é o perfil vertical '
+    'de um ponto da linha.'
+))
+story.append(bullets([
+    '<b>Edição de vértices</b>: arraste os pontos da linha e o corte é re-renderizado para o novo caminho, sem reabrir o diálogo.',
+    'Eixo X alternável entre <b>distância</b> (km) e <b>pares lat/lon</b> (latitude em cima, longitude logo abaixo).',
+    'Zoom navegável em X e Y (mantém o zoom ao deslocar a visão).',
+    'Ao navegar pelo gráfico, o <b>ponto correspondente é apontado no mapa</b>.',
+    'Re-renderiza ao trocar a variável; janela arrastável; botão <b>seguir</b> (📍) e exportação <b>CSV</b> / <b>PNG</b>.',
+]))
+story.append(h2('Skew-T log-P — sondagem termodinâmica (v2.14)'))
+story.append(p(
+    'Plota o diagrama termodinâmico clássico num ponto. No diálogo, escolha a variável de '
+    '<b>Temperatura 3D</b> e a de <b>Umidade 3D</b> (umidade relativa <i>ou</i> específica — o ponto de '
+    'orvalho é derivado), a faixa de níveis e, opcionalmente, fixe o <b>nível inferior pela pressão '
+    'de superfície</b> (descarta níveis abaixo do terreno, recalculado por ponto e por passo de tempo).'
+))
+story.append(bullets([
+    'Fundo completo: isotermas inclinadas a 45°, isóbaras (log-P), adiabáticas secas, pseudoadiabáticas e linhas de razão de mistura.',
+    'Curvas de <b>T</b> (vermelho) e <b>Td</b> (verde), com os pontos dos níveis do modelo.',
+    '<b>Método da parcela</b>: base da nuvem (<b>LCL</b>), <b>LFC</b>, topo da nuvem (<b>EL</b>) e cálculo de <b>CAPE</b> e <b>CINE</b> — com a curva da parcela, sombreado das áreas e caixa de valores no próprio gráfico.',
+    'Interação: zoom (roda do mouse) e pan (arrastar) com reset; painel <b>camadas</b> (🎚) para ligar/desligar cada componente; <b>inspeção</b> — clique e mova o cursor para ler T, Td, UR, θ e θe ao longo do perfil de T (interpolado a 10 hPa).',
+    'Exportar <b>CSV</b> e <b>PNG</b> (alta resolução, com título). O ponto fica marcado no mapa e o botão <b>seguir</b> atualiza a sondagem a cada novo clique.',
+]))
+story.append(tip(
+    'O Skew-T precisa de uma variável de umidade 3D para traçar o Td e calcular CAPE/CINE. Sem ela, '
+    'plota apenas a curva de temperatura.'
 ))
 story.append(h2('Zoom com a roda do mouse durante uso de ferramentas'))
 story.append(p(
@@ -1110,10 +1168,83 @@ story.append(tip(
 story.append(PageBreak())
 
 # ===== 15. ATALHOS =====
-story.append(h1('15. Novidades v2.8 a v2.12.1'))
+story.append(h1('15. Novidades v2.8 a v2.14.0'))
 story.append(p(
     'Recursos adicionados depois da v2.7. Resumo operacional; o detalhamento completo de '
     'cada item esta no HANDOVER_GISELE.md.'
+))
+
+story.append(h2('Skew-T log-P + CAPE/CINE (v2.14)'))
+story.append(p(
+    'Nova sondagem termodinamica por ponto na toolbar do GeoTIFF (detalhes na secao 10): isotermas '
+    'inclinadas, adiabaticas secas e umidas, razao de mistura, curvas de T e Td, e o <b>metodo da '
+    'parcela</b> com base da nuvem (LCL), LFC, topo (EL) e calculo de <b>CAPE</b> e <b>CINE</b>. '
+    'Base inferior opcional pela pressao de superficie. Inclui zoom/pan, camadas liga/desliga, '
+    'inspecao a 10 hPa, seguir mapa, e exportacao CSV/PNG.'
+))
+
+story.append(h2('Performance e seguir-mapa (v2.14)'))
+story.append(bullets([
+    'Helper Python mais rapido: cliente HTTP global (httpx) e respostas com orjson.',
+    'Service Worker para cache de assets estaticos; minificacao do HTML no build standalone.',
+    'Botao <b>seguir</b> (📍) nos graficos de perfil vertical, perfil temporal, serie temporal, '
+    'corte vertical e Skew-T: clicar um novo ponto re-renderiza sem fechar a janela.',
+]))
+
+story.append(h2('METAR - Estacoes meteorologicas em tempo real (v2.13)'))
+story.append(p(
+    'Nova base de Monitoramento <b>metar_br</b>: busca dados da API aviationweather.gov e '
+    'desenha um <b>station model visual</b> escalado por zoom (temperatura, ponto de orvalho, '
+    'vento em barbulas, cobertura de nuvens, pressao QNH) para cada estacao.'
+))
+story.append(bullets([
+    '251 estacoes cobrindo Brasil, America do Sul, Central e Caribe.',
+    'Decoder proprio gtDecodeMETAR: T/Td, umidade, vento, visibilidade, nuvens, teto, QNH.',
+    'Filtro interativo de estacoes por selecao.',
+    'Arquivo de estacoes em <code>miscelaneas/estacoes_metar.json</code>.',
+]))
+
+story.append(h2('Spatial Bookmarks - visoes salvas (v2.13)'))
+story.append(p(
+    'Botao <b>🔖</b> no cabecalho abre painel de <b>visoes salvas</b>: salva viewport (zoom + '
+    'area), modelo ativo, visibilidade de camadas e layout de paineis. Organize por topicos; '
+    'restaure com um clique. Persistido em localStorage.'
+))
+
+story.append(h2('Exportar PDF cartografico (v2.13)'))
+story.append(p(
+    'Botao <b>PDF</b> no cabecalho. Dialog com titulo e subtitulo; captura o canvas atual com '
+    '<b>legenda colorida</b>, <b>seta-norte</b> e <b>barra de escala</b>. Gerado em PDF-1.4 '
+    'puro JS (sem libs externas), download direto como .pdf.'
+))
+
+story.append(h2('Botoes Limpar e Visualizar no cabecalho (v2.13)'))
+story.append(p(
+    '<b>🧹 Limpar</b> remove todas as camadas e desmarca a visao ativa. '
+    '<b>👁 Visualizar</b> renderiza o modelo configurado na toolbar do painel ativo sem precisar '
+    'abrir arquivo manualmente. Substituem o antigo icone "Abrir GeoTIFF local".'
+))
+
+story.append(h2('Serie temporal por poligono (v2.13)'))
+story.append(p(
+    'No Exportar GeoJSON, novo botao <b>📈 Serie temporal por poligono (max/min/med)</b>: '
+    'para cada passo da rodada, amostra a grade dentro dos poligonos selecionados e calcula '
+    'maximo, minimo e media ponderada por area. Aciona via feicao destacada (clique no mapa) '
+    'ou via seletor de camada. Python helper ~10x mais rapido via endpoint /v1/timeseries/polygon.'
+))
+
+story.append(h2('Web Worker pool para decode GeoTIFF (v2.13)'))
+story.append(p(
+    'A decodificacao de GeoTIFFs agora usa um <b>pool de workers paralelos</b> (N = numero de '
+    'nucleos, maximo 4). A UI nao trava durante decode de grades grandes na animacao e na serie '
+    'temporal. Fallback transparente para a thread principal se o worker falhar.'
+))
+
+story.append(h2('Cache de bitmaps renderizados ~1 GB (v2.13)'))
+story.append(p(
+    'Bitmaps ja renderizados (paleta aplicada) ficam em cache LRU de ~1 GB. Troca de frame na '
+    'animacao substitui apenas o bitmap sem re-aplicar paleta. Cache dedicado de rasters para '
+    'serie temporal (~1 GB) evita re-download entre feicoes do mesmo passo de tempo.'
 ))
 
 story.append(h2('Monitoramento - rotas de dados KML/GeoJSON (v2.12)'))

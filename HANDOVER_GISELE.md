@@ -1,15 +1,15 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.13.0 — Build marker `f22-temporal-profile`
-**Commit HEAD:** `427aa2a feat(gt): F22 — perfil vertical temporal`
+**Versão atual:** v2.14.0 — Build marker `20260609-skewt-cape`
+**Commit HEAD:** `4982322 docs: HANDOVER atualizado sessao 08/06/2026` (Skew-T + performance + seguir-mapa pendentes — ver `commit-skewt.bat`)
 **Arquivos críticos (sempre em lockstep — md5 idêntico):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
 - `miscelaneas/manifest.json` + `miscelaneas/*.geojson` (raiz + electron-app)
 
-**MD5 atual:** `06a184737e0a7923380670e5d14ee1c5`
-**Linhas do HTML:** ~22 448
+**MD5 atual:** `e00e9d80aa48add89972e3fa467b7448`
+**Linhas do HTML:** ~23 999
 
 > **Regra de ouro:** todo patch no HTML deve ser aplicado nos DOIS arquivos. Validar sempre com:
 > ```
@@ -18,12 +18,28 @@
 > md5sum figuras_SisMOM_v23.html electron-app/figuras_SisMOM_v23.html
 > ```
 
-> **Estado do git (08/06/2026):** HTML commitado em `427aa2a`. Pendente de commit: `HANDOVER_GISELE.md`, `commit-f22-temporal-profile.bat` e PDFs em `docs/`. Rodar no Windows:
+> **Estado do git (09/06/2026):** o HTML (raiz + electron-app) e o backend têm grande delta **não commitado** desta sessão (performance P1–P3, remoção do Leaflet, "seguir mapa" em perfil/corte/série, e o **Skew-T log-P** completo). Rodar no Windows o script pronto:
 > ```
-> git add HANDOVER_GISELE.md commit-f22-temporal-profile.bat docs/
-> git commit -m "docs: HANDOVER atualizado sessao 08/06/2026 (F22 temporal profile)"
+> commit-skewt.bat
 > git push origin main
 > ```
+
+---
+
+## 0. Mudanças da sessão 09/06/2026 (v2.13.0 → v2.14.0)
+
+**Skew-T log-P (sondagem termodinâmica por ponto)** — novo botão na toolbar GeoTIFF (`data-tool="skewt"`) → `gtOpenSkewTDialog`:
+- Diálogo: variável de **Temperatura 3D**, variável de **Umidade 3D** (UR **ou** umidade específica → ponto de orvalho via Magnus/pressão de vapor), faixa de níveis (base/topo) e **base pela pressão de superfície** (corta níveis com `p > Psfc`, recalculado por ponto/tempo).
+- Diagrama (`gtOpenSkewTPopup`/`paint`): isotermas inclinadas 45°, isóbaras log-P, adiabáticas secas, pseudoadiabáticas, razão de mistura, curvas **T/Td** e pontos dos níveis do modelo.
+- **Método da parcela** (`_skComputeParcel`): LCL (base da nuvem), LFC, EL (topo), **CAPE/CINE** por integração da flutuabilidade — curva da parcela tracejada, sombreado CAPE/CINE, marcas LCL/LFC/EL e caixa de valores no gráfico.
+- Interação: **navegar** (zoom scroll + pan arrastar + duplo-clique/⤢ reset), painel **🎚 camadas** (liga/desliga cada componente), **inspeção** (clique ativa; mover o cursor segue o perfil de T mostrando o nível interpolado a 10 hPa), **seguir** cliques no mapa, **CSV**, **PNG** (alta-res com título) e **marcador do ponto no mapa** (`gtSetSkewTMarker`/`__skewtMarker`).
+- Helpers termodinâmicos globais: `_skEsat`, `_skWsat`, `_skTdFromRH`, `_skTdFromQ`, `_skDryT`, `_skMoist`; sampler 2D de superfície sem nível: `_buildGtUrlForVar2D`/`_skSampleSurface`.
+
+**Performance (P1–P3):** cliente `httpx` global no helper (lifespan), Service Worker `sw.js`, minificação do HTML no build (`scripts/minify-html.js`), `orjson` no backend (`ORJSONResponse` + `--hidden-import=orjson`), animação via PNG do servidor e índice de cache em memória. Leaflet removido (`vendor/` esvaziado) — não era usado.
+
+**Perfis verticais 3D** (documentados no Manual, cap. 10): **perfil vertical por ponto** (`gtRunVerticalProfile`/`gtOpenVProfilePopup` — escala log/linear, cadeado mín/máx do eixo X, reamostragem ao trocar variável/nível), **evolução temporal** (`gtRunTemporalProfile` — nível × tempo, sombreado/isolinhas, colorbar, paleta, zoom 2D) e **corte vertical ao longo de linha** (`gtRunCrossSection` — pressão × distância, edição de vértices `gtVertexEdit`, eixo X distância/lat-lon, apontamento do ponto no mapa ao navegar).
+
+**"Seguir mapa"** (controlador `gtPointFollow` + `_gtWireFollowBtn`): adicionado ao perfil vertical por ponto, perfil temporal, série temporal em ponto, corte vertical e Skew-T — clicar novo ponto re-renderiza sem fechar o pop-up.
 
 ---
 

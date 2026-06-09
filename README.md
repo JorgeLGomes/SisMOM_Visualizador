@@ -6,7 +6,7 @@ Plataforma de visualização de modelos meteorológicos e oceanográficos
 empacotado em **executáveis** para Windows (`.exe`), macOS (`.dmg`) e
 Linux (`AppImage`/`.deb`).
 
-> **Versão atual:** v2.12.1 — build `20260601-20400-bandlevels`.
+> **Versão atual:** v2.14.0 — build `20260609-skewt-cape`.
 > Dois modos de operação: **PNG/GIF** (figuras pré-renderizadas do FTP do
 > CPTEC) e **GeoTIFF** (dado bruto decodificado no navegador, paleta editável).
 > Veja a seção 4 e o manual completo em `docs/GISELE_Manual_Uso.pdf`.
@@ -260,6 +260,12 @@ dado bruto no navegador e o renderiza com paleta editável. Principais recursos
 - **Contornos** (marching squares, com cache) e **ferramentas** de distância,
   área, perfil de linha e **série temporal** num ponto (gráficos interativos
   com zoom e exportação CSV/PNG).
+- **Perfil vertical** e **corte vertical** para variáveis 3D, com **"seguir
+  mapa"** (clicar um novo ponto re-renderiza o gráfico sem fechar o pop-up).
+- **Skew-T log-P (v2.14)**: sondagem termodinâmica por ponto — isotermas
+  inclinadas, adiabáticas secas/úmidas, razão de mistura, curvas de T e Td
+  (orvalho via UR ou umidade específica), base inferior pela **pressão de
+  superfície**, e **método da parcela** com **LCL/LFC/EL** e **CAPE/CINE**.
 - **Miscelâneas**: plataformas offshore, corais, cidades por UF — vetores de
   referência com cor, hachura e popup de atributos.
 - **Monitoramento (v2.12)**: rotas de dados genéricos **KML/GeoJSON** — ex.:

@@ -41,6 +41,7 @@ console.log(`\n[standalone] Montando pacote GISELE ${version} standalone...`);
 // Arquivos a copiar: [origem, destino-no-standalone]
 const files = [
     [path.join(root, 'figuras_SisMOM_v23.html'), 'figuras_SisMOM_v23.html'],
+    [path.join(root, '..', 'sw.js'),             'sw.js'],
     [path.join(root, 'manifest.webmanifest'),    'manifest.webmanifest'],
     [path.join(root, 'sismom-icon-192.png'),     'sismom-icon-192.png'],
     [path.join(root, 'sismom-icon-512.png'),     'sismom-icon-512.png'],

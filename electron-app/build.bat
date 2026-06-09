@@ -25,6 +25,8 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+rem Service worker (P2.2) — copia da raiz para o pacote
+if exist "..\sw.js" copy /Y "..\sw.js" "sw.js" >nul
 
 echo.
 echo [2/6] Instalando dependencias (npm install)...
@@ -34,6 +36,10 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+
+echo.
+echo [2b/6] Minificando HTML (P1.3 — falha aqui nao interrompe o build)...
+call npm run minify
 
 echo.
 echo [3/6] Limpando dist\ antiga...

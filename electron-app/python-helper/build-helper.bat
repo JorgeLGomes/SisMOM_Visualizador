@@ -45,6 +45,7 @@ pyinstaller --onefile --name gisele-python-helper ^
     --hidden-import=uvicorn.protocols.websockets.auto ^
     --hidden-import=uvicorn.lifespan ^
     --hidden-import=uvicorn.lifespan.on ^
+    --hidden-import=orjson ^
     --collect-submodules rasterio ^
     server.py
 

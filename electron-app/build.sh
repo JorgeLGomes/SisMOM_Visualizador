@@ -19,10 +19,16 @@ cd "$(dirname "$0")"
 echo
 echo "[1/6] Sincronizando figuras_SisMOM_v23.html da raiz..."
 cp -f ../figuras_SisMOM_v23.html ./figuras_SisMOM_v23.html
+# Service worker (P2.2) — copia da raiz para o pacote
+[ -f ../sw.js ] && cp -f ../sw.js ./sw.js || true
 
 echo
 echo "[2/6] Instalando dependencias (npm install)..."
 npm install
+
+echo
+echo "[2b/6] Minificando HTML (P1.3 — falha aqui nao interrompe o build)..."
+npm run minify || true
 
 echo
 echo "[3/6] Limpando dist/ antiga..."

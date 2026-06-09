@@ -17,6 +17,7 @@ Filosofia:
 """
 import argparse
 import asyncio
+from contextlib import asynccontextmanager
 import json
 import sys
 import time
@@ -27,6 +28,7 @@ import httpx
 import numpy as np
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, Field
 
 from url_builder import montarURL, passo_validity_time
@@ -81,6 +83,32 @@ CACHE_MAX_BYTES = int(os.environ.get("GISELE_CACHE_MAX_BYTES", str(10 * 1024 ** 
 _cache_lock = threading.Lock()
 _cache_stats = {"hits": 0, "misses": 0, "writes": 0, "evictions": 0}
 
+# P3.2: indice em memoria {Path -> [atime_logico, size]} + total, atualizado
+# incrementalmente. Evita varrer o diretorio (glob+stat) a cada escrita; o disco
+# so e varrido uma vez na inicializacao (_cache_index_init, chamado no lifespan).
+_cache_index: dict = {}
+_cache_meta = {"total": 0}
+
+def _cache_index_init() -> None:
+    try:
+        idx = {}
+        total = 0
+        for p in CACHE_DIR.glob("*.bin"):
+            try:
+                st = p.stat()
+                idx[p] = [st.st_atime, st.st_size]
+                total += st.st_size
+            except OSError:
+                continue
+        with _cache_lock:
+            _cache_index.clear()
+            _cache_index.update(idx)
+            _cache_meta["total"] = total
+        print(f"[cache] indice inicial: {len(idx)} arquivos, "
+              f"{round(total / 1024 ** 2, 1)} MB", flush=True)
+    except Exception as e:
+        print(f"[cache] index init err: {e}", flush=True)
+
 def _cache_path(url: str) -> Path:
     h = hashlib.sha256(url.encode("utf-8")).hexdigest()
     return CACHE_DIR / f"{h}.bin"
@@ -98,6 +126,9 @@ def _cache_get(url: str) -> Optional[bytes]:
         except OSError: pass
         with _cache_lock:
             _cache_stats["hits"] += 1
+            _e = _cache_index.get(p)
+            if _e is not None:
+                _e[0] = time.time()
         return data
     except OSError:
         return None
@@ -115,6 +146,11 @@ def _cache_put(url: str, data: bytes) -> None:
         os.replace(tmp_path, p)  # atomic em POSIX e Windows (Python 3.3+)
         with _cache_lock:
             _cache_stats["writes"] += 1
+            _old = _cache_index.get(p)
+            if _old is not None:
+                _cache_meta["total"] -= _old[1]
+            _cache_index[p] = [time.time(), len(data)]
+            _cache_meta["total"] += len(data)
     except OSError as e:
         try: os.unlink(tmp_path)
         except OSError: pass
@@ -123,40 +159,32 @@ def _cache_put(url: str, data: bytes) -> None:
     _maybe_evict()
 
 def _maybe_evict() -> None:
-    """Se cache total > CACHE_MAX_BYTES, remove arquivos mais antigos por atime."""
+    """Se cache total > CACHE_MAX_BYTES, remove os mais antigos (LRU) usando o
+    indice em memoria — sem varrer o disco a cada escrita (P3.2)."""
     try:
-        entries = []
-        total = 0
-        for p in CACHE_DIR.glob("*.bin"):
-            try:
-                st = p.stat()
-                entries.append((st.st_atime, st.st_size, p))
-                total += st.st_size
-            except OSError:
-                continue
-        if total <= CACHE_MAX_BYTES:
-            return
-        # Ordena por atime crescente (mais antigo primeiro)
-        entries.sort(key=lambda e: e[0])
-        target = int(CACHE_MAX_BYTES * 0.8)  # libera ate 80% do cap (evita oscilacao)
+        to_delete = []
         with _cache_lock:
-            for atime, size, p in entries:
-                if total <= target:
+            if _cache_meta["total"] <= CACHE_MAX_BYTES:
+                return
+            # snapshot ordenado por atime logico (mais antigo primeiro)
+            items = sorted(_cache_index.items(), key=lambda kv: kv[1][0])
+            target = int(CACHE_MAX_BYTES * 0.8)  # libera ate 80% do cap (evita oscilacao)
+            for p, meta in items:
+                if _cache_meta["total"] <= target:
                     break
-                try:
-                    p.unlink()
-                    total -= size
-                    _cache_stats["evictions"] += 1
-                except OSError:
-                    continue
-    except OSError:
-        pass
+                to_delete.append(p)
+                _cache_index.pop(p, None)
+                _cache_meta["total"] -= meta[1]
+                _cache_stats["evictions"] += 1
+        # unlink fora do lock (eviction é rara; nao bloqueia outras ops de cache)
+        for p in to_delete:
+            try: p.unlink()
+            except OSError: pass
+    except Exception as e:
+        print(f"[cache] evict err: {e}", flush=True)
 
 def _cache_total_bytes() -> int:
-    try:
-        return sum(p.stat().st_size for p in CACHE_DIR.glob("*.bin"))
-    except OSError:
-        return 0
+    return _cache_meta["total"]
 
 # ───────────────────────── In-memory decoded cache (#1) ─────────────────────────
 # Cache LRU de DecodedRaster (numpy array + bbox + nodata) na RAM, por URL hash.
@@ -281,10 +309,71 @@ def _render_png_from_decoded(decoded, paleta: str,
     return buf.getvalue()
 
 
+# ───────────────────────── Cliente HTTP compartilhado (#P1.2) ─────────────────────────
+# Um unico httpx.AsyncClient vive durante toda a app (lifespan). Assim o pool de
+# conexoes e as sessoes HTTP/2 para o servidor do INPE sao reaproveitados entre
+# requisicoes — elimina handshake TCP/TLS repetido, que e a latencia dominante.
+# A concorrencia por-request continua limitada pelo Semaphore(parallel_limit) de
+# cada endpoint; os limits aqui sao apenas um teto generoso do pool global.
+_HTTP: Optional[httpx.AsyncClient] = None
+
+# Teto do pool global (sobrepoe via env se necessario). Acomoda varios requests
+# concorrentes sem estourar conexoes ao mesmo host.
+_HTTP_MAX_KEEPALIVE = int(os.environ.get("GISELE_HTTP_MAX_KEEPALIVE", "64"))
+_HTTP_MAX_CONNECTIONS = int(os.environ.get("GISELE_HTTP_MAX_CONNECTIONS", "128"))
+
+
+def _get_http() -> httpx.AsyncClient:
+    """Retorna o cliente global; cria sob demanda se o lifespan ainda nao subiu
+    (defensivo — ex.: testes que chamam endpoints sem ciclo de vida completo)."""
+    global _HTTP
+    if _HTTP is None or _HTTP.is_closed:
+        _HTTP = httpx.AsyncClient(
+            follow_redirects=True,
+            http2=True,
+            limits=httpx.Limits(
+                max_keepalive_connections=_HTTP_MAX_KEEPALIVE,
+                max_connections=_HTTP_MAX_CONNECTIONS,
+            ),
+            timeout=httpx.Timeout(30.0, connect=10.0),
+        )
+    return _HTTP
+
+
+@asynccontextmanager
+async def _shared_http():
+    """Entrega o cliente global SEM fecha-lo ao sair do bloco (o lifespan cuida do
+    ciclo de vida). Substitui o antigo `async with httpx.AsyncClient(...)` por-request,
+    preservando a estrutura dos endpoints e reaproveitando o pool de conexoes."""
+    yield _get_http()
+
+
+@asynccontextmanager
+async def _lifespan(_app: "FastAPI"):
+    # startup: abre o cliente compartilhado + indexa o cache de disco (P3.2)
+    _get_http()
+    _cache_index_init()
+    print(f"[http] cliente global pronto (keepalive={_HTTP_MAX_KEEPALIVE}, "
+          f"max={_HTTP_MAX_CONNECTIONS}, http2=on)", flush=True)
+    try:
+        yield
+    finally:
+        # shutdown: fecha o pool de conexoes
+        global _HTTP
+        if _HTTP is not None and not _HTTP.is_closed:
+            await _HTTP.aclose()
+        _HTTP = None
+
+
 app = FastAPI(
     title="gisele-python-helper",
     version=VERSION,
     description="Aceleracao local em Python para operacoes pesadas do GISELE.",
+    lifespan=_lifespan,
+    # P2.3: orjson serializa respostas grandes (series temporais / poligono) 2-5x
+    # mais rapido que o json da stdlib. Suporta numpy via OPT_SERIALIZE_NUMPY.
+    # Endpoints que retornam Response/PNG cru nao sao afetados.
+    default_response_class=ORJSONResponse,
 )
 
 app.add_middleware(
@@ -685,15 +774,9 @@ async def timeseries_point(req: TimeSeriesPointRequest):
     fetched = 0
     failed = 0
 
-    # Connection pool unico — reuso de TCP/TLS entre workers
-    # Limits aumentado: ate parallel_limit conexoes simultaneas
-    limits = httpx.Limits(
-        max_keepalive_connections=req.parallel_limit,
-        max_connections=req.parallel_limit + 4,
-    )
-    async with httpx.AsyncClient(follow_redirects=True, limits=limits,
-                                   http2=True,
-                                   timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+    # Cliente HTTP global (pool reaproveitado entre requisicoes — #P1.2).
+    # A concorrencia continua limitada pelo Semaphore(parallel_limit) acima.
+    async with _shared_http() as client:
         async def worker(idx: int, passo_h: int, url: str):
             nonlocal fetched, failed
             async with sem:
@@ -824,13 +907,8 @@ async def timeseries_polygon(req: TimeSeriesPolygonRequest):
                 _mask_cache[key] = mk
             return mk
 
-    limits = httpx.Limits(
-        max_keepalive_connections=req.parallel_limit,
-        max_connections=req.parallel_limit + 4,
-    )
-    async with httpx.AsyncClient(follow_redirects=True, limits=limits,
-                                   http2=True,
-                                   timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+    # Cliente HTTP global (pool reaproveitado entre requisicoes — #P1.2).
+    async with _shared_http() as client:
         async def worker(idx: int, passo_h: int, url: str):
             nonlocal fetched, failed
             stats = None
@@ -906,7 +984,7 @@ async def calc_temporal(req: TemporalCalcRequest):
                         dataRodada=req.dataRodada, passo_h=passo_h,
                         freq=freq, use_tif=True)
         async with sem:
-            async with httpx.AsyncClient(follow_redirects=True) as client:
+            async with _shared_http() as client:   # pool global reaproveitado (#P1.2)
                 ok, content, _ = await _fetch_one(client, url)
         if ok and content:
             try:
@@ -972,7 +1050,7 @@ async def calc_temporal(req: TemporalCalcRequest):
 async def profile_line(req: ProfileLineRequest):
     """Perfil ao longo de polilinha sobre 1 TIF (fetch + decode + sample N pontos)."""
     t0 = time.time()
-    async with httpx.AsyncClient(follow_redirects=True) as client:
+    async with _shared_http() as client:   # pool global reaproveitado (#P1.2)
         ok, content, err = await _fetch_one(client, req.tif_url)
     if not ok or content is None:
         raise HTTPException(502, f"falha ao baixar TIF: {err}")

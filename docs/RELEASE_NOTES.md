@@ -1,3 +1,35 @@
+# GISELE 2.14.0
+
+Build: `20260609-skewt-cape`
+Data: 2026-06-09
+
+## Novidades v2.14.0
+
+### Skew-T log-P — sondagem termodinâmica por ponto
+- Novo botão na toolbar do GeoTIFF: amostra **Temperatura 3D** e **umidade 3D** nos níveis de pressão do ponto e desenha o diagrama Skew-T log-P.
+- Ponto de orvalho derivado de **umidade relativa** ou **umidade específica** (escolha no diálogo; Magnus / pressão de vapor).
+- Diagrama completo: isotermas inclinadas a 45°, isóbaras (log-P), adiabáticas secas, pseudoadiabáticas, linhas de razão de mistura, curvas de **T** e **Td** e pontos dos níveis do modelo.
+- **Definição de níveis**: faixa base/topo, ou **nível inferior pela pressão de superfície** (PSLC) — descarta níveis abaixo do terreno, recalculado por ponto e por passo de tempo.
+- **Método da parcela**: base da nuvem (**LCL**), **LFC**, topo da nuvem (**EL**) e cálculo de **CAPE** e **CINE**, com curva da parcela, sombreado das áreas e caixa de valores no gráfico.
+- **Interatividade**: zoom (scroll) e pan (arrastar) com reset, painel **🎚 camadas** para ligar/desligar cada componente, **inspeção** que segue o perfil de T (valores interpolados a 10 hPa ao mover o cursor), **seguir** cliques no mapa, exportação **CSV** e **PNG** (alta resolução com título) e **marcador do ponto no mapa**.
+
+### Performance (P1–P3)
+- Cliente HTTP global (`httpx`) reaproveitado via *lifespan* no helper Python.
+- **Service Worker** (`sw.js`) para cache de assets estáticos.
+- **Minificação do HTML** no build standalone (`scripts/minify-html.js`).
+- **orjson** no backend (respostas mais rápidas) e índice de cache em memória.
+- Animação servida como PNG pelo helper; **Leaflet removido** (não era utilizado).
+
+### Perfis verticais 3D — ponto, tempo e linha
+- **Perfil vertical por ponto**: variável 3D num ponto (nível × valor), escala log/linear, fixação do mín/máx do eixo X (cadeado), reamostragem automática ao trocar variável/nível.
+- **Evolução temporal do perfil**: seção nível × tempo num ponto (Sombreado / Isolinhas / Sombreado+Contorno), com colorbar, seletor de paleta, eixo X em horas ou data e zoom 2D.
+- **Corte vertical (ao longo de uma linha)**: seção pressão × distância para variável 3D, com **edição de vértices** (arrastar pontos re-renderiza o caminho), eixo X em distância **ou** lat/lon, zoom navegável e apontamento do ponto no mapa ao percorrer o gráfico.
+
+### "Seguir mapa" nos gráficos
+- Perfil vertical por ponto, perfil temporal, série temporal em ponto, corte vertical e Skew-T ganharam o botão **📍 seguir**: clicar um novo ponto no mapa re-renderiza o gráfico sem fechar o pop-up; o gráfico também acompanha a navegação no tempo.
+
+---
+
 # GISELE 2.13.0
 
 Build: `20260602-3350-veccache`
