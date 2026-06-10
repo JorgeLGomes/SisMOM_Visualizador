@@ -6,7 +6,7 @@
  * Python — ou se já está usando Electron e quer reusar o runtime.
  *
  * Uso:
- *   node servir_dados.js --dir /caminho/pasta --port 8765
+ *   node servir_dados.js --dir /caminho/pasta --port 8770
  *
  * CORS aberto, MIME correto pra TIF, listing de diretório no browser.
  */
@@ -18,7 +18,7 @@ const path = require('path');
 
 // ─── Args ────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let port = 8765, dir = '.', bind = '127.0.0.1';
+let port = 8770, dir = '.', bind = '127.0.0.1';
 for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--port' || a === '-p') { port = parseInt(args[++i], 10); }

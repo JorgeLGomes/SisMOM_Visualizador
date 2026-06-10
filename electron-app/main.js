@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, screen, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, screen, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const pythonSpawner = require('./python-spawner');
@@ -79,6 +79,27 @@ function pythonHelperDisabled() { return hasFlag('--no-python-helper'); }
 // IPC: renderer pergunta a URL atual do helper
 ipcMain.handle('gisele-python:get-url', () => pythonSpawner.getUrl());
 ipcMain.handle('gisele-python:is-available', () => pythonSpawner.isRunning());
+
+// IPC: diálogo nativo "escolher pasta" (ferramenta de download de dados).
+// Retorna o caminho escolhido ou null se o usuário cancelar.
+ipcMain.handle('gisele-fs:choose-dir', async (e, opts) => {
+  try {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const r = await dialog.showOpenDialog(win, {
+      title: (opts && opts.title) || 'Escolher pasta para salvar os dados',
+      defaultPath: (opts && opts.defaultPath) || app.getPath('downloads'),
+      properties: ['openDirectory', 'createDirectory'],
+      buttonLabel: 'Usar esta pasta',
+    });
+    if (r.canceled || !r.filePaths || !r.filePaths.length) return null;
+    return r.filePaths[0];
+  } catch (err) { debugLog('choose-dir err: ' + (err && err.message)); return null; }
+});
+// IPC: abre uma pasta no gerenciador de arquivos do SO
+ipcMain.handle('gisele-fs:open-dir', (_e, p) => {
+  try { if (p) { shell.openPath(String(p)); return true; } } catch (_) {}
+  return false;
+});
 
 // ─── Config persistente em arquivo: pasta configuração/ em userData ───
 // Export grava aqui por padrão; no início o renderer auto-importa o arquivo.

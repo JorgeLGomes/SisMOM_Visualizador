@@ -1,3 +1,57 @@
+# GISELE 2.16.0
+
+Build: `20260610-form-campos`
+Data: 2026-06-10
+
+## Novidades v2.16.0
+
+### Leitura por *range-read* (/vsicurl) — ferramentas por ponto e por linha
+Amostragem que lê só o(s) tile(s) do ponto/janela do GeoTIFF remoto (HTTP range request),
+em vez de baixar o arquivo inteiro. Validado contra o FTP do CPTEC (suporta Range + CORS).
+
+- **Helper (server.py)** — novos endpoints (aplicáveis pelos scripts em `electron-app/python-helper/`):
+  - `POST /v1/point/series` (`point_series_patch.py`) — amostragem genérica por ponto: atende **série
+    temporal**, **perfil vertical por ponto** e **SkewT-LogP** (varia passo/nível/variável).
+  - `POST /v1/line/sample` (`line_sample_patch.py`) — amostra uma **linha** por leitura janelada
+    (1 leitura por nível cobrindo o bbox da linha): **corte vertical**.
+  - `use_vsicurl` em `POST /v1/timeseries/point` (`poc_vsicurl_patch.py`) — série temporal por range-read.
+- **Frontend** — SkewT, perfil vertical por ponto, série temporal e corte vertical passam a usar esses
+  endpoints quando o helper está disponível, com **fallback automático** para o caminho JS (sem regressão).
+  Chaves de escape: `window.GISELE_POINTSERIES=false`, `window.GISELE_SKEWT_HELPER=false`.
+- **Pré-requisitos:** `orjson` instalado no Python do helper; aplicar os patches; reiniciar o helper.
+- Docs: `docs/AVALIACAO_microservico_ponto.md` (avaliação) e `docs/POC_vsicurl_resultados.md` (POC + testes).
+
+### Sombreado em Bandas (filled contour) na configuração da camada
+- Novo sub-painel **Bandas** (aparece em Sombreado → "Bandas (shaded)") com: **Mín/Máx** da escala
+  (+ automático) e definição das bandas por **Nº de bandas (automático)** ou **intervalos explícitos**.
+- Cada banda recebe **uma cor chapada** (sem gradiente). A suavização de cor (`rasterSmooth`) passa a
+  valer **só** no modo Suavizado.
+- **Filled contour:** no modo Bandas, os **dados** são interpolados (bilinear) para uma grade fina e só
+  então classificados — **bordas suaves/curvas** entre as classes, como nas figuras GIF de referência.
+  Bordas de NoData preservadas no pixel mais próximo.
+
+---
+
+# GISELE 2.15.0
+
+Build: `20260610-predictor3-cache`
+Data: 2026-06-10
+
+## Novidades v2.15.0
+
+### GeoTIFF — suporte ao *floating-point predictor* (predictor=3)
+- O decodificador passou a tratar **predictor=3** (TIFF TechNote 3) para dados float32/64, além de 1 e 2. TIFs float com predictor=3 antes apareciam distorcidos (deslocamento horizontal dependente dos valores); agora decodificam corretamente. Correção verificada por round-trip (erro 0) e propagada ao pool de Web Workers.
+- Log de diagnóstico do decode enriquecido (`tileW`, `tileH`, `nSeg`, `planar`).
+
+### Atualizar dados / correção de cache
+- Novo botão **"🔄 Atualizar dados (limpar cache)"** no nó **Camadas**: limpa os caches em memória do viewer, limpa o cache em disco do helper Python (`POST /cache/clear`) e re-busca os campos carregados furando o cache do navegador. Use depois de **regerar dados/rodadas** (ex.: troca de predictor) — antes, arquivos regerados na mesma URL continuavam sendo servidos do cache.
+- Helper: respostas de TIF/PNG passam a usar `Cache-Control: no-cache` (elimina a obsolescência de 24h no navegador; o cache em disco do helper continua para performance). **Requer reiniciar o helper Python.**
+
+### Recomendação de geração de dados
+- Para campos **Float32/64**, gere os GeoTIFFs com **`PREDICTOR=3`** (padrão correto do GDAL para ponto flutuante). Já refletido em `config_glob2eta.yaml` (`cog.predictor: 3`).
+
+---
+
 # GISELE 2.14.0
 
 Build: `20260609-skewt-cape`
@@ -191,21 +245,4 @@ Saída em `electron-app/dist/`:
 ## Pendências conhecidas
 
 - Pasta local com varredura (webkitdirectory) — feature solicitada, não implementada
-- Identidade visual GISELE (brand/) ainda não conectada ao app (favicon/manifest/ícone Electron) — pendente
-- Paleta/min/max default por variável (persistência) — Fase 3 pendente
-- Controles de paleta por painel Mi no header — Fase 4 pendente
-- Assinatura digital do .exe — requer certificado pago (~ USD 200/ano), distribuído sem assinatura por ora
-- Web Worker para `aplicarPaleta` — 1ª passada da animação ainda é CPU-bound em modelos grandes (Eta)
-
-## Histórico de versões
-
-- **2.12.1** (2026-06-02): raster GeoTIFF interpolado + sombreado Suavizado/Bandas/Pixel + bandas por nível.
-- **2.12.0** (2026-06-01): Base de dados (KML/GeoJSON) + menu Monitoramento (Queimadas INPE).
-- **2.11.x** (2026-06-01): desenho no PNG + fix MERGE multipainel + série temporal consolidada + caneta de tela.
-- **2.10.0** (2026-05-31): Cidades brasileiras (por UF) + cliente Python `gisele_ts`.
-- **2.9.0** (2026-05-31): multi-painel (sync/lock/replicação) + polígonos do usuário + gráficos interativos.
-- **2.6.0–2.8.0** (2026-05-29/30): Calculadora Temporal, Exportar/Importar GeoJSON e Shapefile, helper Python, perf de contornos.
-- **2.4.0–2.5.0** (2026-05-28): árvore ERMA + Configuração da Camada + calculadora dupla + Miscelâneas.
-- **2.1.0–2.3.0** (2026-05-28): ferramentas de medição, série temporal, vídeo MP4, mapa-base por modelo.
-- **2.0.0** (2026-05-28): Modo GeoTIFF completo, multi-painel com mapa, cache, paletas extras, calculadora.
-- **1.0.0** (2026-05-25): Versão inicial PNG/GIF apenas.
+- Identidade visual GISELE (brand/) ainda não conectada ao app (favicon/manifest/ícone Electron) —

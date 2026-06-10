@@ -13,8 +13,10 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const net = require('net');
 
 const DEFAULT_PORT = 8765;
+const PORT_TRIES = 4; // 8765..8768 — pula portas ocupadas (ex.: servir_dados)
 const PROBE_INTERVAL_MS = 250;
 const PROBE_MAX_ATTEMPTS = 60; // 15s
 
@@ -91,9 +93,28 @@ async function waitForHealth(port) {
   return null;
 }
 
+// ─── Porta livre ───────────────────────────────────────────────────────
+// Implementa o "cai para a proxima livre se ocupada": testa bind em
+// 127.0.0.1:porta com net.createServer antes de spawnar o helper.
+function portIsFree(port) {
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.once('error', () => resolve(false));
+    srv.once('listening', () => srv.close(() => resolve(true)));
+    srv.listen(port, '127.0.0.1');
+  });
+}
+async function findFreePort(startPort, tries) {
+  for (let p = startPort; p < startPort + tries; p++) {
+    if (await portIsFree(p)) return p;
+    log('porta :' + p + ' ocupada — tentando a proxima');
+  }
+  return startPort; // sem porta livre no range: deixa o erro aparecer no spawn
+}
+
 // ─── Start ─────────────────────────────────────────────────────────────
 async function start(electronApp, opts = {}) {
-  const port = opts.port || DEFAULT_PORT;
+  const port = opts.port || await findFreePort(DEFAULT_PORT, PORT_TRIES);
   const cmd = resolveHelperCommand(electronApp);
 
   if (!cmd) {

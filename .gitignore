@@ -58,3 +58,4 @@ brand/*
 
 # ---- api-client: saidas de extracao (CSV de exemplo/teste) ----
 api-client/*.csv
+electron-app/python-helper/.venv-helper/

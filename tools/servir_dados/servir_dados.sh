@@ -3,8 +3,8 @@
 #  GISELE - Servidor local de dados (Linux / macOS)
 #
 #  Uso:
-#    ./servir_dados.sh                       # serve a pasta atual em :8765
-#    ./servir_dados.sh /caminho/pasta        # serve essa pasta em :8765
+#    ./servir_dados.sh                       # serve a pasta atual em :8770
+#    ./servir_dados.sh /caminho/pasta        # serve essa pasta em :8770
 #    ./servir_dados.sh /caminho/pasta 9000   # idem em :9000
 #
 #  Requer: Python 3 OU Node.js. Detecta automaticamente.
@@ -14,7 +14,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 DATA_DIR="${1:-$PWD}"
-PORTA="${2:-8765}"
+PORTA="${2:-8770}"
 
 if [ ! -d "$DATA_DIR" ]; then
     echo "ERRO: \"$DATA_DIR\" não é uma pasta válida." >&2

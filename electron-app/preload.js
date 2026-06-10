@@ -22,6 +22,13 @@ contextBridge.exposeInMainWorld('GISELE_PYTHON', {
   },
 });
 
+// Bridge de sistema de arquivos (ferramenta de download de dados):
+// diálogo nativo de escolha de pasta + abrir pasta no gerenciador do SO.
+contextBridge.exposeInMainWorld('GISELE_FS', {
+  chooseDir: (opts) => ipcRenderer.invoke('gisele-fs:choose-dir', opts || {}),
+  openDir: (p) => ipcRenderer.invoke('gisele-fs:open-dir', p),
+});
+
 // Bridge de configuração em arquivo (pasta configuração/ em userData).
 contextBridge.exposeInMainWorld('GISELE_CONFIG', {
   save: (text) => ipcRenderer.invoke('gisele-config:save', text),

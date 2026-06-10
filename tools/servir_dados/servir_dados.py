@@ -6,16 +6,16 @@ Serve uma pasta local em http://localhost:PORTA/ com headers CORS abertos
 e MIME types corretos para os formatos do SisMOM (PNG, GIF, TIF, GeoJSON).
 
 Uso:
-  python servir_dados.py --dir /caminho/da/pasta --port 8765
+  python servir_dados.py --dir /caminho/da/pasta --port 8770
 
 Args:
   --dir, -d   pasta a servir (default: diretório atual)
-  --port, -p  porta TCP (default: 8765)
+  --port, -p  porta TCP (default: 8770)
   --bind, -b  interface (default: 127.0.0.1, só localhost)
 
 Funciona em Safari, Firefox, Chrome, Edge — qualquer browser. Use no
 template do modelo do SisMOM:
-  http://localhost:8765/Eta3km/{yyyy}/{mm}/{dd}{hh}/
+  http://localhost:8770/Eta3km/{yyyy}/{mm}/{dd}{hh}/
 """
 import argparse
 import http.server
@@ -63,7 +63,7 @@ def main():
         epilog=__doc__,
     )
     ap.add_argument('--dir', '-d', default='.', help='Diretório raiz (default: atual)')
-    ap.add_argument('--port', '-p', type=int, default=8765, help='Porta TCP (default: 8765)')
+    ap.add_argument('--port', '-p', type=int, default=8770, help='Porta TCP (default: 8770)')
     ap.add_argument('--bind', '-b', default='127.0.0.1',
                     help='Interface (default: 127.0.0.1 = só localhost; "0.0.0.0" expõe na rede)')
     args = ap.parse_args()

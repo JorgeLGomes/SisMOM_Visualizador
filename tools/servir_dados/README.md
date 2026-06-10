@@ -1,7 +1,11 @@
 # SisMOM — Servidor HTTP local de dados
 
+> **Porta:** o padrão é **8770**. A porta **8765 é reservada ao helper Python**
+> do GISELE (aceleração + ferramenta de download) — não use 8765 aqui.
+
+
 Pequeno script (Python ou Node.js) que serve uma pasta local em
-`http://localhost:8765/`. Permite ao GISELE ler arquivos do
+`http://localhost:8770/`. Permite ao GISELE ler arquivos do
 disco local em **qualquer navegador** (Safari, Firefox, Chrome, Edge) e
 **sem precisar selecionar a pasta a cada sessão**.
 
@@ -15,7 +19,7 @@ disco local em **qualquer navegador** (Safari, Firefox, Chrome, Edge) e
 ## Como funciona
 
 O script sobe um servidor HTTP local. Você configura no template do
-modelo do SisMOM uma URL `http://localhost:8765/...`. O app trata como
+modelo do SisMOM uma URL `http://localhost:8770/...`. O app trata como
 URL HTTP normal — `fetch` lê os arquivos via localhost com CORS
 liberado.
 
@@ -63,7 +67,7 @@ node --version
     GISELE — Servidor local de dados
    ==============================================================
     Diretório:  C:\dados\meteorologia
-    URL base:   http://localhost:8765/
+    URL base:   http://localhost:8770/
     CORS:       habilitado
    ```
 3. **Deixe a janela aberta** enquanto usa o app. `Ctrl+C` para parar.
@@ -79,15 +83,15 @@ chmod +x servir_dados.sh
 
 ```bash
 # Python
-python servir_dados.py --dir /caminho/pasta --port 8765
+python servir_dados.py --dir /caminho/pasta --port 8770
 
 # Node
-node servir_dados.js --dir /caminho/pasta --port 8765
+node servir_dados.js --dir /caminho/pasta --port 8770
 ```
 
 Opções:
 - `--dir`, `-d` — pasta a servir (default: diretório atual)
-- `--port`, `-p` — porta TCP (default: 8765)
+- `--port`, `-p` — porta TCP (default: 8770)
 - `--bind`, `-b` — interface (default: `127.0.0.1`; use `0.0.0.0` pra expor na rede local)
 
 ## Configurar no SisMOM
@@ -97,11 +101,11 @@ Opções:
 3. **Configurar > Editar > escolha o modelo** (ou Clonar).
 4. No campo **"Template do endereço (PNG/GIF)"** digite:
    ```
-   http://localhost:8765/Eta3km/png/{yyyy}/{mm}/{dd}{hh}/
+   http://localhost:8770/Eta3km/png/{yyyy}/{mm}/{dd}{hh}/
    ```
 5. No campo **"Template do endereço (TIF)"** digite:
    ```
-   http://localhost:8765/Eta3km/geotiff/{yyyy}/{mm}/{dd}{hh}/
+   http://localhost:8770/Eta3km/geotiff/{yyyy}/{mm}/{dd}{hh}/
    ```
 6. **Template Nome Arq.**: `{prefixo}{f%3}{ext}` (mesma sintaxe de sempre).
 7. **Salvar e aplicar**.
@@ -127,7 +131,7 @@ dados/
 
 Template:
 ```
-http://localhost:8765/Eta3km/png/{yyyy}/{mm}/{dd}/{hh}/
+http://localhost:8770/Eta3km/png/{yyyy}/{mm}/{dd}/{hh}/
 {prefixo}{f%3}{ext}
 ```
 (variável "temperatura" com prefixo=`temp` no SisMOM)
@@ -142,7 +146,7 @@ dados/
 
 Template:
 ```
-http://localhost:8765/
+http://localhost:8770/
 {prefixo}-{yyyymmddhh}-{f%3}{ext}
 ```
 
@@ -182,17 +186,17 @@ ao administrador local.
 
 ## Troubleshooting
 
-**"Porta 8765 já está em uso"**
+**"Porta 8770 já está em uso"**
 - Outro processo está nessa porta. Use `--port 9000` (ou outra livre).
-- Para descobrir quem usa: Windows `netstat -ano | findstr 8765`; Linux/Mac `lsof -i :8765`.
+- Para descobrir quem usa: Windows `netstat -ano | findstr 8770`; Linux/Mac `lsof -i :8770`.
 
 **Browser dá "Failed to fetch" ou erro de rede**
 - Verifique que o servidor está rodando (janela do terminal aberta).
-- Teste no browser: abra `http://localhost:8765/` — deve mostrar listing.
+- Teste no browser: abra `http://localhost:8770/` — deve mostrar listing.
 - Verifique se o template aponta para a porta correta.
 
 **Arquivo retorna 404**
-- Acesse `http://localhost:8765/` no browser para navegar e confirmar o caminho exato dos arquivos.
+- Acesse `http://localhost:8770/` no browser para navegar e confirmar o caminho exato dos arquivos.
 - Verifique placeholders no template (`{yyyy}` vs `{yyyymm}` etc.).
 
 **Safari bloqueia localhost**

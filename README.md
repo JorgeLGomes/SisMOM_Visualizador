@@ -6,7 +6,7 @@ Plataforma de visualização de modelos meteorológicos e oceanográficos
 empacotado em **executáveis** para Windows (`.exe`), macOS (`.dmg`) e
 Linux (`AppImage`/`.deb`).
 
-> **Versão atual:** v2.14.0 — build `20260609-skewt-cape`.
+> **Versão atual:** v2.16.0 — build `20260610-form-campos`.
 > Dois modos de operação: **PNG/GIF** (figuras pré-renderizadas do FTP do
 > CPTEC) e **GeoTIFF** (dado bruto decodificado no navegador, paleta editável).
 > Veja a seção 4 e o manual completo em `docs/GISELE_Manual_Uso.pdf`.

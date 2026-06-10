@@ -17,7 +17,7 @@ REM ---- Argumentos ----
 set "DATA_DIR=%~1"
 set "PORTA=%~2"
 if "%DATA_DIR%"=="" set "DATA_DIR=%CD%"
-if "%PORTA%"=="" set "PORTA=8765"
+if "%PORTA%"=="" set "PORTA=8770"
 
 REM ---- Verifica pasta ----
 if not exist "%DATA_DIR%\" (

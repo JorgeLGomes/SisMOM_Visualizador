@@ -1,15 +1,16 @@
 # GISELE — Documento de Handover
 
 **Repositório:** `C:\Projetos\Visualizador`
-**Versão atual:** v2.14.0 — Build marker `20260609-skewt-cape`
-**Commit HEAD:** `4982322 docs: HANDOVER atualizado sessao 08/06/2026` (Skew-T + performance + seguir-mapa pendentes — ver `commit-skewt.bat`)
+**Versão atual:** v2.16.0 — Build marker `20260610-form-campos`
+**Commit HEAD:** `4982322 docs: HANDOVER atualizado sessao 08/06/2026` (delta v2.14.0 → v2.16.0 pendente de commit — ver `commit-vsicurl-bands.bat`)
+**Handover desta sessão:** `HANDOVER_SESSAO_2026-06-10.md` (predictor=3 + cache + range-read /vsicurl + bandas filled-contour)
 **Arquivos críticos (sempre em lockstep — md5 idêntico):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
 - `miscelaneas/manifest.json` + `miscelaneas/*.geojson` (raiz + electron-app)
 
-**MD5 atual:** `e00e9d80aa48add89972e3fa467b7448`
-**Linhas do HTML:** ~23 999
+**MD5 atual:** `6622c41436f1f89930202b88b3ab34d4`
+**Linhas do HTML:** 25899
 
 > **Regra de ouro:** todo patch no HTML deve ser aplicado nos DOIS arquivos. Validar sempre com:
 > ```
@@ -26,7 +27,54 @@
 
 ---
 
-## 0. Mudanças da sessão 09/06/2026 (v2.13.0 → v2.14.0)
+## 0. Mudanças da sessão 2026-06-10 (cont.) — v2.16.0
+
+> Detalhe completo em `HANDOVER_SESSAO_2026-06-10.md` e `docs/POC_vsicurl_resultados.md`.
+
+**Leitura por range-read (/vsicurl) — ponto e linha.** Novos endpoints no helper (aplicáveis pelos
+scripts em `electron-app/python-helper/`, com backup e `--revert`):
+- `POST /v1/point/series` (`point_series_patch.py`) — amostragem genérica por ponto (série, perfil
+  vertical, SkewT). Função `_dl_sample_tif` (amostra 1 ponto via `/vsicurl/` + `src.sample`).
+- `POST /v1/line/sample` (`line_sample_patch.py`) — amostra uma linha por **leitura janelada**
+  (`_dl_sample_line`: 1 janela `rasterio.windows` por nível cobrindo o bbox da linha). Corte vertical.
+- `use_vsicurl` em `/v1/timeseries/point` (`poc_vsicurl_patch.py`) — série temporal por range-read.
+- Validação Fase 1 OK contra o CPTEC (Apache: HTTP 206 + `Accept-Ranges` + CORS). Testes de paridade
+  exata (maxdiff 0) em `docs/POC_vsicurl_resultados.md`.
+
+**Frontend (HTML, em lockstep).** Helpers `_skBatchSampleHelper` (SkewT), `_gtPointSeriesValues`
+(perfil vertical / `_gtSampleSourceVProfile`), `use_vsicurl` em `gtPyHelper.sampleTimeSeries`, e
+`_gtLineSampleValues` (corte vertical / `gtSampleCrossSection`). Todos com **fallback JS**. Escapes:
+`window.GISELE_POINTSERIES=false`, `window.GISELE_SKEWT_HELPER=false`.
+
+**Sombreado em Bandas (filled contour).** Sub-painel **Bandas** na config da camada (`gtCfgBandsPanel`):
+Mín/Máx (+ auto) + **Nº de bandas (auto)** ou **intervalos explícitos** (compartilha níveis com
+Contornos). `rasterSmooth` agora só no modo Suavizado. Em `aplicarPaleta`, no modo bandas os **dados**
+são interpolados (bilinear) antes de classificar → **bordas suaves** com cor chapada por banda.
+
+**Pré-requisitos p/ o helper:** `orjson` instalado; aplicar os patches; reiniciar (porta 8765 livre).
+
+**Resolvido:** o "pixelado" no modo bandas era o **service worker** servindo o HTML antigo; após
+*Application → Service Workers → Unregister* + *Clear site data* + Ctrl+Shift+R, as bandas
+(filled contour) funcionam como esperado — controle por Mín/Máx + Nº de bandas/intervalos.
+(Lembrete de operação: depois de patch no HTML, limpar o service worker para a versão nova carregar.)
+
+---
+
+## 0a. Mudanças da sessão 2026-06-10 (v2.14.0 → v2.15.0)
+
+> Detalhe completo em `HANDOVER_SESSAO_2026-06-10.md`.
+
+**GeoTIFF — floating-point predictor (predictor=3):** o decodificador (`SisMOM_GeoTIFF.decodeTIFF`) só tratava predictor 1/2. TIFs float32 com **predictor=3** caíam sem reconstrução → campo distorcido com deslocamento horizontal dependente dos dados. Implementada a função aninhada **`_pred3Row`** (TIFF TechNote 3: acúmulo horizontal com `stride=samplesPerPixel` + reordenação dos planos de bytes respeitando o byte-order), ativada nos caminhos de **tile** (~9396) e **strip** (~9421). Round-trip verificado (erro 0). Propaga ao Web Worker por ser aninhada em `decodeTIFF`. Log de decode enriquecido com `tileW, tileH, nSeg, planar` (~9329).
+
+**Correção de cache (causa raiz do "continua errado após regerar"):** arquivos regerados na **mesma URL** continuavam sendo servidos dos caches antigos — **disco do helper** (`~/.gisele/tiff-cache`, indexado por URL) e **navegador** (`Cache-Control: max-age=86400`). Implementado:
+- Viewer: `gtForceFreshData()` + flag `_gtForceFresh` (fetch com `cache:'reload'`) + `_gtTsRasterClear()`; botão **"🔄 Atualizar dados (limpar cache)"** no nó **Camadas** (`id=gtTreeRefreshData`) que limpa caches do viewer, chama `POST /cache/clear` e re-busca os campos.
+- Helper (`server.py`): `Cache-Control` → **`no-cache`** nas respostas de dados (`/v1/tile/fetch` + `/v1/render/png`). **Requer reiniciar o helper.**
+
+**Pendência:** "Andes defasado" no campo de pressão — a confirmar se é meio-pixel (PixelIsPoint vs Area), cisalhamento, ou apenas resolução grossa (1,875°). Ver handover da sessão.
+
+---
+
+## 0bis. Mudanças da sessão 09/06/2026 (v2.13.0 → v2.14.0)
 
 **Skew-T log-P (sondagem termodinâmica por ponto)** — novo botão na toolbar GeoTIFF (`data-tool="skewt"`) → `gtOpenSkewTDialog`:
 - Diálogo: variável de **Temperatura 3D**, variável de **Umidade 3D** (UR **ou** umidade específica → ponto de orvalho via Magnus/pressão de vapor), faixa de níveis (base/topo) e **base pela pressão de superfície** (corta níveis com `p > Psfc`, recalculado por ponto/tempo).

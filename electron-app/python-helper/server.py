@@ -9,6 +9,10 @@ Endpoints:
   POST /v1/timeseries/point/geojson     — idem, saida GeoJSON FeatureCollection
   POST /v1/calc/temporal                — calculadora temporal: sum/mean/max/min(t_i..t_j) ou expressao
   POST /v1/profile/line                 — perfil ao longo de polilinha sobre 1 TIF
+  POST /v1/download/start|cancel        — download de dados p/ diretório local (jobs)
+  GET  /v1/download/status              — progresso dos jobs de download
+  POST /v1/download/validate_dir        — valida/cria diretório de destino
+  GET  /v1/fs/browse                    — navegação de diretórios (form de download)
 
 Filosofia:
   - Frontend e' a fonte da verdade. Envia model_config + variavel_config em cada request.
@@ -42,7 +46,7 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 
-VERSION = "0.6.0"
+VERSION = "0.8.0"
 STARTED = time.time()
 DEFAULT_PORT = 8765
 DEFAULT_PARALLEL = 16  # bumped 8 -> 16 (era saturando CPTEC pouco)
@@ -424,6 +428,8 @@ class TimeSeriesPointRequest(BaseModel):
                                     description="Primeiro passo em HORAS (opcional). Padrao: 1*freq.")
     passoMax: Optional[int] = Field(None, ge=1,
                                     description="Ultimo passo em HORAS (opcional). Padrao: horizonte completo.")
+    use_vsicurl: bool = Field(False,
+                              description="POC: amostra por range-read (/vsicurl) em vez de baixar o TIF inteiro.")
 
 
 class TimeSeriesSample(BaseModel):
@@ -431,6 +437,23 @@ class TimeSeriesSample(BaseModel):
     passo_h: int
     time_utc: Optional[str] = None
     value: Optional[float] = None
+
+
+class PointSeriesItem(BaseModel):
+    url: str
+    passo: Optional[int] = None      # horas -> eixo TEMPO (serie/evolucao)
+    nivel: Optional[str] = None      # hPa  -> eixo VERTICAL (perfil/SkewT)
+    var: Optional[str] = None        # rotulo da variavel (SkewT: T, Td, ...)
+    rodada: Optional[str] = None     # AAAAMMDDHH -> validade
+
+
+class PointSeriesRequest(BaseModel):
+    items: list[PointSeriesItem]
+    lat: float
+    lon: float
+    nodata_extras: Optional[list[float]] = None
+    parallel_limit: int = Field(DEFAULT_PARALLEL, ge=1, le=32,
+                                description="Leituras de ponto concorrentes")
 
 
 class TimeSeriesPointResponse(BaseModel):
@@ -555,6 +578,16 @@ async def _fetch_and_sample(
         return (v, None)
     except Exception as e:
         return (None, f"decode_err: {e}")
+
+
+async def _vsicurl_sample_async(url, lat, lon, nodata_extras=None):
+    """POC: amostra 1 ponto por range-read (/vsicurl), sem baixar o TIF inteiro.
+    Roda o rasterio (bloqueante) num thread para nao travar o event loop."""
+    try:
+        v = await asyncio.to_thread(_dl_sample_tif, url, [lat, lon], nodata_extras)
+        return (v, None)
+    except Exception as e:
+        return (None, f"vsicurl_err: {e}")
 
 
 def _resolve_steps(freq: int, horizonte: Optional[int], max_passos: int) -> list[int]:
@@ -782,7 +815,10 @@ async def timeseries_point(req: TimeSeriesPointRequest):
             async with sem:
                 _flight_enter(f"t={passo_h}h")
                 w_t0 = time.time()
-                v_val, err = await _fetch_and_sample(client, url, req.lat, req.lon, req.nodata_extras)
+                if req.use_vsicurl:
+                    v_val, err = await _vsicurl_sample_async(url, req.lat, req.lon, req.nodata_extras)
+                else:
+                    v_val, err = await _fetch_and_sample(client, url, req.lat, req.lon, req.nodata_extras)
                 _flight_exit(f"t={passo_h}h", time.time() - w_t0)
             if err:
                 failed += 1
@@ -816,8 +852,76 @@ async def timeseries_point(req: TimeSeriesPointRequest):
         "fetched": fetched, "failed": failed,
         "max_concurrent_observed": peak_observed,
         "parallel_limit_used": req.parallel_limit,
+        "sampler": "vsicurl" if req.use_vsicurl else "full-download",
     }
     return resp_obj
+
+
+async def _ps_sample_async(url, lat, lon, nodata_extras=None):
+    """Amostra 1 ponto por range-read (/vsicurl). Independente do POC: usa o
+    _dl_sample_tif existente (2 args) e checa nodata_extras aqui."""
+    def _do():
+        v = _dl_sample_tif(url, [lat, lon])
+        if v is not None and nodata_extras:
+            for _x in nodata_extras:
+                try:
+                    if v == float(_x):
+                        return None
+                except (TypeError, ValueError):
+                    pass
+        return v
+    try:
+        return (await asyncio.to_thread(_do), None)
+    except Exception as e:
+        return (None, f"vsicurl_err: {e}")
+
+
+@app.post("/v1/point/series")
+async def point_series(req: PointSeriesRequest):
+    """Amostragem GENERICA por ponto via range-read (/vsicurl).
+
+    O frontend manda a lista de itens (cada um = 1 URL) + o ponto. Variando os
+    campos, a MESMA rota atende:
+      - serie / evolucao temporal -> itens variam 'passo'
+      - perfil vertical           -> itens variam 'nivel'
+      - SkewT-LogP                -> itens variam 'var' (T, Td) x 'nivel'
+    Le so o(s) tile(s) do pixel; a resposta ecoa os campos do item + 'value'.
+    """
+    t0 = time.time()
+    sem = asyncio.Semaphore(req.parallel_limit)
+    out: list = [None] * len(req.items)
+    fetched = 0
+    failed = 0
+
+    async def worker(idx: int, it: PointSeriesItem):
+        nonlocal fetched, failed
+        async with sem:
+            v, err = await _ps_sample_async(it.url, req.lat, req.lon, req.nodata_extras)
+        if err:
+            failed += 1
+        else:
+            fetched += 1
+        validade = None
+        if it.rodada is not None and it.passo is not None:
+            try:
+                validade = _dl_validade(it.rodada, it.passo)
+            except Exception:
+                validade = None
+        out[idx] = {
+            "idx": idx, "passo": it.passo, "nivel": it.nivel,
+            "var": it.var, "rodada": it.rodada, "validade": validade,
+            "value": v, "error": err,
+        }
+
+    await asyncio.gather(*(worker(i, it) for i, it in enumerate(req.items)))
+    return {
+        "samples": out,
+        "lat": req.lat, "lon": req.lon,
+        "count": len(req.items), "fetched": fetched, "failed": failed,
+        "sampler": "vsicurl",
+        "elapsed_seconds": round(time.time() - t0, 3),
+        "parallel_limit_used": req.parallel_limit,
+    }
 
 
 @app.post("/v1/timeseries/point/geojson")
@@ -1090,6 +1194,113 @@ async def _get_tile_client() -> httpx.AsyncClient:
                 )
     return _tile_client
 
+class LineSampleItem(BaseModel):
+    url: str
+    nivel: Optional[str] = None
+    var: Optional[str] = None
+    passo: Optional[int] = None
+    rodada: Optional[str] = None
+
+
+class LineSampleRequest(BaseModel):
+    items: list[LineSampleItem]
+    points: list[list[float]]   # [[lat,lon],...] JA densificados pelo frontend
+    nodata_extras: Optional[list[float]] = None
+    parallel_limit: int = Field(DEFAULT_PARALLEL, ge=1, le=32)
+
+
+def _dl_sample_line(url, points, nodata_extras=None):
+    """Le UMA janela (bbox dos pontos) do COG remoto via /vsicurl e amostra os
+    pontos (nearest). Retorna lista alinhada a points (None onde nodata/fora)."""
+    import math, rasterio
+    from rasterio.windows import from_bounds, Window
+    from rasterio.transform import rowcol
+    n = len(points)
+    out = [None] * n
+    if n == 0:
+        return out
+    lats = [p[0] for p in points]; lons = [p[1] for p in points]
+    minlat, maxlat = min(lats), max(lats); minlon, maxlon = min(lons), max(lons)
+    with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
+                      CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif,.tiff",
+                      GDAL_HTTP_MULTIRANGE="YES"):
+        with rasterio.open("/vsicurl/" + url) as src:
+            b = src.bounds
+            wl = max(minlon, b.left); wr = min(maxlon, b.right)
+            wb = max(minlat, b.bottom); wt = min(maxlat, b.top)
+            if wr <= wl or wt <= wb:
+                return out
+            win = from_bounds(wl, wb, wr, wt, transform=src.transform)
+            col0 = max(0, int(math.floor(win.col_off)))
+            row0 = max(0, int(math.floor(win.row_off)))
+            col1 = min(src.width, int(math.ceil(win.col_off + win.width)))
+            row1 = min(src.height, int(math.ceil(win.row_off + win.height)))
+            if col1 <= col0 or row1 <= row0:
+                return out
+            win2 = Window(col0, row0, col1 - col0, row1 - row0)
+            arr = src.read(1, window=win2)
+            wtf = src.window_transform(win2)
+            nd = src.nodata
+            H, W = arr.shape
+            for k in range(n):
+                lat, lon = points[k][0], points[k][1]
+                if not (b.left <= lon <= b.right and b.bottom <= lat <= b.top):
+                    continue
+                r, c = rowcol(wtf, lon, lat)
+                if 0 <= r < H and 0 <= c < W:
+                    v = float(arr[r, c])
+                    if (nd is not None and v == float(nd)) or math.isnan(v):
+                        continue
+                    if nodata_extras:
+                        bad = False
+                        for x in nodata_extras:
+                            try:
+                                if v == float(x):
+                                    bad = True; break
+                            except (TypeError, ValueError):
+                                pass
+                        if bad:
+                            continue
+                    out[k] = v
+    return out
+
+
+@app.post("/v1/line/sample")
+async def line_sample(req: LineSampleRequest):
+    """Amostra uma linha (corte vertical / perfil ao longo da linha) por leitura
+    janelada. Cada item = 1 raster; resposta ecoa nivel/var/passo + 'values'
+    (alinhado a points)."""
+    t0 = time.time()
+    pts = [(float(p[0]), float(p[1])) for p in req.points]
+    sem = asyncio.Semaphore(req.parallel_limit)
+    out = [None] * len(req.items)
+    fetched = 0
+    failed = 0
+
+    async def worker(idx, it):
+        nonlocal fetched, failed
+        try:
+            async with sem:
+                vals = await asyncio.to_thread(_dl_sample_line, it.url, pts, req.nodata_extras)
+            fetched += 1
+        except Exception:
+            vals = [None] * len(pts); failed += 1
+        validade = None
+        if it.rodada is not None and it.passo is not None:
+            try:
+                validade = _dl_validade(it.rodada, it.passo)
+            except Exception:
+                validade = None
+        out[idx] = {"idx": idx, "nivel": it.nivel, "var": it.var, "passo": it.passo,
+                    "rodada": it.rodada, "validade": validade, "values": vals}
+
+    await asyncio.gather(*(worker(i, it) for i, it in enumerate(req.items)))
+    return {"samples": out, "count": len(req.items), "npts": len(pts),
+            "fetched": fetched, "failed": failed, "sampler": "vsicurl-window",
+            "elapsed_seconds": round(time.time() - t0, 3),
+            "parallel_limit_used": req.parallel_limit}
+
+
 @app.get("/v1/tile/fetch")
 async def tile_fetch(url: str):
     """Proxy de TIF/PNG com cache em disco.
@@ -1113,7 +1324,7 @@ async def tile_fetch(url: str):
             'png': 'image/png', 'gif': 'image/gif', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
         }.get(ext, 'application/octet-stream')
         return Response(content=cached, media_type=mime,
-                       headers={"X-Gisele-Cache": "HIT", "Cache-Control": "public, max-age=86400"})
+                       headers={"X-Gisele-Cache": "HIT", "Cache-Control": "no-cache"})
     # 2) Fetch do FTP
     client = await _get_tile_client()
     try:
@@ -1129,7 +1340,7 @@ async def tile_fetch(url: str):
     return Response(
         content=content,
         media_type=r.headers.get("content-type") or "application/octet-stream",
-        headers={"X-Gisele-Cache": "MISS", "Cache-Control": "public, max-age=86400"}
+        headers={"X-Gisele-Cache": "MISS", "Cache-Control": "no-cache"}
     )
 
 class TilePrefetchRequest(BaseModel):
@@ -1249,7 +1460,7 @@ async def render_png(
             _png_stats["hits"] += 1
             return Response(cached_png, media_type="image/png",
                            headers={"X-Gisele-PNG-Cache": "HIT",
-                                    "Cache-Control": "public, max-age=86400"})
+                                    "Cache-Control": "no-cache"})
         _png_stats["misses"] += 1
     # Decoded cache hit? aplica paleta direto
     decoded = _decoded_get(url)
@@ -1294,7 +1505,7 @@ async def render_png(
             _png_cache.popitem(last=False)
     return Response(png_bytes, media_type="image/png",
                    headers={"X-Gisele-PNG-Cache": "MISS",
-                            "Cache-Control": "public, max-age=86400"})
+                            "Cache-Control": "no-cache"})
 
 
 # ───────────────────────── Diagnostico de paralelismo ─────────────────────────
@@ -1361,6 +1572,508 @@ async def diagnostics_parallel(req: ParallelTestRequest):
         ),
         "timeline_sample": sorted(timeline, key=lambda x: x["start_ms"])[:10],
     }
+
+# ───────────────── Micro-serviço de DOWNLOAD para máquina local ─────────────────
+# Baixa para um diretório local os arquivos das bases de dados / modelos
+# configurados no frontend. Filosofia mantida: o FRONTEND é a fonte da verdade —
+# ele monta a lista de URLs (montarURL/gtBaseUrl em JS) e envia {url, filename}.
+# O serviço só executa: fetch paralelo + gravação atômica + manifesto.
+#
+# Endpoints:
+#   POST /v1/download/validate_dir  — valida/cria o diretório de destino
+#   POST /v1/download/start         — inicia job assíncrono; retorna job_id
+#   GET  /v1/download/status        — progresso (?job_id=...; sem id → lista)
+#   POST /v1/download/cancel        — cancela job em andamento
+
+class DownloadItemReq(BaseModel):
+    url: str
+    filename: Optional[str] = None      # relativo ao destino; default = basename da URL
+    var: Optional[str] = None           # metadados p/ extração de ponto (CSV)
+    passo: Optional[int] = None
+    nivel: Optional[str] = None
+    rodada: Optional[str] = None        # AAAAMMDDHH — p/ validade na linha do tempo
+
+
+class DownloadStartRequest(BaseModel):
+    dest_dir: str
+    subdir: Optional[str] = None        # subpasta criada dentro de dest_dir
+    nome: Optional[str] = None          # rótulo legível do job
+    items: list[DownloadItemReq]
+    parallel: int = Field(default=6, ge=1, le=16)
+    overwrite: bool = True              # False → pula arquivos já existentes
+    manifest: Optional[dict] = None     # metadados livres gravados em _manifesto.json
+    bbox: Optional[list[float]] = None  # [W,S,E,N] graus — recorte espacial de .tif
+                                        # (COG: leitura janelada via range requests;
+                                        # arquivos não-.tif são baixados inteiros)
+    point: Optional[list[float]] = None # [lat, lon] — extração de UM PONTO: em vez
+                                        # de salvar os arquivos, amostra cada .tif
+                                        # na coordenada e grava um CSV (série)
+
+
+class DownloadDirRequest(BaseModel):
+    path: str
+    create: bool = True
+
+
+class DownloadCancelRequest(BaseModel):
+    job_id: str
+
+
+_dl_lock = threading.Lock()
+_dl_jobs: "OrderedDict[str, dict]" = OrderedDict()
+DL_JOBS_MAX = 30
+import re as _re
+_DL_SAFE_SEG = _re.compile(r"[^A-Za-z0-9 ._\-]+")
+
+
+def _dl_safe_relpath(name: str, url: str) -> str:
+    """Sanitiza o nome relativo: sem absolutos, sem '..', segmentos limpos."""
+    if not name:
+        name = url.split("?")[0].rstrip("/").split("/")[-1] or "arquivo.bin"
+    name = name.replace("\\", "/")
+    segs = []
+    for seg in name.split("/"):
+        seg = seg.strip()
+        if not seg or seg in (".", ".."):
+            continue
+        segs.append(_DL_SAFE_SEG.sub("_", seg))
+    return "/".join(segs) or "arquivo.bin"
+
+
+def _dl_public(job: dict) -> dict:
+    out = {k: job[k] for k in (
+        "job_id", "nome", "state", "total", "done", "failed", "skipped",
+        "bytes", "dest", "started_at", "ended_at")}
+    out["errors"] = job["errors"][:8]
+    out["current"] = job.get("current")
+    if job.get("pt_stats"):
+        out["pt_stats"] = job["pt_stats"]
+    elapsed = (job.get("ended_at") or time.time()) - job["started_at"]
+    out["elapsed_s"] = round(elapsed, 1)
+    return out
+
+
+def _dl_clip_tif(url: str, target: Path, bbox: list) -> int:
+    """Recorta um GeoTIFF/COG remoto à janela bbox=[W,S,E,N] (graus) e grava
+    localmente. COG + /vsicurl → o GDAL busca só os tiles necessários por
+    HTTP range request (não baixa o arquivo inteiro). Retorna bytes gravados."""
+    import rasterio
+    from rasterio.windows import Window, from_bounds
+    env_opts = {
+        "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+        "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif,.tiff",
+        "GDAL_HTTP_MULTIRANGE": "YES",
+    }
+    with rasterio.Env(**env_opts):
+        with rasterio.open("/vsicurl/" + url) as src:
+            w = from_bounds(bbox[0], bbox[1], bbox[2], bbox[3], transform=src.transform)
+            col0 = max(0, int(w.col_off)); row0 = max(0, int(w.row_off))
+            col1 = min(src.width, int(w.col_off + w.width) + 1)
+            row1 = min(src.height, int(w.row_off + w.height) + 1)
+            if col1 <= col0 or row1 <= row0:
+                raise RuntimeError("bbox fora da cobertura do arquivo")
+            w = Window(col0, row0, col1 - col0, row1 - row0)
+            data = src.read(window=w)
+            prof = src.profile.copy()
+            prof.update(driver="GTiff", width=int(w.width), height=int(w.height),
+                        transform=src.window_transform(w),
+                        compress="deflate", tiled=False)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            tmp = target.with_suffix(target.suffix + ".part")
+            with rasterio.open(str(tmp), "w", **prof) as dst:
+                dst.write(data)
+            tmp.replace(target)
+    return target.stat().st_size
+
+
+def _dl_validade(rodada: Optional[str], passo_h) -> str:
+    """rodada AAAAMMDDHH + passo_h → 'YYYY-MM-DD HH:00' (validade da previsão)."""
+    try:
+        from datetime import datetime as _dt, timedelta as _td
+        base = _dt(int(rodada[0:4]), int(rodada[4:6]), int(rodada[6:8]), int(rodada[8:10]))
+        return (base + _td(hours=int(passo_h or 0))).strftime("%Y-%m-%d %H:00")
+    except Exception:
+        return ""
+
+
+def _dl_merge_wide(path: Path, novas: list, ordem_cols: list) -> int:
+    """Mescla no CSV 'wide' (rodada,validade,col1..coln) — linha do tempo única.
+    novas = [(rodada, validade, coluna, valor)]. Mantém valores antigos, dedup
+    por rodada+validade+coluna, ordena por validade, regrava atomicamente."""
+    import csv
+    rows: dict = {}
+    extra: list = []
+    if path.exists():
+        try:
+            with open(path, newline="", encoding="utf-8") as f:
+                rd = csv.reader(f)
+                head = next(rd, None) or []
+                cols_old = head[2:] if len(head) > 2 else []
+                extra = [c for c in cols_old if c not in ordem_cols]
+                for line in rd:
+                    if len(line) < 2:
+                        continue
+                    d = rows.setdefault((line[0], line[1]), {})
+                    for c, v in zip(cols_old, line[2:]):
+                        if v != "":
+                            d[c] = v
+        except Exception as e:
+            print(f"[download] serie wide: releitura falhou ({e}) — recriando", flush=True)
+    for rod, val, col, v in novas:
+        d = rows.setdefault((str(rod or ""), str(val or "")), {})
+        d[str(col)] = "" if v is None else v
+    cols = [str(c) for c in ordem_cols] + extra
+    vistos = set(cols)
+    for d in rows.values():
+        for c in d:
+            if c not in vistos:
+                cols.append(c)
+                vistos.add(c)
+    tmp = path.with_suffix(path.suffix + ".part")
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
+        wr = csv.writer(f)
+        wr.writerow(["rodada", "validade"] + cols)
+        for key in sorted(rows, key=lambda k: (k[1], k[0])):
+            d = rows[key]
+            wr.writerow([key[0], key[1]] + [d.get(c, "") for c in cols])
+    tmp.replace(path)
+    return len(rows)
+
+
+def _dl_series_write(dest: Path, point: list, samples: list, items: list) -> list:
+    """Organiza a série do ponto em CSVs:
+       — variáveis 2D: UM arquivo (`*_2D.csv`), uma coluna por variável;
+       — cada variável 3D: arquivo próprio, uma coluna por nível, na ordem
+         explicitada na requisição (ordem dos itens).
+    Retorna [(Path, n_linhas)]."""
+    vars2d: list = []
+    ordem3d: list = []
+    niv3d: dict = {}
+    for it in items:
+        v = getattr(it, "var", None)
+        nv = getattr(it, "nivel", None)
+        if not v:
+            continue
+        if nv:
+            if v not in ordem3d:
+                ordem3d.append(v)
+            niv3d.setdefault(v, [])
+            if nv not in niv3d[v]:
+                niv3d[v].append(nv)
+        elif v not in vars2d:
+            vars2d.append(v)
+    base = "serie_ponto_%s_%s" % (point[0], point[1])
+    out = []
+    d2 = [(s["rodada"], s["validade"], s["variavel"], s["valor"])
+          for s in samples if not s.get("nivel")]
+    if d2:
+        p = dest / (base + "_2D.csv")
+        out.append((p, _dl_merge_wide(p, d2, vars2d)))
+    for var in ordem3d:
+        d3 = [(s["rodada"], s["validade"], s["nivel"], s["valor"])
+              for s in samples if s["variavel"] == var and s.get("nivel")]
+        if d3:
+            p = dest / (base + "_" + _DL_SAFE_SEG.sub("_", var) + ".csv")
+            out.append((p, _dl_merge_wide(p, d3, niv3d.get(var, []))))
+    return out
+
+
+def _dl_sample_tif(url: str, point: list, nodata_extras: Optional[list] = None) -> Optional[float]:
+    """Amostra um GeoTIFF/COG remoto em (lat, lon). Em COG via /vsicurl o GDAL
+    busca apenas o(s) tile(s) do pixel — bytes mínimos. None se nodata/fora.
+    nodata_extras: sentinelas adicionais (ex.: -2.56e33, -9999) -> None."""
+    import math
+    import rasterio
+    with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
+                      CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif,.tiff",
+                      GDAL_HTTP_MULTIRANGE="YES"):
+        with rasterio.open("/vsicurl/" + url) as src:
+            lat, lon = float(point[0]), float(point[1])
+            b = src.bounds
+            if not (b.left <= lon <= b.right and b.bottom <= lat <= b.top):
+                return None
+            for val in src.sample([(lon, lat)]):
+                v = float(val[0])
+                nd = src.nodata
+                if (nd is not None and v == float(nd)) or math.isnan(v):
+                    return None
+                if nodata_extras:
+                    for _x in nodata_extras:
+                        try:
+                            if v == float(_x):
+                                return None
+                        except (TypeError, ValueError):
+                            pass
+                return v
+    return None
+
+
+async def _dl_run_job(job: dict, items: list, parallel: int, overwrite: bool,
+                      bbox: Optional[list] = None, point: Optional[list] = None):
+    dest = Path(job["dest"])
+    sem = asyncio.Semaphore(parallel)
+    client = _get_http()
+    job["state"] = "running"
+    job["samples"] = []
+
+    async def one(it):
+        rel = _dl_safe_relpath(it.filename, it.url)
+        target = dest / rel
+        async with sem:
+            if job["cancelled"]:
+                return
+            job["current"] = rel
+            try:
+                if target.exists() and not overwrite:
+                    job["skipped"] += 1
+                    job["done"] += 1
+                    return
+                # Extração de UM PONTO: amostra o .tif na coordenada (não salva arquivo)
+                if point:
+                    if not rel.lower().endswith((".tif", ".tiff")):
+                        job["skipped"] += 1
+                        job["done"] += 1
+                        return
+                    t0 = time.time()
+                    _flight_enter(f"pt:{rel[:40]}")
+                    try:
+                        v = await asyncio.to_thread(_dl_sample_tif, it.url, point)
+                    finally:
+                        _flight_exit(f"pt:{rel[:40]}", time.time() - t0)
+                    job["samples"].append({
+                        "validade": _dl_validade(it.rodada, it.passo),
+                        "rodada": it.rodada or "",
+                        "variavel": it.var or "", "nivel": it.nivel or "",
+                        "passo_h": it.passo, "valor": v, "arquivo": rel, "url": it.url})
+                    _s = job.setdefault("pt_stats", {}).setdefault(
+                        it.var or "?", {"ok": 0, "vazio": 0, "falha": 0})
+                    _s["vazio" if v is None else "ok"] += 1
+                    job["done"] += 1
+                    return
+                # Recorte espacial: só para .tif/.tiff quando bbox foi pedido
+                if bbox and rel.lower().endswith((".tif", ".tiff")):
+                    t0 = time.time()
+                    _flight_enter(f"clip:{rel[:38]}")
+                    try:
+                        nb = await asyncio.to_thread(_dl_clip_tif, it.url, target, bbox)
+                    finally:
+                        _flight_exit(f"clip:{rel[:38]}", time.time() - t0)
+                    job["bytes"] += nb
+                    job["done"] += 1
+                    return
+                t0 = time.time()
+                _flight_enter(f"dl:{rel[:40]}")
+                try:
+                    r = await client.get(it.url, timeout=60.0, follow_redirects=True)
+                finally:
+                    _flight_exit(f"dl:{rel[:40]}", time.time() - t0)
+                if r.status_code != 200:
+                    raise RuntimeError(f"HTTP {r.status_code}")
+                data = r.content
+                if not data:
+                    raise RuntimeError("resposta vazia")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                tmp = target.with_suffix(target.suffix + ".part")
+                tmp.write_bytes(data)
+                tmp.replace(target)
+                job["bytes"] += len(data)
+                job["done"] += 1
+            except Exception as e:
+                job["failed"] += 1
+                job["done"] += 1
+                if point:
+                    _s = job.setdefault("pt_stats", {}).setdefault(
+                        getattr(it, "var", None) or "?", {"ok": 0, "vazio": 0, "falha": 0})
+                    _s["falha"] += 1
+                if len(job["errors"]) < 50:
+                    job["errors"].append({"file": rel, "url": it.url, "err": str(e)[:200]})
+
+    try:
+        await asyncio.gather(*(one(it) for it in items))
+        # Extração de ponto: CSVs organizados por variável (2D juntas; 3D uma a uma
+        # com colunas por nível), acumulando a linha do tempo entre rodadas
+        if point and job["samples"]:
+            try:
+                for csvp, n in _dl_series_write(dest, point, job["samples"], items):
+                    job["bytes"] += csvp.stat().st_size
+                    print(f"[download] linha do tempo: {csvp} ({n} linha(s) acumuladas)", flush=True)
+            except Exception as e:
+                print(f"[download] CSV ponto err: {e}", flush=True)
+        # Manifesto do download (auditoria/uso offline)
+        try:
+            man = {
+                "ferramenta": "gisele-python-helper/download",
+                "versao": VERSION,
+                "gerado_em": datetime.now(timezone.utc).isoformat(),
+                "nome": job["nome"],
+                "total": job["total"],
+                "baixados": job["done"] - job["failed"] - job["skipped"],
+                "pulados": job["skipped"],
+                "falhas": job["failed"],
+                "bytes": job["bytes"],
+                "erros": job["errors"],
+                "meta": job.get("meta") or {},
+                "arquivos": [_dl_safe_relpath(i.filename, i.url) for i in items],
+            }
+            (dest / "_manifesto.json").write_text(
+                json.dumps(man, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            print(f"[download] manifesto err: {e}", flush=True)
+        job["state"] = "cancelled" if job["cancelled"] else (
+            "error" if job["failed"] and job["failed"] == job["total"] else "done")
+    except Exception as e:
+        job["state"] = "error"
+        if len(job["errors"]) < 50:
+            job["errors"].append({"file": "(job)", "url": "", "err": str(e)[:200]})
+    finally:
+        job["current"] = None
+        job["ended_at"] = time.time()
+        print(f"[download] job {job['job_id']} → {job['state']} "
+              f"({job['done']}/{job['total']}, falhas={job['failed']}, "
+              f"{round(job['bytes']/1024**2,1)} MB)", flush=True)
+
+
+@app.get("/v1/fs/browse")
+def fs_browse(path: Optional[str] = None):
+    """Navegador de diretórios para o formulário de download (escolha do destino).
+
+    Sem `path` (ou vazio): retorna apenas raízes (drives no Windows, '/' no resto)
+    e o diretório home. Com `path`: lista as subpastas do diretório informado.
+    Só leitura; nunca lista arquivos."""
+    import string
+    roots = []
+    if os.name == "nt":
+        for letra in string.ascii_uppercase:
+            d = f"{letra}:\\"
+            if os.path.exists(d):
+                roots.append({"name": d, "path": d})
+    else:
+        roots.append({"name": "/", "path": "/"})
+    home = os.path.expanduser("~")
+    if not path or not str(path).strip():
+        return {"path": "", "parent": None, "sep": os.sep, "dirs": [],
+                "roots": roots, "home": home}
+    try:
+        p = Path(os.path.expanduser(str(path).strip())).resolve()
+    except Exception as e:
+        raise HTTPException(400, f"caminho inválido: {e}")
+    if not p.exists() or not p.is_dir():
+        raise HTTPException(404, "diretório não encontrado")
+    dirs = []
+    try:
+        for child in sorted(p.iterdir(), key=lambda c: c.name.lower()):
+            try:
+                if child.is_dir() and not child.name.startswith((".", "$")):
+                    dirs.append({"name": child.name, "path": str(child)})
+            except OSError:
+                continue
+    except PermissionError:
+        raise HTTPException(403, "sem permissão para listar este diretório")
+    parent = str(p.parent) if p.parent != p else None
+    return {"path": str(p), "parent": parent, "sep": os.sep,
+            "dirs": dirs[:500], "roots": roots, "home": home}
+
+
+@app.post("/v1/download/validate_dir")
+def download_validate_dir(req: DownloadDirRequest):
+    """Valida (e opcionalmente cria) o diretório de destino; informa espaço livre."""
+    try:
+        p = Path(os.path.expanduser(req.path.strip())).resolve()
+    except Exception as e:
+        raise HTTPException(400, f"caminho inválido: {e}")
+    created = False
+    if not p.exists():
+        if not req.create:
+            return {"ok": False, "exists": False, "writable": False, "path": str(p)}
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            created = True
+        except OSError as e:
+            raise HTTPException(400, f"não consegui criar o diretório: {e}")
+    if not p.is_dir():
+        raise HTTPException(400, "o caminho existe mas não é um diretório")
+    writable = os.access(str(p), os.W_OK)
+    free = None
+    try:
+        import shutil as _sh
+        free = _sh.disk_usage(str(p)).free
+    except Exception:
+        pass
+    return {"ok": writable, "exists": True, "created": created,
+            "writable": writable, "path": str(p), "free_bytes": free}
+
+
+@app.post("/v1/download/start")
+async def download_start(req: DownloadStartRequest):
+    """Inicia um job de download em background. Retorna job_id para polling."""
+    if not req.items:
+        raise HTTPException(400, "lista de itens vazia")
+    if len(req.items) > 5000:
+        raise HTTPException(400, "máximo de 5000 itens por job")
+    base = Path(os.path.expanduser(req.dest_dir.strip())).resolve()
+    if req.subdir:
+        base = base / _dl_safe_relpath(req.subdir, "")
+    try:
+        base.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise HTTPException(400, f"destino inacessível: {e}")
+    if not os.access(str(base), os.W_OK):
+        raise HTTPException(400, "sem permissão de escrita no destino")
+
+    if req.bbox is not None and (len(req.bbox) != 4 or req.bbox[0] >= req.bbox[2] or req.bbox[1] >= req.bbox[3]):
+        raise HTTPException(400, "bbox inválido — use [W,S,E,N] em graus, W<E e S<N")
+    if req.point is not None and (len(req.point) != 2 or not (-90 <= req.point[0] <= 90) or not (-180 <= req.point[1] <= 360)):
+        raise HTTPException(400, "point inválido — use [lat, lon] em graus")
+    job_id = hashlib.sha256(f"{time.time()}|{base}|{len(req.items)}".encode()).hexdigest()[:12]
+    job = {
+        "job_id": job_id, "nome": req.nome or "download",
+        "state": "queued", "total": len(req.items),
+        "done": 0, "failed": 0, "skipped": 0, "bytes": 0,
+        "dest": str(base), "errors": [], "current": None,
+        "cancelled": False, "meta": req.manifest,
+        "started_at": time.time(), "ended_at": None,
+    }
+    with _dl_lock:
+        _dl_jobs[job_id] = job
+        while len(_dl_jobs) > DL_JOBS_MAX:
+            # remove o mais antigo já finalizado
+            for k, v in list(_dl_jobs.items()):
+                if v["state"] in ("done", "error", "cancelled"):
+                    _dl_jobs.pop(k, None)
+                    break
+            else:
+                break
+    asyncio.get_running_loop().create_task(
+        _dl_run_job(job, req.items, req.parallel, req.overwrite, req.bbox, req.point))
+    print(f"[download] job {job_id} iniciado: {job['nome']} "
+          f"({job['total']} itens → {base})", flush=True)
+    return {"job_id": job_id, "dest": str(base), "total": job["total"]}
+
+
+@app.get("/v1/download/status")
+def download_status(job_id: Optional[str] = None):
+    """Progresso de um job (?job_id=...) ou lista resumida de todos."""
+    with _dl_lock:
+        if job_id:
+            job = _dl_jobs.get(job_id)
+            if not job:
+                raise HTTPException(404, "job não encontrado")
+            return _dl_public(job)
+        return {"jobs": [_dl_public(j) for j in _dl_jobs.values()]}
+
+
+@app.post("/v1/download/cancel")
+def download_cancel(req: DownloadCancelRequest):
+    """Cancela um job em andamento (itens já gravados permanecem no disco)."""
+    with _dl_lock:
+        job = _dl_jobs.get(req.job_id)
+    if not job:
+        raise HTTPException(404, "job não encontrado")
+    if job["state"] in ("done", "error", "cancelled"):
+        return {"ok": True, "state": job["state"]}
+    job["cancelled"] = True
+    return {"ok": True, "state": "cancelling"}
+
 
 # ───────────────────────── Entrypoint ─────────────────────────
 

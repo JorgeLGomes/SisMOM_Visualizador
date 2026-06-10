@@ -121,7 +121,7 @@ story += [
     Spacer(1, 0.6*cm),
     p('CPTEC / INPE', 'CoverMeta'),
     Spacer(1, 4*cm),
-    p('Versão 2.14.0 — build 20260609-skewt-cape', 'CoverMeta'),
+    p('Versão 2.16.0 — build 20260610-form-campos', 'CoverMeta'),
     p(f'Atualizado em {date.today().strftime("%d/%m/%Y")}', 'CoverMeta'),
 ]
 story.append(PageBreak())
@@ -143,7 +143,7 @@ sumario = [
     '12. Exportar dados como GeoJSON (v2.6+)',
     '13. Servidor HTTP local de dados',
     '14. Acelerador Python (helper local, v2.7+)',
-    '15. Novidades v2.8 a v2.14.0 (Skew-T log-P + CAPE/CINE, performance, METAR, Bookmarks, PDF)',
+    '15. Novidades v2.8 a v2.16.0 (Bandas/filled contour, range-read, predictor=3, Atualizar dados, Skew-T + CAPE/CINE, METAR, Bookmarks, PDF)',
     '16. Atalhos de teclado',
     '17. Solução de problemas',
 ]
@@ -1165,10 +1165,56 @@ story.append(tip(
     'firewall corporativo. Para diagnóstico, abra <code>http://127.0.0.1:8765/health</code> no navegador: '
     'retorna JSON com uptime e versão.'
 ))
+story.append(h2('Cache de dados e o botão "Atualizar dados" (v2.15)'))
+story.append(p(
+    'Para acelerar, o GISELE guarda os GeoTIFFs já baixados/decodificados em cache (na memória do viewer '
+    'e em disco no helper, em <code>~/.gisele/tiff-cache</code>). O cache é indexado pela <b>URL</b> do arquivo. '
+    'Isso significa que, se você <b>regerar os dados no mesmo caminho/URL</b> (por exemplo, ao trocar o '
+    'predictor do GeoTIFF ou atualizar uma rodada), o GISELE pode continuar mostrando a <b>versão antiga</b> '
+    'do campo até o cache ser limpo.'
+))
+story.append(p(
+    'No nó <b>Camadas</b> (árvore à direita), use o botão <b>🔄 Atualizar dados (limpar cache)</b>: ele limpa '
+    'os caches do viewer, limpa o cache em disco do helper e re-busca os campos carregados, forçando a leitura '
+    'dos arquivos novos. Use sempre que regerar dados e o campo não mudar na tela.'
+))
+story.append(tip(
+    'Alternativa manual (no servidor do helper): apague <code>~/.gisele/tiff-cache/*</code> ou chame '
+    '<code>POST http://127.0.0.1:8765/cache/clear</code>, e recarregue a página com <b>Ctrl+Shift+R</b>. '
+    'Se você alterou o <code>server.py</code>, reinicie o helper para a mudança valer.'
+))
+story.append(tip(
+    'Geração de dados: para campos de <b>ponto flutuante</b> (Float32/64), gere os GeoTIFFs com '
+    '<code>PREDICTOR=3</code> (padrão correto do GDAL). O GISELE v2.15 decodifica predictor 1, 2 e 3; '
+    'arquivos float com predictor=3 mal suportados antes apareciam distorcidos.'
+))
 story.append(PageBreak())
 
 # ===== 15. ATALHOS =====
-story.append(h1('15. Novidades v2.8 a v2.14.0'))
+story.append(h1('15. Novidades v2.8 a v2.16.0'))
+story.append(h2('v2.16.0 — Bandas (filled contour) e leitura por range-read'))
+story.append(bullets([
+    '<b>Sombreado em Bandas:</b> no painel da camada, em Sombreado escolha "Bandas (shaded)". Aparece '
+    'um sub-painel para definir Min/Max da escala (ou automatico) e as bandas por <b>Numero de bandas</b> '
+    '(divisao automatica do range em N intervalos iguais) OU por <b>intervalos explicitos</b> (ex.: 280,285,290).',
+    '<b>Cor chapada por banda</b> (sem gradiente). No modo Bandas os dados sao interpolados antes de '
+    'classificar, deixando as bordas suaves (filled contour, como nas figuras GIF). O modo Pixel mantem os '
+    'blocos das celulas; o modo Suavizado mantem o campo continuo interpolado.',
+    '<b>Leitura por range-read</b> (avancado, requer o helper Python): SkewT, perfil vertical por ponto, '
+    'serie temporal e corte vertical podem amostrar apenas o tile do ponto/janela do GeoTIFF remoto, em '
+    'vez de baixar o arquivo inteiro — bem mais rapido. Requer aplicar os patches do helper '
+    '(electron-app/python-helper/*_patch.py) e ter o pacote orjson instalado. Sem o helper, tudo continua '
+    'funcionando pelo caminho normal (fallback automatico).',
+]))
+story.append(h2('v2.15.0 — predictor=3 e Atualizar dados'))
+story.append(bullets([
+    '<b>GeoTIFF float com predictor=3</b>: decodificador passou a tratar o <i>floating-point predictor</i> '
+    '(TIFF TechNote 3) além de 1 e 2 — campos float com predictor=3 antes saíam distorcidos.',
+    '<b>Botão "🔄 Atualizar dados (limpar cache)"</b> no nó Camadas: limpa os caches (viewer + helper) e '
+    're-busca os campos — essencial após regerar dados/rodadas.',
+    '<b>Helper</b>: respostas de TIF/PNG com <code>Cache-Control: no-cache</code> (sem obsolescência de 24h '
+    'no navegador; o cache em disco do helper continua para performance).',
+]))
 story.append(p(
     'Recursos adicionados depois da v2.7. Resumo operacional; o detalhamento completo de '
     'cada item esta no HANDOVER_GISELE.md.'
@@ -1373,3 +1419,4 @@ story.append(p(
 # ===== Build do PDF =====
 doc.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
 print(f'PDF gerado: {OUT}')
+# v2.16.0 — Bandas/filled contour + range-read + (v2.15 predictor=3/cache) — build 20260610-form-campos
