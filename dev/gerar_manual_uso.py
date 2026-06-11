@@ -1206,6 +1206,25 @@ story.append(bullets([
     '(electron-app/python-helper/*_patch.py) e ter o pacote orjson instalado. Sem o helper, tudo continua '
     'funcionando pelo caminho normal (fallback automatico).',
 ]))
+story.append(h2('v2.16.0 — Divisao politica, recorte por poligono e box do servidor'))
+story.append(bullets([
+    '<b>Divisao politica:</b> estados do Brasil e paises da America do Sul ficam disponiveis no no '
+    '<b>Background</b> (com escolha de cor e espessura das linhas) e tambem na <b>Miscelania</b>, na secao '
+    '"Divisao politica" — ali cada estado/pais e uma feicao que voce liga ou desliga individualmente '
+    '(America do Sul &gt; paises; Brasil &gt; 27 estados). A plataforma inicia com os estados do Brasil ligados.',
+    '<b>Recortar campo a um poligono (mascara):</b> com um poligono no mapa (feicao da divisao politica, '
+    'shape importado ou poligono desenhado), a acao <b>Recortar</b> plota o campo <b>somente dentro</b> do '
+    'poligono e mascara todo o exterior (o mapa-base aparece em volta). A mascara vale inclusive durante a '
+    'animacao, recortando o campo que esta animando ao vivo.',
+    '<b>Aquisicao do box no servidor:</b> a mesma acao Recortar pede ao servidor <b>apenas o retangulo (box) '
+    'que contem o poligono</b>, via leitura janelada (/vsicurl), e carrega esse recorte como camada '
+    '"... box" — sem mudar o seu zoom. Requer o helper Python ligado. Durante a animacao a camada do box '
+    'fica oculta (vale a mascara ao vivo) e reaparece quando voce pausa.',
+    '<b>Animacao mais estavel:</b> trocar a data/rodada ou o passo agora <b>preserva o seu zoom</b> (o '
+    'reenquadre automatico so ocorre na primeira carga do modelo, ou ao trocar de modelo). E, no laco da '
+    'animacao, frames cujo dado vem num dominio muito maior que o esperado (ex.: campo global num passo '
+    'isolado) sao pulados, mantendo o ultimo frame bom no lugar de um pulo de zoom.',
+]))
 story.append(h2('v2.15.0 — predictor=3 e Atualizar dados'))
 story.append(bullets([
     '<b>GeoTIFF float com predictor=3</b>: decodificador passou a tratar o <i>floating-point predictor</i> '

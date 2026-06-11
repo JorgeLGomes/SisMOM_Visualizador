@@ -270,9 +270,22 @@ dado bruto no navegador e o renderiza com paleta editável. Principais recursos
   referência com cor, hachura e popup de atributos.
 - **Monitoramento (v2.12)**: rotas de dados genéricos **KML/GeoJSON** — ex.:
   **Queimadas recentes (INPE)**, com atualização ao vivo e filtro Ativas/Inativas.
+- **Leitura por *range-read* (/vsicurl) (v2.16)**: ferramentas por ponto/linha
+  (série temporal, perfil vertical, Skew-T, corte vertical) e **requisitar trecho**
+  leem só o tile/janela do TIF remoto via HTTP Range, em vez do arquivo inteiro
+  (requer o helper Python; com *fallback* automático).
+- **Sombreado em Bandas — *filled contour* (v2.16)**: Mín/Máx + Nº de bandas
+  (automático) ou intervalos explícitos; cor chapada por banda com bordas suaves.
+- **Divisão política (v2.16)**: estados do Brasil + países da América do Sul, no
+  **Background** (cor/espessura das linhas) e na **Miscelânea** (cada estado/país
+  como feição ligável).
+- **Recorte por polígono (v2.16)**: a ação **Recortar** plota o campo só dentro do
+  polígono (mascara o exterior) e requisita ao servidor **apenas o *box*** que o
+  contém (`/v1/tile/window`); na animação o box some e vale a máscara ao vivo.
 - **Importar/Exportar**: shapefile/GeoJSON como camada; exportar campo ou
   recorte para **GeoJSON** (com estatísticas); polígonos do usuário salvos.
-- **Exportar vídeo MP4** da evolução temporal (nos modos PNG e GeoTIFF).
+- **Exportar vídeo MP4** da evolução temporal (nos modos PNG e GeoTIFF); a troca
+  de data/passo preserva o zoom e frames de domínio anômalo são pulados no loop.
 
 > **Identidade visual:** a marca GISELE (logo, logomark e ícones) está em
 > `brand/`. Os ícones do app ainda apontam para os arquivos legados

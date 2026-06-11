@@ -2,15 +2,15 @@
 
 **Repositório:** `C:\Projetos\Visualizador`
 **Versão atual:** v2.16.0 — Build marker `20260610-form-campos`
-**Commit HEAD:** `4982322 docs: HANDOVER atualizado sessao 08/06/2026` (delta v2.14.0 → v2.16.0 pendente de commit — ver `commit-vsicurl-bands.bat`)
-**Handover desta sessão:** `HANDOVER_SESSAO_2026-06-10.md` (predictor=3 + cache + range-read /vsicurl + bandas filled-contour)
+**Commit HEAD:** `cfb6172 feat: v2.16.0 — range-read (/vsicurl) + bandas filled-contour` (delta de continuação — recorte por polígono + box + animação — pendente de commit; ver `commit-vsicurl-bands.bat`)
+**Handover desta sessão:** `HANDOVER_SESSAO_2026-06-10.md` (predictor=3 + cache + range-read /vsicurl + bandas filled-contour + recorte por polígono/box + animação)
 **Arquivos críticos (sempre em lockstep — md5 idêntico):**
 - `figuras_SisMOM_v23.html` (raiz)
 - `electron-app/figuras_SisMOM_v23.html` (cópia idêntica para o build Electron)
 - `miscelaneas/manifest.json` + `miscelaneas/*.geojson` (raiz + electron-app)
 
-**MD5 atual:** `6622c41436f1f89930202b88b3ab34d4`
-**Linhas do HTML:** 25899
+**MD5 atual:** `c7cf00f318075ca65c66851cf4d9053f`
+**Linhas do HTML:** 26275
 
 > **Regra de ouro:** todo patch no HTML deve ser aplicado nos DOIS arquivos. Validar sempre com:
 > ```
@@ -57,6 +57,34 @@ são interpolados (bilinear) antes de classificar → **bordas suaves** com cor 
 *Application → Service Workers → Unregister* + *Clear site data* + Ctrl+Shift+R, as bandas
 (filled contour) funcionam como esperado — controle por Mín/Máx + Nº de bandas/intervalos.
 (Lembrete de operação: depois de patch no HTML, limpar o service worker para a versão nova carregar.)
+
+**Divisão política — Background (cor/espessura) + Miscelânea (por feição).** Além dos toggles no
+Background (Estados BR / Países SA, com **cor e espessura** das linhas em `gisele.divisions.style.v1`),
+há a seção **🗺 Divisão política** na **Miscelânea**, hierárquica (**América do Sul ▸ países**,
+**Brasil ▸ 27 estados**) — cada polígono é uma feição ligável (`gtToggleMiscDivFeature`, ids
+`mdiv_<tipo>_<chave>`, preferência em `gisele.misc.div.v1`). Dados via `<script src>` dos `.js`
+(`window.GISELE_DIV_*`) — `fetch` de arquivo local é bloqueado por CORS no modo `file://`.
+
+**Recorte do campo por polígono (máscara) + box do servidor.** `gtClipFieldToPolygon(gj,name)`:
+- **Máscara:** `m.setClipPolygon(gj)` — `drawRaster` envolve o desenho dos overlays em `ctx.save()/clip()/
+  restore()` quando há `clipPolygon`, plotando o campo **só dentro** do polígono (exterior mascarado).
+  Funciona no campo que está **animando ao vivo**.
+- **Box:** a mesma ação requisita `GET /v1/tile/window` com o **bbox do polígono** (`_gtGeojsonBbox`),
+  decodifica e adiciona como camada `clipwin_… (· box)` via **`gtLayerPushToMap` (sem `gtLayerEnsureMap` →
+  sem `fitTo`)**. `_gtSetClipwinVisible(on)` oculta essas camadas durante a animação (chamado em
+  `iniciarAnimacao`/`pararAnimacao`) para não congelar o loop; ao parar, reaparecem. `gtClearFieldClip`
+  remove a máscara e as camadas `clipwin_`.
+- Histórico: a versão anterior adicionava o box via `gtLayerEnsureMap` (disparava `fitTo` → zoom) e a
+  camada estática congelava o loop; resolvido com `gtLayerPushToMap` + auto-ocultar na animação.
+
+**Animação mais estável.**
+- **`_gtApplyMapView`** agora só dá `fitTo` na **primeira vez** que a slot mostra um modelo
+  (`_gtSlotFitModel[slotIdx]`); trocar **data/passo** preserva o zoom, trocar de **modelo** reenquadra.
+- **Filtro de frames anômalos** em `carregarGeoTIFFParaSlot`: durante a animação, frame com span de
+  longitude `>150°` e `>2,5×` a referência do painel (`_gtSlotRefSpan`, fixada fora da animação) é
+  **pulado** (mantém o último frame bom). Desligável: `window.GISELE_SKIP_ANOMALOUS_FRAMES=false`.
+  - **Diagnóstico fechado:** a precipitação saindo **global a cada 24h** é da **geração do dado**
+    (acumulada em grade/domínio diferente nos passos 24/48/72h), não da lógica do visualizador.
 
 ---
 

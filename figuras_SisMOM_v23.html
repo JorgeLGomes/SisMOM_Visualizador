@@ -7361,6 +7361,7 @@
         DOM.btnAnimacao.classList.remove('btn-primary');
         DOM.btnAnimacao.classList.add('btn-danger');
         announce('Animação iniciada');
+        try { if (typeof _gtSetClipwinVisible === 'function') _gtSetClipwinVisible(false); } catch (_) {}
         state.interval = setInterval(() => {
             setPasso(state.passoAtual + (state.stepFreq || 1));
         }, state.tempo);
@@ -7368,6 +7369,7 @@
     function pararAnimacao() {
         state.animando = false;
         clearInterval(state.interval);
+        try { if (typeof _gtSetClipwinVisible === 'function') _gtSetClipwinVisible(true); } catch (_) {}
         setPlayPauseUI(false);
         DOM.btnAnimacaoLabel.textContent = 'Animar';
         DOM.btnAnimacao.classList.remove('btn-danger');
@@ -10117,6 +10119,12 @@
     // Skip setTileProvider / fitTo quando inalterado por slot
     const _gtSlotLastBbox = [];
     const _gtSlotLastProvider = [];
+    // Referência de extensão (span de longitude) do frame "bom" por slot, p/ filtrar
+    // frames anômalos (domínio global) durante a animação.
+    const _gtSlotRefSpan = [];
+    // Modelo p/ o qual cada slot já foi enquadrada (fitTo). Trocar de data/passo no
+    // MESMO modelo preserva o zoom atual; trocar de MODELO refaz o enquadre.
+    const _gtSlotFitModel = [];
     function _bboxEqExact(a, b) {
         if (!a || !b) return false;
         return a.minX === b.minX && a.maxX === b.maxX && a.minY === b.minY && a.maxY === b.maxY;
@@ -10126,6 +10134,8 @@
             try { m.setTileProvider(provider); } catch (_) {}
             _gtSlotLastProvider[slotIdx] = provider;
         }
+        var _curModel = '';
+        try { _curModel = (state.slots[slotIdx] && state.slots[slotIdx].modelo) || ''; } catch (_) {}
         if (!_bboxEqExact(_gtSlotLastBbox[slotIdx], bbox)) {
             // ─── Trava no painel 1 (slot 0) ───
             // Para slots != 0: NÃO faz fitTo do bbox do layer; em vez disso, copia o
@@ -10146,10 +10156,15 @@
                     } catch (_) {}
                 }
             }
-            if (!synced) {
+            // fitTo APENAS na 1ª vez que esta slot mostra ESTE modelo. Trocar de data/
+            // passo (mesmo modelo) mantém o zoom do usuário; trocar de modelo reenquadra.
+            if (!synced && _gtSlotFitModel[slotIdx] !== _curModel) {
                 try { m.fitTo(bbox); } catch (_) {}
+                _gtSlotFitModel[slotIdx] = _curModel;
             }
             _gtSlotLastBbox[slotIdx] = bbox;
+        } else if (_gtSlotFitModel[slotIdx] !== _curModel) {
+            _gtSlotFitModel[slotIdx] = _curModel;
         }
     }
     // Cache ImageData por (url + opts). aplicarPaleta só roda 1x por configuração.
@@ -14495,6 +14510,7 @@
         const cv = box.querySelector('.map-canvas-gt');
         if (!cv) return null;
         const m = SisMOM_Map(cv);
+        try { if (typeof gtApplyDivisionsToMap === 'function') gtApplyDivisionsToMap(m); } catch (_) {}
         _gtSlotMap[slotIdx] = m;
         const gt = getGtSlotState(slotIdx);
         m.setTileProvider(gt.mapProvider || 'esri');
@@ -14936,6 +14952,29 @@
             const decoded = await _gtFetchAndDecode(url);
             if (reqId !== activeRequests[slotIdx]) return;
             try { const _s = state.slots[slotIdx]; const _ovb = (_s && typeof _gtStoredBboxFor === 'function') ? _gtStoredBboxFor(_s.modelo) : null; if (_ovb && decoded) { decoded.bbox = { minX: _ovb.minX, minY: _ovb.minY, maxX: _ovb.maxX, maxY: _ovb.maxY }; if (_ovb.roll && typeof _gtRollDataX === 'function') _gtRollDataX(decoded); } } catch (_) {}
+            // ── Filtro de frames anômalos durante a animação ──────────────────
+            // Alguns passos (ex.: precip acumulada a cada 24h) chegam com um TIF de
+            // domínio muito maior (global) que a série regional. Fora da animação,
+            // o frame que o usuário navegou define a extensão de referência. Durante
+            // a animação, um frame com span de longitude muito maior é tratado como
+            // anômalo: é PULADO (mantém o último frame bom, sem zoom/fitTo nem o
+            // "lixo" global). Desligável via window.GISELE_SKIP_ANOMALOUS_FRAMES=false.
+            try {
+                if (decoded && decoded.bbox) {
+                    var _span = Math.abs(decoded.bbox.maxX - decoded.bbox.minX);
+                    if (!state.animando) {
+                        if (isFinite(_span) && _span > 0) _gtSlotRefSpan[slotIdx] = _span;
+                    } else if (window.GISELE_SKIP_ANOMALOUS_FRAMES !== false) {
+                        var _ref = _gtSlotRefSpan[slotIdx];
+                        if (_ref && isFinite(_span) && _span > 150 && _span > 2.5 * _ref) {
+                            console.warn('[GISELE/anim] frame anômalo pulado (span ' + _span.toFixed(0) + '° vs ref ' + _ref.toFixed(0) + '°):', url);
+                            loadingEl.classList.remove('visible');
+                            errorEl.classList.remove('visible');
+                            return; // mantém o último frame bom na tela
+                        }
+                    }
+                }
+            } catch (_) {}
             gtSlotDecoded[slotIdx] = decoded;
             if (slotIdx === (gtActivePanel || 0)) {
                 gtLastDecoded = decoded;
@@ -17137,15 +17176,32 @@
                 ctx.setLineDash([]);
             }
         }
+        function _buildClipPath(gj) {
+            const ctx = self.ctx;
+            const feats = (gj.type === 'FeatureCollection') ? gj.features : (gj.type === 'Feature' ? [gj] : [{ geometry: gj }]);
+            ctx.beginPath(); let any = false;
+            const ring = function (coords) { if (!coords || !coords.length) return; ctx.moveTo(lonToX(coords[0][0]), latToY(coords[0][1])); for (let i = 1; i < coords.length; i++) ctx.lineTo(lonToX(coords[i][0]), latToY(coords[i][1])); ctx.closePath(); any = true; };
+            for (let f = 0; f < feats.length; f++) {
+                const g = feats[f].geometry || feats[f]; if (!g) continue;
+                if (g.type === 'Polygon') { for (let r = 0; r < g.coordinates.length; r++) ring(g.coordinates[r]); }
+                else if (g.type === 'MultiPolygon') { for (let p = 0; p < g.coordinates.length; p++) for (let r2 = 0; r2 < g.coordinates[p].length; r2++) ring(g.coordinates[p][r2]); }
+            }
+            return any;
+        }
+        function setClipPolygon(gj) { self.clipPolygon = gj || null; draw(); }
+        function clearClipPolygon() { self.clipPolygon = null; draw(); }
         function drawRaster() {
             // Todas as camadas raster (incluindo a base com id='primary') estão em self.overlays.
             // Desenha de TRÁS pra FRENTE: overlays[N-1] primeiro (fundo) → overlays[0] por último (topo).
-            // A entrada com isPrimary=true ganha moldura tracejada da bbox.
+            // Se houver clipPolygon, recorta os rasters ao interior do polígono (mascara o exterior).
+            const _clip = self.clipPolygon;
+            if (_clip) { self.ctx.save(); try { if (_buildClipPath(_clip)) self.ctx.clip(); } catch (_) {} }
             for (let i = self.overlays.length - 1; i >= 0; i--) {
                 const o = self.overlays[i];
                 if (!o || o.visible === false) continue;
                 _drawOneRaster(o, !!o.isPrimary);
             }
+            if (_clip) self.ctx.restore();
         }
         function drawAttribution() {
             const p = TILE_PROVIDERS[self.tileProvider];
@@ -17700,7 +17756,7 @@
             setViewport, fitTo, setRasterOverlay, clearOverlay, setOpacity,
             addRasterOverlay, removeRasterOverlay, setOverlayVisible, setOverlayOpacity,
             moveOverlay, getOverlayIndex, getOverlayOpacity,
-            addGeoJSON, removeGeoJSON, setGeoJSONVisible, clearGeoJSON,
+            addGeoJSON, removeGeoJSON, setGeoJSONVisible, clearGeoJSON, setClipPolygon, clearClipPolygon,
             invalidateVectors() { self._extraVer = (self._extraVer || 0) + 1; },
             // Campo vetorial de vento: uDecoded/vDecoded = objetos de _gtFetchAndDecode
             setVectorField(uDec, vDec, mode, opts) {
@@ -17753,6 +17809,7 @@
         if (!_gtMap) {
             const mapCv = document.getElementById('gtMapCanvas');
             _gtMap = SisMOM_Map(mapCv);
+            try { if (typeof gtApplyDivisionsToMap === 'function') gtApplyDivisionsToMap(_gtMap); } catch (_) {}
             _gtMap.onCursor(p => {
                 gtAtualizarCoord(p.lat, p.lon);
             });
@@ -18690,6 +18747,133 @@
         console.log('[gtAddShape]', name, '→', polys.length, 'polígonos,', fields.length, 'campos dbf');
         return layer;
     }
+    // Requisita ao servidor SO o trecho (bbox do viewport) do campo ativo e carrega como camada.
+    async function gtRequestViewportWindow() {
+        try {
+            if (!(typeof gtPyHelper !== 'undefined' && gtPyHelper && gtPyHelper.available && gtPyHelper.url)) {
+                try { showToast('Requisitar trecho requer o helper Python (badge ⚡).'); } catch (_) {} return;
+            }
+            var ap = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+            var url = null, srcPaleta = 'viridis', srcProps = null, srcName = 'campo';
+            var al = (typeof gtGetLayerObj === 'function' && typeof gtActiveLayerId !== 'undefined') ? gtGetLayerObj(gtActiveLayerId) : null;
+            if (al && al.id !== 'primary') {
+                url = al.source && al.source.url;
+                srcPaleta = al.paleta || (al.props && al.props.paleta) || 'viridis';
+                srcProps = al.props || null; srcName = al.name || 'campo';
+            } else {
+                url = (typeof lastLoadedURL !== 'undefined' && lastLoadedURL) ? lastLoadedURL[ap] : null;
+                srcPaleta = (document.getElementById('gtPaleta') || {}).value || 'viridis';
+                try { var s0 = state.slots[ap]; srcName = (s0 && s0.variavel) ? s0.variavel : 'campo'; } catch (_) {}
+            }
+            if (!url) { try { showToast('Sem URL do campo ativo para recortar.'); } catch (_) {} return; }
+            if (!/^https?:/i.test(url)) { try { showToast('Recorte disponível só para fontes http(s) do servidor.'); } catch (_) {} return; }
+            var m = (typeof _gtActiveMap === 'function') ? _gtActiveMap() : null;
+            if (!m || typeof m.getViewport !== 'function') { try { showToast('Abra um mapa GeoTIFF.'); } catch (_) {} return; }
+            var vp = m.getViewport(); // [latMin, lonMin, latMax, lonMax]
+            var bboxStr = [vp[1], vp[0], vp[3], vp[2]].map(function (x) { return (+x).toFixed(4); }).join(',');
+            try { showToast('Requisitando trecho visível ao servidor…'); } catch (_) {}
+            var wurl = gtPyHelper.url + '/v1/tile/window?url=' + encodeURIComponent(url) + '&bbox=' + encodeURIComponent(bboxStr);
+            var resp = await fetch(wurl, { cache: 'no-store' });
+            if (!resp.ok) { var _t = ''; try { _t = await resp.text(); } catch (_) {} try { showToast('Falha no recorte: HTTP ' + resp.status + (_t ? (' — ' + _t.slice(0, 80)) : '')); } catch (_) {} return; }
+            var ab = await resp.arrayBuffer();
+            var decoded = await (typeof _gtDecodeMaybeWorker === 'function' ? _gtDecodeMaybeWorker(ab) : SisMOM_GeoTIFF.decodeTIFF(ab));
+            var id = 'win_' + (++gtLayerSeq) + '_' + Date.now();
+            var props = srcProps
+                ? { paleta: srcPaleta, autoMinMax: srcProps.autoMinMax, customMin: srcProps.customMin, customMax: srcProps.customMax, undefRaw: srcProps.undefRaw || '', clipBelow: (srcProps.clipBelow != null ? srcProps.clipBelow : null), clipAbove: (srcProps.clipAbove != null ? srcProps.clipAbove : null) }
+                : { paleta: srcPaleta, autoMinMax: true, customMin: null, customMax: null, undefRaw: '', clipBelow: null, clipAbove: null };
+            var layer = { id: id, type: 'geotiff', name: srcName + ' · recorte', visible: true, opacity: 0.85, decoded: decoded, paleta: srcPaleta, props: props, source: { url: wurl } };
+            gtExtraLayers.push(layer);
+            if (typeof gtLayerEnsureMap === 'function') gtLayerEnsureMap();
+            await gtLayerPushToMap(layer);
+            try { if (typeof gtRenderTreeLayers === 'function') gtRenderTreeLayers(); } catch (_) {}
+            try { showToast('Trecho carregado: ' + decoded.width + '×' + decoded.height + ' px'); } catch (_) {}
+        } catch (e) { console.error('gtRequestViewportWindow', e); try { showToast('Erro ao requisitar trecho: ' + (e && e.message)); } catch (_) {} }
+    }
+    if (typeof window !== 'undefined') window.gtRequestViewportWindow = gtRequestViewportWindow;
+    // ── Recorte do campo por polígono (máscara + combinar janela do servidor) ──
+    var _gtFieldClip = null;
+    function _gtGeojsonBbox(gj) {
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        function scan(c) { if (typeof c[0] === 'number') { if (c[0] < minX) minX = c[0]; if (c[0] > maxX) maxX = c[0]; if (c[1] < minY) minY = c[1]; if (c[1] > maxY) maxY = c[1]; } else { for (var i = 0; i < c.length; i++) scan(c[i]); } }
+        var feats = (gj.type === 'FeatureCollection') ? gj.features : (gj.type === 'Feature' ? [gj] : [{ geometry: gj }]);
+        for (var f = 0; f < feats.length; f++) { var g = feats[f].geometry || feats[f]; if (g && g.coordinates) scan(g.coordinates); }
+        return isFinite(minX) ? { minX: minX, minY: minY, maxX: maxX, maxY: maxY } : null;
+    }
+    function _gtActiveFieldUrl() {
+        try {
+            var ap = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+            var al = (typeof gtGetLayerObj === 'function' && typeof gtActiveLayerId !== 'undefined') ? gtGetLayerObj(gtActiveLayerId) : null;
+            if (al && al.id !== 'primary') return al.source && al.source.url;
+            return (typeof lastLoadedURL !== 'undefined' && lastLoadedURL) ? lastLoadedURL[ap] : null;
+        } catch (_) { return null; }
+    }
+    function _gtAvailableClipPolygons() {
+        var out = [];
+        try { var ls = (typeof gtExtraLayers !== 'undefined') ? gtExtraLayers : []; for (var i = 0; i < ls.length; i++) { var l = ls[i]; if (l && l.type === 'geojson' && l.visible !== false && l.data && (typeof _hasPolys === 'function' ? _hasPolys(l) : true)) out.push({ label: (l.name || l.id), gj: l.data }); } } catch (_) {}
+        try { if (typeof _gtMiscDivOn !== 'undefined') { for (var id in _gtMiscDivOn) { if (!_gtMiscDivOn[id]) continue; var p = id.split(':'); var feat = (typeof _gtMiscDivFeat === 'function') ? _gtMiscDivFeat(p[0], p[1]) : null; if (feat) { var nm = (feat.properties && (feat.properties.nome || feat.properties.sigla || feat.properties.iso3)) || id; out.push({ label: 'Divisão: ' + nm, gj: { type: 'FeatureCollection', features: [feat] } }); } } } } catch (_) {}
+        return out;
+    }
+    function gtApplyClipToMap(m) { try { if (m && m.setClipPolygon) m.setClipPolygon(_gtFieldClip); } catch (_) {} }
+    async function gtClipFieldToPolygon(gj, name) {
+        try {
+            if (!gj) return;
+            _gtFieldClip = gj;
+            var maps = (typeof gtAllActiveMaps === 'function') ? gtAllActiveMaps() : [];
+            for (var i = 0; i < maps.length; i++) { try { if (maps[i].setClipPolygon) maps[i].setClipPolygon(gj); } catch (_) {} }
+            try { showToast('Campo recortado ao polígono' + (name ? (': ' + name) : '')); } catch (_) {}
+            try { for (var k = 0; k < maps.length; k++) { if (maps[k].redraw) maps[k].redraw(); } } catch (_) {}
+            // Aquisição do BOX do recorte: requisita ao servidor só o bbox do polígono
+            // (leitura janelada /vsicurl). Adicionada via gtLayerPushToMap (SEM fitTo, não
+            // pula a vista) e OCULTA durante a animação — durante o loop vale a máscara no
+            // campo animado; ao parar a animação o box reaparece (ver iniciar/pararAnimacao).
+            var bb = _gtGeojsonBbox(gj);
+            var url = _gtActiveFieldUrl();
+            if (bb && url && /^https?:/i.test(url) && typeof gtPyHelper !== 'undefined' && gtPyHelper.available && gtPyHelper.url) {
+                try {
+                    var bboxStr = [bb.minX, bb.minY, bb.maxX, bb.maxY].map(function (x) { return (+x).toFixed(4); }).join(',');
+                    var wurl = gtPyHelper.url + '/v1/tile/window?url=' + encodeURIComponent(url) + '&bbox=' + encodeURIComponent(bboxStr);
+                    var resp = await fetch(wurl, { cache: 'no-store' });
+                    if (resp.ok) {
+                        var ab = await resp.arrayBuffer();
+                        var dec = await (typeof _gtDecodeMaybeWorker === 'function' ? _gtDecodeMaybeWorker(ab) : SisMOM_GeoTIFF.decodeTIFF(ab));
+                        var pal = (document.getElementById('gtPaleta') || {}).value || 'viridis';
+                        var id = 'clipwin_' + (++gtLayerSeq);
+                        var anim = !!(typeof state !== 'undefined' && state.animando);
+                        var layer = { id: id, type: 'geotiff', name: (name || 'recorte') + ' · box', visible: !anim, opacity: 0.9, decoded: dec, paleta: pal, props: { paleta: pal, autoMinMax: true, customMin: null, customMax: null, undefRaw: '', clipBelow: null, clipAbove: null }, source: { url: wurl } };
+                        gtExtraLayers.push(layer);
+                        await gtLayerPushToMap(layer); // sem gtLayerEnsureMap → sem fitTo
+                        if (typeof gtRenderTreeLayers === 'function') gtRenderTreeLayers();
+                        try { for (var k2 = 0; k2 < maps.length; k2++) { if (maps[k2].redraw) maps[k2].redraw(); } } catch (_) {}
+                        try { showToast('Box do recorte carregado do servidor (' + dec.width + '×' + dec.height + ' px)'); } catch (_) {}
+                    } else { try { showToast('Box do recorte: helper respondeu HTTP ' + resp.status); } catch (_) {} }
+                } catch (e) { console.warn('clip window', e && e.message); }
+            }
+        } catch (e) { console.error('gtClipFieldToPolygon', e); }
+    }
+    // Mostra/oculta as camadas de box do recorte (clipwin_) — ocultas na animação.
+    function _gtSetClipwinVisible(on) {
+        try {
+            var maps = (typeof gtAllActiveMaps === 'function') ? gtAllActiveMaps() : [];
+            var any = false;
+            for (var j = 0; j < gtExtraLayers.length; j++) {
+                var l = gtExtraLayers[j];
+                if (l && l.id && l.id.indexOf('clipwin_') === 0) {
+                    l.visible = !!on; any = true;
+                    for (var i = 0; i < maps.length; i++) { try { if (maps[i].setOverlayVisible) maps[i].setOverlayVisible(l.id, !!on); } catch (_) {} }
+                }
+            }
+            if (any) for (var k = 0; k < maps.length; k++) { try { if (maps[k].redraw) maps[k].redraw(); } catch (_) {} }
+        } catch (_) {}
+    }
+    if (typeof window !== 'undefined') window._gtSetClipwinVisible = _gtSetClipwinVisible;
+    function gtClearFieldClip() {
+        _gtFieldClip = null;
+        var maps = (typeof gtAllActiveMaps === 'function') ? gtAllActiveMaps() : [];
+        for (var i = 0; i < maps.length; i++) { try { if (maps[i].clearClipPolygon) maps[i].clearClipPolygon(); } catch (_) {} }
+        try { for (var j = gtExtraLayers.length - 1; j >= 0; j--) { var l = gtExtraLayers[j]; if (l && l.id && l.id.indexOf('clipwin_') === 0 && typeof gtRemoveExtraLayer === 'function') gtRemoveExtraLayer(l.id); } } catch (_) {}
+        try { showToast('Recorte removido'); } catch (_) {}
+    }
+    if (typeof window !== 'undefined') { window.gtClipFieldToPolygon = gtClipFieldToPolygon; window.gtClearFieldClip = gtClearFieldClip; }
     async function gtAddExtraLayerFromFile(file, sidecars) {
         const name = file.name || ('camada' + (++gtLayerSeq));
         const lower = name.toLowerCase();
@@ -19855,6 +20039,143 @@
         gtRenderTreeLayers();
         try { gtRenderTreeUserPoly(); } catch (_) {}
     }
+    // ─── Divisão política (overlay vetorial no mapa: estados BR / países AS) ───
+    var _gtDivState = (function () { try { return JSON.parse(localStorage.getItem('gisele.divisions.v1')) || null; } catch (_) { return null; } })() || { estados_br: true, paises_sa: false };
+    var _gtDivCache = {};
+    var _GT_DIV_DEF = {
+        estados_br: { jsfile: 'miscelaneas/divisao_estados_br.js', gvar: 'GISELE_DIV_estados_br', style: { stroke: '#eef2f6', lineWidth: 0.9, fill: null } },
+        paises_sa:  { jsfile: 'miscelaneas/divisao_paises_sa.js',  gvar: 'GISELE_DIV_paises_sa',  style: { stroke: '#ffd27f', lineWidth: 1.2, fill: null } }
+    };
+    function _gtDivSave() { try { localStorage.setItem('gisele.divisions.v1', JSON.stringify(_gtDivState)); } catch (_) {} }
+    (function () { try { var sv = JSON.parse(localStorage.getItem('gisele.divisions.style.v1') || 'null'); if (sv) { for (var k in _GT_DIV_DEF) { if (sv[k]) { if (sv[k].stroke) _GT_DIV_DEF[k].style.stroke = sv[k].stroke; if (sv[k].lineWidth != null) _GT_DIV_DEF[k].style.lineWidth = sv[k].lineWidth; } } } } catch (_) {} })();
+    function _gtDivStyleSave() { try { var o = {}; for (var k in _GT_DIV_DEF) { o[k] = { stroke: _GT_DIV_DEF[k].style.stroke, lineWidth: _GT_DIV_DEF[k].style.lineWidth }; } localStorage.setItem('gisele.divisions.style.v1', JSON.stringify(o)); } catch (_) {} }
+    function gtSetDivisionStyle(which, patch) { var def = _GT_DIV_DEF[which]; if (!def || !patch) return; if (patch.stroke) def.style.stroke = patch.stroke; if (patch.lineWidth != null && isFinite(patch.lineWidth)) def.style.lineWidth = patch.lineWidth; _gtDivStyleSave(); if (_gtDivState[which]) gtApplyDivision(which); if (typeof gtApplyAllMiscDiv === 'function') { try { gtApplyAllMiscDiv(); } catch (_) {} } }
+    // ── Miscelânea: cada país/estado como camada (contorno) selecionável ──
+    var _gtMiscDivOn = (function () { try { return JSON.parse(localStorage.getItem('gisele.misc.div.v1')) || {}; } catch (_) { return {}; } })();
+    function _gtMiscDivSave() { try { localStorage.setItem('gisele.misc.div.v1', JSON.stringify(_gtMiscDivOn)); } catch (_) {} }
+    function _gtMiscDivFeat(kind, key) {
+        var which = (kind === 'estado') ? 'estados_br' : 'paises_sa';
+        var gj = _gtDivCache[which] || ((typeof window !== 'undefined' && _GT_DIV_DEF[which]) ? window[_GT_DIV_DEF[which].gvar] : null);
+        if (!gj || !gj.features) return null;
+        var pk = (kind === 'estado') ? 'sigla' : 'iso3';
+        for (var i = 0; i < gj.features.length; i++) { var f = gj.features[i]; if (f.properties && f.properties[pk] === key) return f; }
+        return null;
+    }
+    function _gtMiscDivAddTo(m, kind, key) {
+        var which = (kind === 'estado') ? 'estados_br' : 'paises_sa';
+        var mid = 'mdiv_' + kind + '_' + key;
+        var style = _GT_DIV_DEF[which].style;
+        var feat = _gtMiscDivFeat(kind, key);
+        if (feat) { try { m.addGeoJSON({ type: 'FeatureCollection', features: [feat] }, style, mid); } catch (_) {} }
+        else { _gtDivLoad(which).then(function () { var ff = _gtMiscDivFeat(kind, key); if (ff) { try { m.addGeoJSON({ type: 'FeatureCollection', features: [ff] }, style, mid); } catch (_) {} } }); }
+    }
+    function gtApplyMiscDivToMap(m) {
+        if (!m || typeof m.addGeoJSON !== 'function') return;
+        for (var id in _gtMiscDivOn) { if (!_gtMiscDivOn[id]) continue; var p = id.split(':'); _gtMiscDivAddTo(m, p[0], p[1]); }
+    }
+    function gtApplyAllMiscDiv() { var maps = (typeof gtAllActiveMaps === 'function') ? gtAllActiveMaps() : []; for (var i = 0; i < maps.length; i++) gtApplyMiscDivToMap(maps[i]); }
+    function gtToggleMiscDivFeature(kind, key, on) {
+        var id = kind + ':' + key; _gtMiscDivOn[id] = !!on; _gtMiscDivSave();
+        var maps = (typeof gtAllActiveMaps === 'function') ? gtAllActiveMaps() : [];
+        var mid = 'mdiv_' + kind + '_' + key;
+        if (on) { for (var i = 0; i < maps.length; i++) _gtMiscDivAddTo(maps[i], kind, key); }
+        else { for (var j = 0; j < maps.length; j++) { try { if (maps[j].removeGeoJSON) maps[j].removeGeoJSON(mid); } catch (_) {} } }
+    }
+    if (typeof window !== 'undefined') { window.gtToggleMiscDivFeature = gtToggleMiscDivFeature; window.gtApplyAllMiscDiv = gtApplyAllMiscDiv; }
+    // Árvore hierárquica da Miscelânea: Divisão política › América do Sul › países (Brasil › estados)
+    function _gtRenderMiscDivisao(ul) {
+        var iso = [['ARG','Argentina'],['BOL','Bolívia'],['BRA','Brasil'],['CHL','Chile'],['COL','Colômbia'],['ECU','Equador'],['GUY','Guiana'],['FLK','Ilhas Malvinas'],['PRY','Paraguai'],['PER','Peru'],['SUR','Suriname'],['URY','Uruguai'],['VEN','Venezuela']];
+        iso.sort(function (a, b) { return a[1].localeCompare(b[1]); });
+        var ufs = [['AC','Acre'],['AL','Alagoas'],['AP','Amapá'],['AM','Amazonas'],['BA','Bahia'],['CE','Ceará'],['DF','Distrito Federal'],['ES','Espírito Santo'],['GO','Goiás'],['MA','Maranhão'],['MT','Mato Grosso'],['MS','Mato Grosso do Sul'],['MG','Minas Gerais'],['PA','Pará'],['PB','Paraíba'],['PR','Paraná'],['PE','Pernambuco'],['PI','Piauí'],['RJ','Rio de Janeiro'],['RN','Rio Grande do Norte'],['RS','Rio Grande do Sul'],['RO','Rondônia'],['RR','Roraima'],['SC','Santa Catarina'],['SP','São Paulo'],['SE','Sergipe'],['TO','Tocantins']];
+        function _cbRow(kind, key, label) {
+            var li = document.createElement('li');
+            var lbl = document.createElement('label');
+            lbl.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text,#cbd6e6);cursor:pointer;padding:2px 0';
+            var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!_gtMiscDivOn[kind + ':' + key];
+            cb.addEventListener('change', function () { try { gtToggleMiscDivFeature(kind, key, cb.checked); } catch (e) { console.error('miscdiv', e); } });
+            var nm = document.createElement('span'); nm.className = 'gt-tree-name'; nm.textContent = label; nm.title = label;
+            lbl.appendChild(cb); lbl.appendChild(nm); li.appendChild(lbl); return li;
+        }
+        var liRoot = document.createElement('li'); liRoot.setAttribute('data-misc-id', 'divisao_politica');
+        var dRoot = document.createElement('details');
+        var sRoot = document.createElement('summary'); sRoot.style.cssText = 'cursor:pointer;font-size:12px;font-weight:600;color:var(--text,#cbd6e6);padding:3px 0'; sRoot.textContent = '🗺 Divisão política';
+        dRoot.appendChild(sRoot);
+        var dSA = document.createElement('details');
+        var sSA = document.createElement('summary'); sSA.style.cssText = 'cursor:pointer;font-size:12px;color:var(--text,#cbd6e6);padding:2px 0'; sSA.textContent = 'América do Sul';
+        dSA.appendChild(sSA);
+        var ulSA = document.createElement('ul'); ulSA.style.cssText = 'list-style:none;margin:0;padding:0 0 0 12px';
+        for (var i = 0; i < iso.length; i++) {
+            (function (code, name) {
+                if (code === 'BRA') {
+                    var dBR = document.createElement('details');
+                    var sBR = document.createElement('summary'); sBR.style.cssText = 'cursor:pointer;font-size:12px;color:var(--text,#cbd6e6);padding:2px 0'; sBR.textContent = 'Brasil';
+                    dBR.appendChild(sBR);
+                    var ulBR = document.createElement('ul'); ulBR.style.cssText = 'list-style:none;margin:0;padding:0 0 0 12px';
+                    ulBR.appendChild(_cbRow('pais', 'BRA', 'Brasil (contorno do país)'));
+                    for (var k = 0; k < ufs.length; k++) ulBR.appendChild(_cbRow('estado', ufs[k][0], ufs[k][1]));
+                    dBR.appendChild(ulBR);
+                    var liBR = document.createElement('li'); liBR.appendChild(dBR); ulSA.appendChild(liBR);
+                } else { ulSA.appendChild(_cbRow('pais', code, name)); }
+            })(iso[i][0], iso[i][1]);
+        }
+        dSA.appendChild(ulSA);
+        var liSA = document.createElement('li'); liSA.appendChild(dSA);
+        var ulRoot = document.createElement('ul'); ulRoot.style.cssText = 'list-style:none;margin:0;padding:0 0 0 6px'; ulRoot.appendChild(liSA);
+        dRoot.appendChild(ulRoot); liRoot.appendChild(dRoot); ul.appendChild(liRoot);
+    }
+    var _gtDivPending = {};
+    function _gtDivLoad(which) {
+        if (_gtDivCache[which]) return Promise.resolve(_gtDivCache[which]);
+        if (_gtDivPending[which]) return _gtDivPending[which];
+        var def = _GT_DIV_DEF[which];
+        _gtDivPending[which] = new Promise(function (resolve) {
+            if (!def) return resolve(null);
+            try {
+                if (typeof window !== 'undefined' && window[def.gvar]) { _gtDivCache[which] = window[def.gvar]; return resolve(window[def.gvar]); }
+                var sc = document.createElement('script');
+                sc.src = def.jsfile; sc.async = true;
+                sc.onload = function () {
+                    var g = (typeof window !== 'undefined') ? window[def.gvar] : null;
+                    if (g) { _gtDivCache[which] = g; try { console.log('[GISELE/div] carregado', which, (g.features || []).length, 'feições'); } catch (_) {} }
+                    else { try { console.warn('[GISELE/div] script sem dados', which, def.jsfile); } catch (_) {} }
+                    resolve(g || null);
+                };
+                sc.onerror = function () { try { console.warn('[GISELE/div] falha ao carregar', which, def.jsfile); } catch (_) {} resolve(null); };
+                document.head.appendChild(sc);
+            } catch (e) { try { console.warn('[GISELE/div] erro script', which, e && e.message); } catch (_) {} resolve(null); }
+        });
+        return _gtDivPending[which];
+    }
+    async function gtApplyDivision(which) {
+        var def = _GT_DIV_DEF[which]; if (!def) return;
+        var maps = (typeof gtAllActiveMaps === 'function') ? gtAllActiveMaps() : [];
+        var id = 'bgdiv_' + which;
+        if (_gtDivState[which]) {
+            var gj = await _gtDivLoad(which); if (!gj) return;
+            for (var i = 0; i < maps.length; i++) { try { if (maps[i] && maps[i].addGeoJSON) maps[i].addGeoJSON(gj, def.style, id); } catch (_) {} }
+        } else {
+            for (var j = 0; j < maps.length; j++) { try { if (maps[j] && maps[j].removeGeoJSON) maps[j].removeGeoJSON(id); } catch (_) {} }
+        }
+    }
+    function gtApplyAllDivisions() { for (var w in _GT_DIV_DEF) { try { gtApplyDivision(w); } catch (_) {} } }
+    function gtApplyDivisionsToMap(m) {
+        if (!m || typeof m.addGeoJSON !== 'function') { try { console.warn('[GISELE/div] mapa sem addGeoJSON'); } catch (_) {} return; }
+        var apply = function (which) {
+            var def = _GT_DIV_DEF[which];
+            var gj = _gtDivCache[which];
+            if (gj) { try { m.addGeoJSON(gj, def.style, 'bgdiv_' + which); console.log('[GISELE/div] add(sync)', which); } catch (e) { console.warn('[GISELE/div] add err', which, e && e.message); } }
+            else { _gtDivLoad(which).then(function (g) { if (g) { try { m.addGeoJSON(g, def.style, 'bgdiv_' + which); console.log('[GISELE/div] add(async)', which); } catch (e) { console.warn('[GISELE/div] add err', which, e && e.message); } } }); }
+        };
+        for (var w in _GT_DIV_DEF) { if (_gtDivState[w]) apply(w); }
+        try { gtApplyMiscDivToMap(m); } catch (_) {}
+        try { if (typeof gtApplyClipToMap === 'function') gtApplyClipToMap(m); } catch (_) {}
+    }
+    function gtSetDivision(which, on) { _gtDivState[which] = !!on; _gtDivSave(); gtApplyDivision(which); }
+    if (typeof window !== 'undefined') { window.gtSetDivision = gtSetDivision; window.gtApplyAllDivisions = gtApplyAllDivisions; window.gtApplyDivisionsToMap = gtApplyDivisionsToMap; window.gtSetDivisionStyle = gtSetDivisionStyle; }
+    // Pré-carrega os GeoJSON e re-aplica as divisões nos mapas já existentes (robustez de timing).
+    try { console.log('[GISELE/div] init, estado=', JSON.stringify(_gtDivState)); } catch (_) {}
+    try { _gtDivLoad('estados_br'); _gtDivLoad('paises_sa'); } catch (_) {}
+    try { if (typeof window !== 'undefined') { setTimeout(function () { try { gtApplyAllDivisions(); console.log('[GISELE/div] re-aplicado (timeout)'); } catch (_) {} }, 1800); } } catch (_) {}
     function gtRenderTreeBackground() {
         const ul = document.getElementById('gtTreeBackground');
         if (!ul) return;
@@ -19913,6 +20234,38 @@
             li.appendChild(lbl);
             ul.appendChild(li);
         }
+        // ─ Divisão política (overlay no mapa) ─
+        var _divs = [
+            { id: 'estados_br', label: 'Estados (Brasil)' },
+            { id: 'paises_sa',  label: 'Países (América do Sul)' }
+        ];
+        var _sep = document.createElement('li');
+        _sep.style.cssText = 'margin-top:5px;padding-top:5px;border-top:1px dashed var(--border-subtle,#23304a);color:var(--text-muted,#8aa);font-size:11px;font-weight:600';
+        _sep.textContent = '🗺 Divisão política';
+        ul.appendChild(_sep);
+        for (var _di = 0; _di < _divs.length; _di++) {
+            (function (dv) {
+                var li2 = document.createElement('li');
+                li2.style.cssText = 'display:flex;align-items:center;gap:6px';
+                var lbl2 = document.createElement('label');
+                lbl2.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;min-width:0';
+                var cb2 = document.createElement('input'); cb2.type = 'checkbox'; cb2.value = dv.id;
+                cb2.checked = !!(typeof _gtDivState !== 'undefined' && _gtDivState[dv.id]);
+                cb2.addEventListener('change', function () { try { gtSetDivision(dv.id, cb2.checked); } catch (e) { console.error('div toggle', e); } });
+                var nm2 = document.createElement('span'); nm2.className = 'gt-tree-name'; nm2.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap'; nm2.textContent = dv.label; nm2.title = dv.label;
+                lbl2.appendChild(cb2); lbl2.appendChild(nm2);
+                var _st = (_GT_DIV_DEF[dv.id] && _GT_DIV_DEF[dv.id].style) || {};
+                var col = document.createElement('input'); col.type = 'color'; col.title = 'Cor da linha';
+                col.value = (function (c) { c = (c || '#ffffff'); return (/^#[0-9a-fA-F]{6}$/.test(c)) ? c : '#ffffff'; })(_st.stroke);
+                col.style.cssText = 'width:24px;height:18px;padding:0;border:1px solid var(--border-subtle,#23304a);background:none;cursor:pointer;flex:0 0 auto';
+                col.addEventListener('input', function () { try { gtSetDivisionStyle(dv.id, { stroke: col.value }); } catch (e) { console.error('div cor', e); } });
+                var wd = document.createElement('input'); wd.type = 'number'; wd.min = '0.2'; wd.max = '6'; wd.step = '0.1'; wd.title = 'Espessura da linha (px)';
+                wd.value = (_st.lineWidth != null ? _st.lineWidth : 1);
+                wd.style.cssText = 'width:44px;font-size:11px;padding:1px 3px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:3px;flex:0 0 auto';
+                wd.addEventListener('change', function () { var v = parseFloat(wd.value); if (isFinite(v)) { try { gtSetDivisionStyle(dv.id, { lineWidth: v }); } catch (e) { console.error('div esp', e); } } });
+                li2.appendChild(lbl2); li2.appendChild(col); li2.appendChild(wd); ul.appendChild(li2);
+            })(_divs[_di]);
+        }
     }
     function gtRenderTreeMisc() {
         // Captura estado open/closed dos <details> antes de re-renderizar.
@@ -19921,6 +20274,7 @@
         if (!ul) return;
         const man = _gtMiscManifest;  // pode estar null se manifest ainda nao carregou
         ul.innerHTML = '';
+        try { _gtRenderMiscDivisao(ul); } catch (e) { console.error('misc divisao', e); }
         const items = (man && man.items) || [];
         if (!items.length) {
             const li = document.createElement('li'); li.className = 'gt-tree-empty';
@@ -23036,6 +23390,28 @@
           + '</div>'
           + '<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" id="gtCfgBbApply" class="gt-tree-action" style="padding:3px 10px;font-size:11px">Aplicar bbox</button><button type="button" id="gtCfgBbGlobal" class="gt-tree-action" style="padding:3px 10px;font-size:11px" title="Preenche -90..90 / -180..180">Global</button><button type="button" id="gtCfgBbRoll" class="gt-tree-action" style="padding:3px 10px;font-size:11px" title="Campo global 0-360: desloca os dados 180 graus e fixa lon -180..180, lat -90..90">↔ Global 0–360</button></div>';
         p.appendChild(g5b);
+        // ─ Requisitar trecho visível (recorte do viewport no servidor) ─
+        const gWin = document.createElement('div'); gWin.className = 'gt-cfg-calc-row'; gWin.style.cssText = 'margin-top:4px';
+        gWin.innerHTML = '<button type="button" id="gtCfgReqWindow" class="gt-tree-action" style="width:100%;padding:4px 10px;font-size:11px" title="Pede ao servidor apenas o recorte (bbox) visível na tela, do campo ativo, e carrega como camada. Requer o helper Python.">⊡ Requisitar trecho visível (servidor)</button>';
+        p.appendChild(gWin);
+        const _bReqWin = gWin.querySelector('#gtCfgReqWindow');
+        if (_bReqWin) _bReqWin.addEventListener('click', function () { try { gtRequestViewportWindow(); } catch (e) { console.error('req window', e); } });
+        // ─ Recorte do campo por polígono (máscara + janela do servidor) ─
+        const gClip = document.createElement('div'); gClip.className = 'gt-cfg-calc-row'; gClip.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-top:4px;border-top:1px dashed var(--border-subtle,#23304a)';
+        const _clipInputCss = 'flex:1;font-size:11px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:4px;padding:2px 6px';
+        const _clipPolys = (typeof _gtAvailableClipPolygons === 'function') ? _gtAvailableClipPolygons() : [];
+        gClip.innerHTML = '<div style="color:var(--text-muted,#8aa);font-size:11px;font-weight:600" title="Plota o campo só dentro do polígono escolhido e, com o helper, requisita só o bbox dele.">🎭 Recortar campo a um polígono</div>';
+        const _clipSel = document.createElement('select'); _clipSel.style.cssText = _clipInputCss;
+        if (!_clipPolys.length) { const op = document.createElement('option'); op.value = ''; op.textContent = '(nenhum polígono visível/ativo)'; _clipSel.appendChild(op); }
+        else { for (let i = 0; i < _clipPolys.length; i++) { const op = document.createElement('option'); op.value = String(i); op.textContent = _clipPolys[i].label; _clipSel.appendChild(op); } }
+        gClip.appendChild(_clipSel);
+        const _clipBtns = document.createElement('div'); _clipBtns.style.cssText = 'display:flex;gap:6px';
+        const _bClip = document.createElement('button'); _bClip.type = 'button'; _bClip.className = 'gt-tree-action'; _bClip.style.cssText = 'flex:1;padding:3px 8px;font-size:11px'; _bClip.textContent = '🎭 Recortar';
+        _bClip.addEventListener('click', function () { try { const i = parseInt(_clipSel.value, 10); if (isFinite(i) && _clipPolys[i]) gtClipFieldToPolygon(_clipPolys[i].gj, _clipPolys[i].label); else showToast('Selecione um polígono.'); } catch (e) { console.error('clip btn', e); } });
+        const _bClipClr = document.createElement('button'); _bClipClr.type = 'button'; _bClipClr.className = 'gt-tree-action'; _bClipClr.style.cssText = 'flex:0 0 auto;padding:3px 8px;font-size:11px'; _bClipClr.textContent = 'Limpar';
+        _bClipClr.addEventListener('click', function () { try { gtClearFieldClip(); } catch (e) { console.error('clip clr', e); } });
+        _clipBtns.appendChild(_bClip); _clipBtns.appendChild(_bClipClr); gClip.appendChild(_clipBtns);
+        p.appendChild(gClip);
         (function () {
             let _dec = null;
             try { const _al = gtGetLayerObj(gtActiveLayerId); if (_al && _al.id !== 'primary' && _al.decoded) _dec = _al.decoded; } catch (_) {}

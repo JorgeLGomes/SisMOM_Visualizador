@@ -1,7 +1,7 @@
 # GISELE 2.16.0
 
 Build: `20260610-form-campos`
-Data: 2026-06-10
+Data: 2026-06-11
 
 ## Novidades v2.16.0
 
@@ -20,6 +20,8 @@ em vez de baixar o arquivo inteiro. Validado contra o FTP do CPTEC (suporta Rang
   Chaves de escape: `window.GISELE_POINTSERIES=false`, `window.GISELE_SKEWT_HELPER=false`.
 - **Pré-requisitos:** `orjson` instalado no Python do helper; aplicar os patches; reiniciar o helper.
 - Docs: `docs/AVALIACAO_microservico_ponto.md` (avaliação) e `docs/POC_vsicurl_resultados.md` (POC + testes).
+- **Requisitar trecho visível** — botão `⊡ Requisitar trecho visível (servidor)` na config da camada: pede ao servidor apenas o **recorte do viewport** (bbox visível) do campo ativo via `GET /v1/tile/window` (`window_patch.py`, leitura janelada `_dl_clip_tif`), recortando aos **dados válidos** da cobertura, e carrega como camada (`gtRequestViewportWindow`).
+
 
 ### Sombreado em Bandas (filled contour) na configuração da camada
 - Novo sub-painel **Bandas** (aparece em Sombreado → "Bandas (shaded)") com: **Mín/Máx** da escala
@@ -29,6 +31,39 @@ em vez de baixar o arquivo inteiro. Validado contra o FTP do CPTEC (suporta Rang
 - **Filled contour:** no modo Bandas, os **dados** são interpolados (bilinear) para uma grade fina e só
   então classificados — **bordas suaves/curvas** entre as classes, como nas figuras GIF de referência.
   Bordas de NoData preservadas no pixel mais próximo.
+
+### Divisão política no Background (estados BR + países da América do Sul)
+- Nova seção **🗺 Divisão política** no nó **Background**, com toggles **Estados (Brasil)** e
+  **Países (América do Sul)** — overlay vetorial desenhado direto no mapa (não vira "Camada").
+- Dados: `miscelaneas/divisao_estados_br.geojson` (27 UFs) e `divisao_paises_sa.geojson` (13 países),
+  derivados do Natural Earth (admin_1/admin_0, via `sane-topojson`), com nomes (`nome`/`sigla`/`iso3`).
+- **Inicia com os estados do Brasil ligados** por padrão (preferência salva em `gisele.divisions.v1`).
+- **Cores e espessura** das linhas configuráveis (estados e países), persistidas em `gisele.divisions.style.v1`.
+
+### Divisão política na Miscelânea (cada feição como camada selecionável)
+- Nova seção **🗺 Divisão política** na **Miscelânea**, hierárquica: **América do Sul ▸ países** e
+  **Brasil ▸ 27 estados** — cada polígono é uma feição que pode ser ligada/desligada individualmente.
+- O que já estava no Background foi mantido; aqui cada feição vira camada própria (ids `mdiv_<tipo>_<chave>`),
+  com preferência salva em `gisele.misc.div.v1`.
+
+### Recorte do campo por polígono (máscara) + aquisição do *box* no servidor
+- Em qualquer camada de polígono, a ação **Recortar** plota o campo **somente dentro do polígono**,
+  mascarando todo o exterior (`setClipPolygon` no mapa; recorte aplicado no desenho dos rasters).
+- A mesma ação **requisita ao servidor apenas o *box* que contém o polígono** (`GET /v1/tile/window`,
+  leitura janelada `/vsicurl`), carregando o recorte como camada `… · box` — **sem `fitTo`** (não muda o zoom).
+- Durante a **animação**, a camada do *box* (estática) fica **oculta** automaticamente — vale a máscara
+  sobre o campo que está animando ao vivo; ao **parar**, o *box* do servidor reaparece. Requer o helper (⚡).
+
+### Animação mais estável
+- **Preservar zoom na troca de data/passo:** o reenquadre automático (`fitTo`) passa a ocorrer **só na
+  primeira vez** que o painel mostra um modelo. Trocar a **rodada/data** ou avançar o **passo** mantém o
+  zoom do usuário; trocar de **modelo** reenquadra.
+- **Filtro de frames anômalos:** durante a animação, frames cujo **domínio é muito maior** que a referência
+  do painel (ex.: TIF global com span de longitude `>150°` e `>2,5×` a referência) são **pulados**, mantendo
+  o último frame bom — evita o "pulo" causado por passos cujo dado sai em grade/domínio diferente
+  (desligável via `window.GISELE_SKIP_ANOMALOUS_FRAMES=false`).
+  - **Nota:** o caso observado (precipitação saindo **global a cada 24h**) é da **geração do dado**
+    (TIF de acumulada em grade diferente nos passos 24/48/72h), não da lógica do visualizador.
 
 ---
 

@@ -147,7 +147,7 @@ rm -rf ~/.gisele/tiff-cache/*   # ou: curl -X POST http://127.0.0.1:8765/cache/c
 
 ## 7. Continuação da sessão — range-read (/vsicurl) + bandas (v2.16.0)
 
-**MD5 do HTML (lockstep):** `6622c41436f1f89930202b88b3ab34d4` · **linhas:** 25899 ·
+**MD5 do HTML (lockstep):** `c7cf00f318075ca65c66851cf4d9053f` · **linhas:** 26275 ·
 **build:** `20260610-form-campos` · **versão:** 2.16.0
 
 ### 7.1 Micro-serviço de amostragem por range-read
@@ -162,6 +162,7 @@ Endpoints (patches independentes em `electron-app/python-helper/`, com backup `.
 | `poc_vsicurl_patch.py` | `/v1/timeseries/point` (campo `use_vsicurl`) | `_dl_sample_tif` | série temporal |
 | `point_series_patch.py` | `POST /v1/point/series` | `_dl_sample_tif` (paralelo) | série, perfil vertical, SkewT |
 | `line_sample_patch.py` | `POST /v1/line/sample` | `_dl_sample_line` (janela por nível) | corte vertical |
+| `window_patch.py` | `GET /v1/tile/window` | `_dl_clip_tif_bytes` (recorte bbox em memória) | requisitar trecho visível |
 
 `poc_vsicurl_validate.py` valida o range/tiling de um TIF real (rodar no host do helper).
 
@@ -170,6 +171,7 @@ Endpoints (patches independentes em `electron-app/python-helper/`, com backup `.
 - Perfil vertical por ponto: `_gtPointSeriesValues` (helper genérico) em `_gtSampleSourceVProfile`.
 - Série temporal: `use_vsicurl:true` no POST `/v1/timeseries/point` de `gtPyHelper.sampleTimeSeries`.
 - Corte vertical: `_gtLineSampleValues` em `gtSampleCrossSection` → 1 POST `/v1/line/sample`.
+- Requisitar trecho: `gtRequestViewportWindow` (botão na config, grupo bbox) → `GET /v1/tile/window` com o viewport do campo ativo; decodifica e adiciona como camada "<var> · recorte" (recorta aos dados válidos da cobertura).
 - Todos com **fallback JS**. Escapes: `window.GISELE_POINTSERIES=false`, `window.GISELE_SKEWT_HELPER=false`.
 
 ### 7.3 Bandas (filled contour) na config da camada
@@ -193,3 +195,38 @@ com bordas suaves (filled contour), controláveis por Mín/Máx + Nº de bandas 
 explícitos. **Lição de operação:** depois de qualquer patch no HTML, limpar o service worker para a
 versão nova carregar (um Ctrl+Shift+R comum não basta). (Melhoria opcional, não solicitada: desenhar a
 colorbar em blocos discretos para casar com o campo.)
+
+---
+
+## 8. Continuação — divisão política (Miscelânea), recorte por polígono/box e animação
+
+**MD5 do HTML (lockstep):** `c7cf00f318075ca65c66851cf4d9053f` · **linhas:** 26275 · **versão:** 2.16.0
+
+### 8.1 Divisão política — cor/espessura + Miscelânea por feição
+- Background: cor e espessura das linhas (estados BR / países SA), persistidas em `gisele.divisions.style.v1`.
+- Miscelânea: seção **🗺 Divisão política** hierárquica (América do Sul ▸ países; Brasil ▸ 27 estados).
+  Cada polígono é feição ligável: `_gtRenderMiscDivisao`, `gtToggleMiscDivFeature(kind,key,on)`,
+  `gtApplyMiscDivToMap`/`gtApplyAllMiscDiv`, ids `mdiv_<kind>_<key>`, preferência `gisele.misc.div.v1`.
+- **CORS file://:** divisões carregadas por `<script src>` dos `.js` (`window.GISELE_DIV_*`), pois
+  `fetch` de arquivo local é bloqueado (origin `null`). Arquivos em `miscelaneas/` e `electron-app/miscelaneas/`.
+
+### 8.2 Recorte do campo por polígono (máscara) + box do servidor
+- `SisMOM_Map`: `_buildClipPath(gj)` (path do polígono via `lonToX`/`latToY`), `setClipPolygon`/
+  `clearClipPolygon` (set `self.clipPolygon` + `draw()`); `drawRaster` envolve o loop de overlays em
+  `ctx.save()/clip()/restore()` quando há `clipPolygon`. Exportados no objeto do mapa.
+- Frontend `gtClipFieldToPolygon(gj,name)`: aplica a máscara em todos os mapas ativos **e** requisita
+  `GET /v1/tile/window` com o bbox do polígono (`_gtGeojsonBbox`), adicionando como camada `clipwin_…`
+  via **`gtLayerPushToMap` (sem `gtLayerEnsureMap`, logo sem `fitTo`)**.
+- `_gtSetClipwinVisible(on)` oculta/mostra as camadas `clipwin_`; chamado em `iniciarAnimacao(false)` e
+  `pararAnimacao(true)` — durante o loop vale a máscara no campo animado, o box estático some.
+- `gtClearFieldClip` limpa `clipPolygon` e remove as camadas `clipwin_`.
+
+### 8.3 Animação estável (preservar zoom + frames anômalos)
+- `_gtApplyMapView`: `fitTo` só na 1ª vez que a slot mostra um modelo (`_gtSlotFitModel[slotIdx]`).
+  Trocar data/passo (mesmo modelo) preserva o zoom; trocar de modelo reenquadra.
+- `carregarGeoTIFFParaSlot`: filtro de frame anômalo na animação — referência de span de longitude por
+  slot (`_gtSlotRefSpan`, fixada fora da animação); na animação, frame com `span > 150°` e `span > 2,5×`
+  a referência é **pulado** (`return` antes de aplicar) mantendo o último frame bom. Escape:
+  `window.GISELE_SKIP_ANOMALOUS_FRAMES=false`.
+- **Diagnóstico fechado:** precip "global a cada 24h" = geração do dado (acumulada em grade diferente nos
+  passos 24/48/72h), não da plataforma.
