@@ -59,3 +59,10 @@ brand/*
 # ---- api-client: saidas de extracao (CSV de exemplo/teste) ----
 api-client/*.csv
 electron-app/python-helper/.venv-helper/
+
+# ---- Helper local do commit-*.bat (mensagem de commit) ----
+commit-msg.txt
+
+# ---- Frames de depuracao (extracao de video) ----
+_f*/
+_frames/

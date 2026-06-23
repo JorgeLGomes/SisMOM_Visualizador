@@ -1,0 +1,39 @@
+# Normalização de fim de linha — evita "diffs gigantes" por CRLF<->LF.
+# Texto é armazenado no repositório em LF; o checkout no Windows pode usar CRLF,
+# mas o git passa a ignorar essa diferença (não aparece mais como arquivo modificado).
+* text=auto
+
+# Código/texto sempre em LF (inclui o backend e os fontes).
+*.py   text eol=lf
+*.sh   text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.geojson text eol=lf
+
+# Scripts do Windows: CRLF na árvore de trabalho.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binários — sem normalização e sem diff textual.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.pdf  binary
+*.tif  binary
+*.tiff binary
+*.zip  binary
+*.exe  binary
+*.bin  binary
+*.mp4  binary
+*.docx binary
+*.xlsx binary
+*.pptx binary

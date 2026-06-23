@@ -45,7 +45,8 @@
       "icon.ico",
       "icon.png",
       "sismom-icon-192.png",
-      "sismom-icon-512.png"
+      "sismom-icon-512.png",
+      "miscelaneas/**/*"
     ],
     "extraResources": [
       {

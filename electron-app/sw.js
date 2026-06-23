@@ -17,7 +17,7 @@
 'use strict';
 
 // Suba esta versão a cada release para invalidar o cache antigo.
-const CACHE_VERSION = 'v2.13.0';
+const CACHE_VERSION = 'v2.16.0';
 const CACHE_NAME = 'gisele-static-' + CACHE_VERSION;
 
 // Shell mínimo pré-cacheado na instalação. Mantido enxuto de propósito: o HTML

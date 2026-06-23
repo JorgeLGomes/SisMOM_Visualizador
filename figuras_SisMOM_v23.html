@@ -379,6 +379,26 @@
         }
         .gt-cb-item canvas { display: block; }
         .gt-cb-item .gt-cb-minmax { color: var(--text-muted, #aab); font-size: 10px; min-width: 80px; }
+        /* Colorbar vertical junto da borda direita (camada ativa) */
+        .gt-right-cb {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            z-index: 12; pointer-events: none;
+            background: transparent; border: 0; padding: 0; backdrop-filter: none;
+            color: #fff; font-family: ui-monospace, monospace;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8);
+        }
+        .gt-right-cb .gt-right-cb-title {
+            font-weight: 700; font-size: 10px; max-width: 130px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
+        }
+        .gt-right-cb .gt-right-cb-body { display: flex; gap: 6px; align-items: stretch; }
+        .gt-right-cb canvas { display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); }
+        .gt-right-cb .gt-right-cb-ticks { position: relative; min-width: 40px; }
+        .gt-right-cb .gt-right-cb-tick {
+            position: absolute; left: 2px; transform: translateY(-50%);
+            white-space: nowrap; font-size: 10px; font-weight: 600; color: #fff;
+        }
         /* Layout do dashboard GeoTIFF: main + side panel */
         .modal-body.gt-organized { display: flex; gap: 8px; position: relative; min-height: 0; }
         .gt-main-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -3836,7 +3856,9 @@
                 if (p.modelo) state.slots[i].modelo = p.modelo;
                 if (p.variavel) state.slots[i].variavel = p.variavel;
                 state.slots[i].sync = !!p.sync;
-                if (p.data) state.slots[i].data = p.data;
+                // NÃO restaura a data salva: a plataforma SEMPRE entra na data do dia
+                // corrente (aplicarDatasIniciais) e recua p/ a anterior se a rodada do
+                // dia não existir (resolverEAplicarDataM1). Por isso p.data é ignorado.
                 if (p.lastVarByModel && typeof p.lastVarByModel === 'object') {
                     state.slots[i].lastVarByModel = p.lastVarByModel;
                 }
@@ -8064,7 +8086,7 @@
                 case ' ': e.preventDefault(); toggleAnimacao(); break;
                 case 'ArrowRight': e.preventDefault(); setPasso(state.passoAtual + (state.stepFreq || 1)); break;
                 case 'ArrowLeft':  e.preventDefault(); setPasso(state.passoAtual - (state.stepFreq || 1)); break;
-                case 'r': case 'R': resetarZoom(true); showToast('Zoom resetado'); break;
+                case 'r': case 'R': try { if (typeof appMode !== 'undefined' && appMode === 'gtiff') gtResetViewToSA(); } catch (_) {} resetarZoom(true); showToast('Visualização reiniciada (América do Sul)'); break;
                 case 's': case 'S': toggleSidebar(); break;
                 case 't': case 'T': toggleTheme(); break;
                 case 'f': case 'F': toggleFullscreen(0); break;
@@ -8643,7 +8665,7 @@
         if (btnGravar) btnGravar.addEventListener('click', () => {
             gravarVideoEvolucaoTemporal().catch(e => { console.error('gravar video', e); alert('Falha na gravação: ' + (e && e.message)); });
         });
-        DOM.btnResetZoom.addEventListener('click', () => { resetarZoom(true); showToast('Zoom resetado'); });
+        DOM.btnResetZoom.addEventListener('click', () => { try { if (typeof appMode !== 'undefined' && appMode === 'gtiff') gtResetViewToSA(); } catch (_) {} resetarZoom(true); showToast('Visualização reiniciada (América do Sul)'); });
 
         DOM.velocidade.addEventListener('change', (e) => setVelocidade(Number(e.target.value)));
         DOM.stepRange.addEventListener('input', (e) => {
@@ -10122,9 +10144,21 @@
     // Referência de extensão (span de longitude) do frame "bom" por slot, p/ filtrar
     // frames anômalos (domínio global) durante a animação.
     const _gtSlotRefSpan = [];
-    // Modelo p/ o qual cada slot já foi enquadrada (fitTo). Trocar de data/passo no
-    // MESMO modelo preserva o zoom atual; trocar de MODELO refaz o enquadre.
-    const _gtSlotFitModel = [];
+    // Viewport inicial já estabelecido para a slot? fitTo só na PRIMEIRA carga;
+    // depois, trocar de modelo/data/passo ou dar zoom NÃO reenquadra (preserva a vista).
+    const _gtSlotViewInit = [];
+    // Domínio inicial padrão = América do Sul (≈ domínio do Eta). Toda nova slot abre
+    // aqui, independentemente de qual modelo carregue primeiro. Formato fitTo (lon/lat).
+    const _GT_SA_BBOX = { minX: -85, minY: -52, maxX: -30, maxY: 13 };
+    // Reposiciona todos os mapas GeoTIFF ativos no domínio inicial (América do Sul).
+    // Usado pelo botão "Resetar zoom" / tecla R / zoom-reset da toolbar no modo gtiff.
+    function gtResetViewToSA() {
+        try {
+            var maps = (typeof gtAllActiveMaps === 'function') ? gtAllActiveMaps() : [];
+            for (var i = 0; i < maps.length; i++) { try { if (maps[i] && maps[i].fitTo) maps[i].fitTo(_GT_SA_BBOX); } catch (_) {} }
+        } catch (_) {}
+    }
+    if (typeof window !== 'undefined') window.gtResetViewToSA = gtResetViewToSA;
     function _bboxEqExact(a, b) {
         if (!a || !b) return false;
         return a.minX === b.minX && a.maxX === b.maxX && a.minY === b.minY && a.maxY === b.maxY;
@@ -10134,15 +10168,10 @@
             try { m.setTileProvider(provider); } catch (_) {}
             _gtSlotLastProvider[slotIdx] = provider;
         }
-        var _curModel = '';
-        try { _curModel = (state.slots[slotIdx] && state.slots[slotIdx].modelo) || ''; } catch (_) {}
         if (!_bboxEqExact(_gtSlotLastBbox[slotIdx], bbox)) {
             // ─── Trava no painel 1 (slot 0) ───
             // Para slots != 0: NÃO faz fitTo do bbox do layer; em vez disso, copia o
-            // viewport atual do slot 0 (painel 1 = referência). Assim, ao trocar
-            // modelo em Mi 2/3/4, a área navegada delimitada por Mi 1 é preservada.
-            // Fallback para fitTo só se slot 0 ainda não existe (ex: carga inicial
-            // antes do Mi 1 ter sido renderizado, ou se Mi 1 não tem viewport).
+            // viewport atual do slot 0 (painel 1 = referência).
             let synced = false;
             if (slotIdx !== 0) {
                 const ref = _gtSlotMap[0];
@@ -10156,15 +10185,14 @@
                     } catch (_) {}
                 }
             }
-            // fitTo APENAS na 1ª vez que esta slot mostra ESTE modelo. Trocar de data/
-            // passo (mesmo modelo) mantém o zoom do usuário; trocar de modelo reenquadra.
-            if (!synced && _gtSlotFitModel[slotIdx] !== _curModel) {
-                try { m.fitTo(bbox); } catch (_) {}
-                _gtSlotFitModel[slotIdx] = _curModel;
+            // fitTo APENAS na 1ª carga desta slot — estabelece o domínio inicial (América
+            // do Sul / Eta). Depois, trocar de MODELO ou de DATA/passo (e o zoom do usuário)
+            // NÃO reenquadram: a janela de visualização é preservada. ("Resetar zoom" refaz.)
+            if (!synced && !_gtSlotViewInit[slotIdx]) {
+                try { m.fitTo(_GT_SA_BBOX); } catch (_) {}
+                _gtSlotViewInit[slotIdx] = true;
             }
             _gtSlotLastBbox[slotIdx] = bbox;
-        } else if (_gtSlotFitModel[slotIdx] !== _curModel) {
-            _gtSlotFitModel[slotIdx] = _curModel;
         }
     }
     // Cache ImageData por (url + opts). aplicarPaleta só roda 1x por configuração.
@@ -10382,7 +10410,7 @@
         const slotIdx = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
         let al = null; try { al = gtGetLayerObj(gtActiveLayerId); } catch (_) {}
         let dec = (al && al.id !== 'primary' && al.decoded) ? al.decoded : ((typeof gtSlotDecoded !== 'undefined') ? gtSlotDecoded[slotIdx] : null);
-        if (!dec || !dec.data) { alert('Carregue/selecione uma camada raster.'); return; }
+        if (!dec || !dec.data) { gtShowMessage('Carregue ou selecione uma camada raster antes de usar esta ação.', { title: 'Nenhuma camada raster', kind: 'warn' }); return; }
         _gtRollDataX(dec);
         const bbox = { minX: -180, maxX: 180, minY: -90, maxY: 90 };
         dec.bbox = bbox;
@@ -10697,6 +10725,55 @@
         if (!el) return;
         el.classList.add('flash');
         setTimeout(() => el.classList.remove('flash'), 700);
+    }
+    // ─── Caixa de mensagem (modal, fundo branco) para avisos ───
+    // Uso: gtShowMessage('texto', { title, kind:'warn'|'info'|'error', html:true })
+    function gtShowMessage(message, opts) {
+        opts = opts || {};
+        var kind = opts.kind || 'warn';
+        var title = opts.title || (kind === 'error' ? 'Erro' : (kind === 'info' ? 'Informação' : 'Aviso'));
+        function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+        try { var old = document.getElementById('gtMsgBoxOverlay'); if (old) old.remove(); } catch (_) {}
+        var accent = (kind === 'error') ? '#dc2626' : (kind === 'info' ? '#2563eb' : '#d97706');
+        var icon = (kind === 'error') ? '⛔' : (kind === 'info' ? 'ℹ' : '⚠');
+        var overlay = document.createElement('div');
+        overlay.id = 'gtMsgBoxOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(8,12,20,0.45);z-index:100000;display:flex;align-items:center;justify-content:center;';
+        var body = opts.html ? String(message == null ? '' : message) : esc(message).replace(/\n/g, '<br>');
+        var box = document.createElement('div');
+        box.style.cssText = 'background:#ffffff;color:#0f172a;max-width:460px;width:calc(100% - 48px);border-radius:10px;box-shadow:0 18px 50px rgba(0,0,0,0.4);border-top:4px solid ' + accent + ';font-family:ui-sans-serif,system-ui,sans-serif;overflow:hidden;';
+        box.innerHTML = ''
+            + '<div style="padding:18px 22px 8px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:' + accent + '">'
+            +   '<span style="font-size:18px">' + icon + '</span><span style="color:#0f172a">' + esc(title) + '</span></div>'
+            + '<div style="padding:0 22px 16px;font-size:13.5px;line-height:1.55;color:#334155">' + body + '</div>'
+            + '<div style="padding:10px 18px;background:#f1f5f9;display:flex;justify-content:flex-end">'
+            +   '<button id="gtMsgBoxOk" style="padding:7px 20px;background:' + accent + ';color:#fff;border:0;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer">OK</button></div>';
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        function close() { try { overlay.remove(); } catch (_) {} document.removeEventListener('keydown', onKey); }
+        function onKey(e) { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); close(); } }
+        document.addEventListener('keydown', onKey);
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        var okb = box.querySelector('#gtMsgBoxOk'); if (okb) { okb.addEventListener('click', close); try { okb.focus(); } catch (_) {} }
+        return overlay;
+    }
+    if (typeof window !== 'undefined') window.gtShowMessage = gtShowMessage;
+    // Sombra de alert(): todos os avisos do app passam pela caixa branca (gtShowMessage),
+    // inferindo o tipo (erro vs aviso) pela mensagem. Mantém fallback ao alert nativo se
+    // a caixa falhar (ex.: DOM ainda não pronto). confirm()/prompt() não são afetados.
+    function alert(message) {
+        try {
+            var msg = String(message == null ? '' : message);
+            var isErr = /\b(erro|falha|inv[áa]lid)/i.test(msg);
+            return gtShowMessage(msg, { kind: isErr ? 'error' : 'warn', title: isErr ? 'Erro' : 'Aviso' });
+        } catch (_) {
+            try { return window.alert(message); } catch (e) {}
+        }
+    }
+    // True se o painel tem um modelo configurado (com template de URL) — necessário para
+    // as ferramentas que varrem tempo (passos) e/ou níveis verticais.
+    function _gtSlotHasModel(slotIdx) {
+        try { var s = state && state.slots && state.slots[slotIdx]; return !!(s && s.modelo); } catch (_) { return false; }
     }
     function gtSetSlotTool(slotIdx, tool) {
         // Cancela rascunho ao trocar ferramenta (mesmo se for a mesma)
@@ -11481,10 +11558,23 @@
                 const lx = gtExtraLayers.find(l => l.id === activeId);
                 if (lx && lx.decoded) { foreDecoded = lx.decoded; foreName = lx.name || lx.id; }
             }
-            // Fallback: se a camada ativa não tem dados, tenta a primary do slot
+            // Fallback: se a camada ativa não tem dados, tenta a primary do slot…
             if (!foreDecoded) {
                 foreDecoded = gtSlotDecoded[slotIdx];
-                foreName = '(primary fallback)';
+                if (foreDecoded) foreName = '(primary fallback)';
+            }
+            // …e, se ainda não houver, a 1ª camada extra (geotiff) VISÍVEL no topo do slot.
+            // Cobre o caso de só haver camadas de "+ Adicionar GeoTIFF" (sem primary no painel).
+            if (!foreDecoded && m && typeof m.getOverlays === 'function') {
+                try {
+                    const _ovs = m.getOverlays() || [];
+                    for (let _oi = 0; _oi < _ovs.length; _oi++) {
+                        const _o = _ovs[_oi];
+                        if (!_o || _o.visible === false || _o.id === 'primary') continue;
+                        const _lx = gtExtraLayers.find(l => l.id === _o.id);
+                        if (_lx && _lx.decoded) { foreDecoded = _lx.decoded; foreName = _lx.name || _lx.id; break; }
+                    }
+                } catch (_) {}
             }
         } catch (_) {}
         if (!foreDecoded || !foreDecoded.bbox) {
@@ -11582,7 +11672,7 @@
                 }
             } catch (e) { console.warn('[profile] slot', i, e); }
         }
-        if (!profiles.length) { alert('Não foi possível gerar perfil — camada do topo sem dados na região.'); return; }
+        if (!profiles.length) { gtShowMessage('Não foi possível gerar o perfil: a camada ativa não tem dados válidos ao longo da linha (verifique se a linha cruza a área coberta pela camada e se a camada certa está selecionada).', { title: 'Perfil sem dados', kind: 'warn' }); return; }
         // Para compatibilidade com handlers existentes, mantém referência ao perfil "primario" (source)
         const profile = profiles.find(p => p.slotIdx === slotIdx) || profiles[0];
         if (ann && ann.coords && ann.coords.length >= 2) { _gtProfileLine = { slotIdx: slotIdx, ann: ann }; }
@@ -14414,6 +14504,22 @@
             const action = btn.getAttribute('data-action');
             const tool   = btn.getAttribute('data-tool');
             const m = _gtSlotMap[slotIdx];
+            // Ferramentas que precisam de um MODELO com tempo (passos) e/ou níveis verticais.
+            // Uma camada de "+ Adicionar GeoTIFF" é um campo único (sem modelo) → avisa.
+            if ((tool === 'timeseries' || tool === 'vprofile' || tool === 'skewt' || action === 'ts-polygon') && !_gtSlotHasModel(slotIdx)) {
+                var _need3d = (tool === 'vprofile' || tool === 'skewt');
+                gtShowMessage(
+                    'Esta ferramenta precisa de um <b>modelo</b> configurado no painel, com '
+                    + (_need3d ? '<b>níveis verticais</b>' : '<b>passos de tempo</b>')
+                    + '. A camada adicionada por <b>"+ Adicionar GeoTIFF"</b> é um campo único '
+                    + '(um instante, um nível, sem modelo), então não há '
+                    + (_need3d ? 'níveis' : 'passos') + ' para varrer.<br><br>'
+                    + 'Para esta camada, use as ferramentas de campo único: <b>perfil ao longo de linha</b>, '
+                    + '<b>valor em ponto</b>, <b>distância</b> e <b>área</b>.',
+                    { title: 'Ferramenta indisponível para esta camada', kind: 'warn', html: true }
+                );
+                return;
+            }
             if (tool === 'timeseries') {
                 // Abre dialog de configuração (lat/lon + período + painéis-alvo) antes de
                 // ativar a ferramenta. O dialog decide se aciona click no mapa ou usa lat/lon direto.
@@ -14437,8 +14543,8 @@
             if (action === 'zoom-in' && m.zoomBy) m.zoomBy(0.7);
             else if (action === 'zoom-out' && m.zoomBy) m.zoomBy(1.4);
             else if (action === 'zoom-reset') {
-                const bbox = (m.getLastFitBbox && m.getLastFitBbox()) || (gtSlotDecoded[slotIdx] && gtSlotDecoded[slotIdx].bbox);
-                if (bbox && m.fitTo) m.fitTo(bbox);
+                // Volta sempre ao domínio inicial (América do Sul).
+                if (m && m.fitTo) m.fitTo(_GT_SA_BBOX);
             }
             else if (action === 'clear-annotations') {
                 // ─── Multi-painel: limpa também os painéis travados ───
@@ -15158,8 +15264,9 @@
         const minEl = document.getElementById('gtMin');
         const maxEl = document.getElementById('gtMax');
         if (!minEl.hasAttribute('data-editing')) {
-            minEl.value = decoded.min;
-            maxEl.value = decoded.max;
+            const _ae = document.activeElement;        // não clobbera o campo em edição
+            if (_ae !== minEl) minEl.value = decoded.min;
+            if (_ae !== maxEl) maxEl.value = decoded.max;
         }
         gtDesenharColorbar();
     }
@@ -15703,20 +15810,24 @@
         const btnEdit = document.getElementById('btnGtEdit');
         const btnAuto = document.getElementById('btnGtAuto');
         if (minEl && maxEl) {
+            // Não sobrescreve o valor do campo que o usuário está editando (foco),
+            // senão a re-sincronização por frame (durante a animação) reverte o que
+            // está sendo digitado e impede ajustar Mín/Máx com o loop rodando.
+            const _ae = document.activeElement;
             if (gt.autoMinMax) {
                 minEl.removeAttribute('data-editing');
                 minEl.setAttribute('readonly',''); maxEl.setAttribute('readonly','');
                 if (btnEdit) btnEdit.style.display = '';
                 if (btnAuto) btnAuto.style.display = 'none';
                 const dec = gtSlotDecoded[slotIdx];
-                if (dec) { minEl.value = dec.min; maxEl.value = dec.max; }
+                if (dec) { if (_ae !== minEl) minEl.value = dec.min; if (_ae !== maxEl) maxEl.value = dec.max; }
             } else {
                 minEl.setAttribute('data-editing','1');
                 minEl.removeAttribute('readonly'); maxEl.removeAttribute('readonly');
                 if (btnEdit) btnEdit.style.display = 'none';
                 if (btnAuto) btnAuto.style.display = '';
-                if (gt.min != null) minEl.value = gt.min;
-                if (gt.max != null) maxEl.value = gt.max;
+                if (gt.min != null && _ae !== minEl) minEl.value = gt.min;
+                if (gt.max != null && _ae !== maxEl) maxEl.value = gt.max;
             }
         }
         const undefEl = document.getElementById('gtUndef');
@@ -16226,7 +16337,7 @@
                 try {
                     const ok = (typeof window !== 'undefined' && typeof window.gtForceFlipY === 'function')
                         ? window.gtForceFlipY() : false;
-                    if (!ok) alert('Não foi possível inverter — carregue um TIF primeiro.');
+                    if (!ok) gtShowMessage('Não foi possível inverter: carregue um TIF primeiro.', { title: 'Sem dados', kind: 'warn' });
                 } catch (e) { console.error('flipY click', e); }
             });
         }
@@ -18416,7 +18527,9 @@
     })();
     function gtRenderOverlayColorbars() {
         const stack = document.getElementById('gtCbStack');
-        if (!stack) return;
+        // No multi-painel não existe o #gtCbStack (ele é do visualizador modal legado).
+        // Ainda assim renderizamos a colorbar vertical da borda direita.
+        if (!stack) { try { gtRenderRightColorbar(); } catch (_) {} return; }
         stack.innerHTML = '';
         // Coleta camadas raster visíveis (primary se visível + extras geotiff visíveis)
         const items = [];
@@ -18468,7 +18581,78 @@
             row.appendChild(name); row.appendChild(cv); row.appendChild(mm);
             stack.appendChild(row);
         }
+        try { gtRenderRightColorbar(); } catch (_) {}
     }
+    // Colorbar VERTICAL junto da borda direita do mapa — mostra a paleta da camada ATIVA
+    // (ou a 1ª raster visível), com rótulos de escala. Sincronizada via gtRenderOverlayColorbars.
+    function gtRenderRightColorbar() {
+        // Ancora no .map-body do painel ativo (mesmo container do HUD/pins, position:relative).
+        var mapBox = document.querySelector('.map-box.gt-map-active') || document.querySelector('.map-box.gt-active') || document.querySelector('.map-box');
+        var host = mapBox ? (mapBox.querySelector('.map-body') || mapBox) : (function () { var s = document.getElementById('gtCbStack'); return s ? s.parentNode : null; })();
+        if (!host) { try { console.warn('[GISELE/cbRight] sem host (.map-body)'); } catch (_) {} return; }
+        // Remove instâncias antigas em outros containers (troca de painel ativo)
+        try { document.querySelectorAll('.gt-right-cb').forEach(function (e) { if (e.parentNode !== host) e.remove(); }); } catch (_) {}
+        var box = host.querySelector('#gtRightCb');
+        // Resolve camada/paleta/escala EXATAMENTE como o campo é renderizado.
+        var dec = null, palName = 'viridis', nm = '', mn, mx;
+        // Primary em modo gtiff: paleta e min/máx vêm do ESTADO DO SLOT (gtSlotApplyOpts),
+        // não de gtPrimaryProps — senão a colorbar mostra paleta diferente do campo.
+        function _useSlotPrimary() {
+            try {
+                var si = (typeof gtActivePanel !== 'undefined') ? gtActivePanel : 0;
+                var d0 = gtLastDecoded || ((typeof gtSlotDecoded !== 'undefined') ? gtSlotDecoded[si] : null);
+                if (!d0) return false;
+                var opts = (typeof gtSlotApplyOpts === 'function') ? gtSlotApplyOpts(si) : { paleta: 'viridis' };
+                dec = d0; palName = opts.paleta || 'viridis';
+                if (isFinite(opts.min) && isFinite(opts.max) && opts.max > opts.min) { mn = opts.min; mx = opts.max; } else { mn = d0.min; mx = d0.max; }
+                try { var pl = gtGetLayerObj('primary'); nm = (pl && pl.name) || '(camada base)'; } catch (_) { nm = '(camada base)'; }
+                return true;
+            } catch (_) { return false; }
+        }
+        function _useExtra(l) {
+            var d = (l.id === 'primary') ? gtLastDecoded : l.decoded; if (!d) return false;
+            var pr = l.props || {}; dec = d; palName = pr.paleta || l.paleta || 'viridis'; nm = l.name || l.id;
+            if (!pr.autoMinMax && isFinite(pr.customMin) && isFinite(pr.customMax) && pr.customMax > pr.customMin) { mn = pr.customMin; mx = pr.customMax; }
+            else if (isFinite(pr.effMin) && isFinite(pr.effMax) && pr.effMax > pr.effMin) { mn = pr.effMin; mx = pr.effMax; }
+            else { mn = d.min; mx = d.max; }
+            return true;
+        }
+        var aid = (typeof gtActiveLayerId !== 'undefined') ? gtActiveLayerId : 'primary';
+        var ok = false;
+        if (aid === 'primary' && (typeof appMode === 'undefined' || appMode === 'gtiff')) { ok = _useSlotPrimary(); }
+        if (!ok && aid && aid !== 'primary') { try { var al = gtGetLayerObj(aid); if (al && al.type === 'geotiff' && al.visible !== false) ok = _useExtra(al); } catch (_) {} }
+        if (!ok) { ok = _useSlotPrimary(); }
+        if (!ok) {
+            var all = (typeof gtAllLayers === 'function') ? gtAllLayers() : [];
+            for (var i = 0; i < all.length; i++) { var l = all[i]; if (l.type !== 'geotiff' || l.visible === false) continue; if (_useExtra(l)) { ok = true; break; } }
+        }
+        if (!ok || !dec || !isFinite(mn) || !isFinite(mx) || mx <= mn) { if (box) box.remove(); return; }
+        if (!box) { box = document.createElement('div'); box.id = 'gtRightCb'; box.className = 'gt-right-cb'; host.appendChild(box); }
+        var H = 200, W = 16, nTicks = 5;
+        var fmt = function (v) { var a = Math.abs(v); return (a !== 0 && (a < 1e-3 || a >= 1e6)) ? v.toExponential(1) : v.toFixed(a >= 100 ? 0 : (a >= 10 ? 1 : 2)); };
+        box.innerHTML = '';
+        var title = document.createElement('div'); title.className = 'gt-right-cb-title'; title.textContent = nm; box.appendChild(title);
+        var body = document.createElement('div'); body.className = 'gt-right-cb-body';
+        var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        var ctx = cv.getContext('2d');
+        var PAL = (window.SisMOM_GeoTIFF && SisMOM_GeoTIFF.GT_PALETTES) ? SisMOM_GeoTIFF.GT_PALETTES[palName] : null;
+        if (PAL) {
+            var img = ctx.createImageData(1, H), aa = img.data;
+            for (var y = 0; y < H; y++) { var tt = 1 - (y / (H - 1)); var idx = Math.min(255, Math.max(0, (tt * 255) | 0)); aa[y * 4] = PAL[idx * 3]; aa[y * 4 + 1] = PAL[idx * 3 + 1]; aa[y * 4 + 2] = PAL[idx * 3 + 2]; aa[y * 4 + 3] = 255; }
+            var off = document.createElement('canvas'); off.width = 1; off.height = H; off.getContext('2d').putImageData(img, 0, 0);
+            ctx.imageSmoothingEnabled = false; ctx.drawImage(off, 0, 0, W, H);
+        }
+        body.appendChild(cv);
+        var ticks = document.createElement('div'); ticks.className = 'gt-right-cb-ticks'; ticks.style.height = H + 'px';
+        for (var t = 0; t < nTicks; t++) {
+            var frac = t / (nTicks - 1), val = mx - frac * (mx - mn);
+            var tk = document.createElement('div'); tk.className = 'gt-right-cb-tick'; tk.style.top = (frac * 100) + '%'; tk.textContent = fmt(val);
+            ticks.appendChild(tk);
+        }
+        body.appendChild(ticks);
+        box.appendChild(body);
+    }
+    if (typeof window !== 'undefined') window.gtRenderRightColorbar = gtRenderRightColorbar;
     function gtDesenharColorbar() {
         const cv = document.getElementById('gtColorbar');
         if (!cv) return;
@@ -18809,8 +18993,23 @@
     }
     function _gtAvailableClipPolygons() {
         var out = [];
+        // 1) Camadas GeoJSON/shape importadas (com polígonos), visíveis.
         try { var ls = (typeof gtExtraLayers !== 'undefined') ? gtExtraLayers : []; for (var i = 0; i < ls.length; i++) { var l = ls[i]; if (l && l.type === 'geojson' && l.visible !== false && l.data && (typeof _hasPolys === 'function' ? _hasPolys(l) : true)) out.push({ label: (l.name || l.id), gj: l.data }); } } catch (_) {}
+        // 2) Feições da Divisão política ligadas na MISCELÂNEA (cada país/estado).
         try { if (typeof _gtMiscDivOn !== 'undefined') { for (var id in _gtMiscDivOn) { if (!_gtMiscDivOn[id]) continue; var p = id.split(':'); var feat = (typeof _gtMiscDivFeat === 'function') ? _gtMiscDivFeat(p[0], p[1]) : null; if (feat) { var nm = (feat.properties && (feat.properties.nome || feat.properties.sigla || feat.properties.iso3)) || id; out.push({ label: 'Divisão: ' + nm, gj: { type: 'FeatureCollection', features: [feat] } }); } } } } catch (_) {}
+        // 3) Polígonos do USUÁRIO (desenhados/importados/salvos). coords = [lat,lon].
+        try {
+            if (typeof gtSavedPolygons !== 'undefined' && gtSavedPolygons && typeof gtSavedPolygons.list === 'function') {
+                var sp = gtSavedPolygons.list() || [];
+                for (var s = 0; s < sp.length; s++) {
+                    var rec = sp[s];
+                    if (!rec || !Array.isArray(rec.coords) || rec.coords.length < 3) continue;
+                    var ring = rec.coords.map(function (c) { return [+c[1], +c[0]]; }); // [lat,lon] -> [lon,lat]
+                    if (ring.length && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) ring.push(ring[0]);
+                    out.push({ label: '✏️ ' + (rec.nome || rec.id || ('Polígono ' + (s + 1))), gj: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring] } } });
+                }
+            }
+        } catch (_) {}
         return out;
     }
     function gtApplyClipToMap(m) { try { if (m && m.setClipPolygon) m.setClipPolygon(_gtFieldClip); } catch (_) {} }
@@ -18890,6 +19089,9 @@
             gtExtraLayers.push(layer);
             gtLayerEnsureMap();
             await gtLayerPushToMap(layer);
+            // Torna a camada recém-adicionada a ATIVA, para que as ferramentas (perfil de
+            // linha, valor em ponto, distância/área, exportar) amostrem este TIF.
+            try { if (typeof gtSetActiveLayer === 'function') gtSetActiveLayer(id); else gtActiveLayerId = id; } catch (_) {}
         } else if (lower.endsWith('.geojson') || lower.endsWith('.json')) {
             const txt = await file.text();
             let data;
@@ -20041,6 +20243,9 @@
     }
     // ─── Divisão política (overlay vetorial no mapa: estados BR / países AS) ───
     var _gtDivState = (function () { try { return JSON.parse(localStorage.getItem('gisele.divisions.v1')) || null; } catch (_) { return null; } })() || { estados_br: true, paises_sa: false };
+    // Forçar SEMPRE iniciar com a divisão política dos ESTADOS do Brasil ligada
+    // (independe do que foi salvo na sessão anterior).
+    _gtDivState.estados_br = true;
     var _gtDivCache = {};
     var _GT_DIV_DEF = {
         estados_br: { jsfile: 'miscelaneas/divisao_estados_br.js', gvar: 'GISELE_DIV_estados_br', style: { stroke: '#eef2f6', lineWidth: 0.9, fill: null } },
@@ -23399,11 +23604,22 @@
         // ─ Recorte do campo por polígono (máscara + janela do servidor) ─
         const gClip = document.createElement('div'); gClip.className = 'gt-cfg-calc-row'; gClip.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-top:4px;border-top:1px dashed var(--border-subtle,#23304a)';
         const _clipInputCss = 'flex:1;font-size:11px;background:var(--bg-elev-1,#0e1622);color:var(--text,#dbe2ec);border:1px solid var(--border-subtle,#23304a);border-radius:4px;padding:2px 6px';
-        const _clipPolys = (typeof _gtAvailableClipPolygons === 'function') ? _gtAvailableClipPolygons() : [];
+        let _clipPolys = (typeof _gtAvailableClipPolygons === 'function') ? _gtAvailableClipPolygons() : [];
         gClip.innerHTML = '<div style="color:var(--text-muted,#8aa);font-size:11px;font-weight:600" title="Plota o campo só dentro do polígono escolhido e, com o helper, requisita só o bbox dele.">🎭 Recortar campo a um polígono</div>';
         const _clipSel = document.createElement('select'); _clipSel.style.cssText = _clipInputCss;
-        if (!_clipPolys.length) { const op = document.createElement('option'); op.value = ''; op.textContent = '(nenhum polígono visível/ativo)'; _clipSel.appendChild(op); }
-        else { for (let i = 0; i < _clipPolys.length; i++) { const op = document.createElement('option'); op.value = String(i); op.textContent = _clipPolys[i].label; _clipSel.appendChild(op); } }
+        // Repopula a lista a partir dos polígonos VISÍVEIS/ativos no momento (camadas geojson
+        // visíveis, feições da Divisão política ligadas na Miscelânea e polígonos do usuário).
+        function _clipRepop() {
+            try { _clipPolys = (typeof _gtAvailableClipPolygons === 'function') ? _gtAvailableClipPolygons() : []; } catch (_) { _clipPolys = []; }
+            const prev = _clipSel.value; _clipSel.innerHTML = '';
+            if (!_clipPolys.length) { const op = document.createElement('option'); op.value = ''; op.textContent = '(nenhum polígono visível/ativo)'; _clipSel.appendChild(op); }
+            else { for (let i = 0; i < _clipPolys.length; i++) { const op = document.createElement('option'); op.value = String(i); op.textContent = _clipPolys[i].label; _clipSel.appendChild(op); } }
+            if (prev && _clipSel.querySelector('option[value="' + prev + '"]')) _clipSel.value = prev;
+        }
+        _clipRepop();
+        // Atualiza ao abrir o dropdown (reflete o que está visível agora).
+        _clipSel.addEventListener('mousedown', _clipRepop);
+        _clipSel.addEventListener('focus', _clipRepop);
         gClip.appendChild(_clipSel);
         const _clipBtns = document.createElement('div'); _clipBtns.style.cssText = 'display:flex;gap:6px';
         const _bClip = document.createElement('button'); _bClip.type = 'button'; _bClip.className = 'gt-tree-action'; _bClip.style.cssText = 'flex:1;padding:3px 8px;font-size:11px'; _bClip.textContent = '🎭 Recortar';
